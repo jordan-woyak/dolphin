@@ -209,8 +209,7 @@ void MappingButton::Clear()
 void MappingButton::Update()
 {
   const auto lock = ControllerEmu::EmulatedController::GetStateLock();
-  m_reference->UpdateReference(g_controller_interface,
-                               m_parent->GetController()->GetDefaultDevice());
+  m_parent->GetController()->UpdateSingleControlReference(g_controller_interface, m_reference);
   setText(EscapeAmpersand(QString::fromStdString(m_reference->GetExpression())));
 }
 

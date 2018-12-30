@@ -37,8 +37,10 @@ enum TokenType
   TOK_MUL,
   TOK_DIV,
   TOK_MOD,
+  TOK_ASSIGN,
   TOK_CONTROL,
   TOK_LITERAL,
+  TOK_VARIABLE,
 };
 
 inline std::string OpName(TokenType op)
@@ -59,6 +61,10 @@ inline std::string OpName(TokenType op)
     return "Div";
   case TOK_MOD:
     return "Mod";
+  case TOK_ASSIGN:
+    return "Assign";
+  case TOK_VARIABLE:
+    return "Var";
   default:
     assert(false);
     return "";
@@ -99,10 +105,14 @@ public:
       return "/";
     case TOK_MOD:
       return "%";
+    case TOK_ASSIGN:
+      return "=";
     case TOK_CONTROL:
       return "Device(" + data + ")";
     case TOK_LITERAL:
       return '\'' + data + '\'';
+    case TOK_VARIABLE:
+      return '$' + data;
     case TOK_INVALID:
       break;
     }
@@ -133,20 +143,22 @@ public:
     return false;
   }
 
-  Token GetUnaryFunction()
+  std::string FetchWordChars()
   {
-    std::string name;
+    std::string word;
 
     std::regex valid_name_char("[a-z0-9_]", std::regex_constants::icase);
 
     while (it != expr.end() && std::regex_match(std::string(1, *it), valid_name_char))
     {
-      name += *it;
+      word += *it;
       ++it;
     }
 
-    return Token(TOK_UNARY, name);
+    return word;
   }
+
+  Token GetUnaryFunction() { return Token(TOK_UNARY, FetchWordChars()); }
 
   Token GetLiteral()
   {
@@ -154,6 +166,8 @@ public:
     FetchDelimString(value, '\'');
     return Token(TOK_LITERAL, value);
   }
+
+  Token GetVariable() { return Token(TOK_VARIABLE, FetchWordChars()); }
 
   Token GetFullyQualifiedControl()
   {
@@ -212,8 +226,12 @@ public:
       return Token(TOK_DIV);
     case '%':
       return Token(TOK_MOD);
+    case '=':
+      return Token(TOK_ASSIGN);
     case '\'':
       return GetLiteral();
+    case '$':
+      return GetVariable();
     case '`':
       return GetFullyQualifiedControl();
     default:
@@ -251,25 +269,30 @@ public:
 class ControlExpression : public Expression
 {
 public:
-  ControlQualifier qualifier;
-  Device::Control* control = nullptr;
   // Keep a shared_ptr to the device so the control pointer doesn't become invalid
+  // TODO: This is causing devices to be destructed after backends are shutdown:
   std::shared_ptr<Device> m_device;
 
   explicit ControlExpression(ControlQualifier qualifier_) : qualifier(qualifier_) {}
-  ControlState GetValue() const override { return control ? control->ToInput()->GetState() : 0.0; }
+  ControlState GetValue() const override { return input ? input->GetState() : 0.0; }
   void SetValue(ControlState value) override
   {
-    if (control)
-      control->ToOutput()->SetState(value);
+    if (output)
+      output->SetState(value);
   }
-  int CountNumControls() const override { return control ? 1 : 0; }
-  void UpdateReferences(ControlFinder& finder) override
+  int CountNumControls() const override { return (input || output) ? 1 : 0; }
+  void UpdateReferences(ControlEnvironment& env) override
   {
-    m_device = finder.FindDevice(qualifier);
-    control = finder.FindControl(qualifier);
+    m_device = env.FindDevice(qualifier);
+    input = env.FindInput(qualifier);
+    output = env.FindOutput(qualifier);
   }
   operator std::string() const override { return "`" + static_cast<std::string>(qualifier) + "`"; }
+
+private:
+  ControlQualifier qualifier;
+  Device::Input* input = nullptr;
+  Device::Output* output = nullptr;
 };
 
 class BinaryExpression : public Expression
@@ -309,6 +332,12 @@ public:
       const ControlState result = std::fmod(lhsValue, rhsValue);
       return std::isnan(result) ? 0.0 : result;
     }
+    case TOK_ASSIGN:
+    {
+      lhs->SetValue(rhsValue);
+      // TODO: Should this instead GetValue(lhs) ?
+      return rhsValue;
+    }
     default:
       assert(false);
       return 0;
@@ -328,10 +357,10 @@ public:
     return lhs->CountNumControls() + rhs->CountNumControls();
   }
 
-  void UpdateReferences(ControlFinder& finder) override
+  void UpdateReferences(ControlEnvironment& env) override
   {
-    lhs->UpdateReferences(finder);
-    rhs->UpdateReferences(finder);
+    lhs->UpdateReferences(env);
+    rhs->UpdateReferences(env);
   }
 
   operator std::string() const override
@@ -346,7 +375,7 @@ public:
   UnaryExpression(std::unique_ptr<Expression>&& inner_) : inner(std::move(inner_)) {}
 
   int CountNumControls() const override { return inner->CountNumControls(); }
-  void UpdateReferences(ControlFinder& finder) override { inner->UpdateReferences(finder); }
+  void UpdateReferences(ControlEnvironment& env) override { inner->UpdateReferences(env); }
 
   operator std::string() const override
   {
@@ -452,7 +481,7 @@ public:
 
   int CountNumControls() const override { return 1; }
 
-  void UpdateReferences(ControlFinder&) override
+  void UpdateReferences(ControlEnvironment&) override
   {
     // Nothing needed.
   }
@@ -513,6 +542,29 @@ std::unique_ptr<LiteralExpression> MakeLiteralExpression(std::string name)
   }
 }
 
+class VariableExpression : public Expression
+{
+public:
+  VariableExpression(std::string name) : m_name(name) {}
+
+  ControlState GetValue() const override { return *m_value_ptr; }
+
+  void SetValue(ControlState value) override { *m_value_ptr = value; }
+
+  int CountNumControls() const override { return 1; }
+
+  void UpdateReferences(ControlEnvironment& env) override
+  {
+    m_value_ptr = env.GetVariablePtr(m_name);
+  }
+
+  operator std::string() const override { return '$' + m_name; }
+
+protected:
+  const std::string m_name;
+  ControlState* m_value_ptr{};
+};
+
 // This class proxies all methods to its either left-hand child if it has bound controls, or its
 // right-hand child. Its intended use is for supporting old-style barewords expressions.
 class CoalesceExpression : public Expression
@@ -537,10 +589,10 @@ public:
            static_cast<std::string>(*m_rhs) + ')';
   }
 
-  void UpdateReferences(ControlFinder& finder) override
+  void UpdateReferences(ControlEnvironment& env) override
   {
-    m_lhs->UpdateReferences(finder);
-    m_rhs->UpdateReferences(finder);
+    m_lhs->UpdateReferences(env);
+    m_rhs->UpdateReferences(env);
   }
 
 private:
@@ -553,7 +605,7 @@ private:
   std::unique_ptr<Expression> m_rhs;
 };
 
-std::shared_ptr<Device> ControlFinder::FindDevice(ControlQualifier qualifier) const
+std::shared_ptr<Device> ControlEnvironment::FindDevice(ControlQualifier qualifier) const
 {
   if (qualifier.has_device)
     return container.FindDevice(qualifier.device_qualifier);
@@ -561,16 +613,27 @@ std::shared_ptr<Device> ControlFinder::FindDevice(ControlQualifier qualifier) co
     return container.FindDevice(default_device);
 }
 
-Device::Control* ControlFinder::FindControl(ControlQualifier qualifier) const
+Device::Input* ControlEnvironment::FindInput(ControlQualifier qualifier) const
 {
   const std::shared_ptr<Device> device = FindDevice(qualifier);
   if (!device)
     return nullptr;
 
-  if (is_input)
-    return device->FindInput(qualifier.control_name);
-  else
-    return device->FindOutput(qualifier.control_name);
+  return device->FindInput(qualifier.control_name);
+}
+
+Device::Output* ControlEnvironment::FindOutput(ControlQualifier qualifier) const
+{
+  const std::shared_ptr<Device> device = FindDevice(qualifier);
+  if (!device)
+    return nullptr;
+
+  return device->FindOutput(qualifier.control_name);
+}
+
+ControlState* ControlEnvironment::GetVariablePtr(const std::string& name)
+{
+  return &m_variables[name];
 }
 
 struct ParseResult
@@ -617,6 +680,10 @@ private:
     {
       return {ParseStatus::Successful, MakeLiteralExpression(tok.data)};
     }
+    case TOK_VARIABLE:
+    {
+      return {ParseStatus::Successful, std::make_unique<VariableExpression>(tok.data)};
+    }
     case TOK_LPAREN:
       return Paren();
     default:
@@ -659,6 +726,7 @@ private:
     case TOK_MUL:
     case TOK_DIV:
     case TOK_MOD:
+    case TOK_ASSIGN:
       return true;
     default:
       return false;

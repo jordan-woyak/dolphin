@@ -11,6 +11,7 @@
 
 #include "Common/Common.h"
 #include "Common/IniFile.h"
+#include "InputCommon/ControlReference/ExpressionParser.h"
 #include "InputCommon/ControllerInterface/Device.h"
 
 class ControllerInterface;
@@ -19,6 +20,8 @@ class ControllerInterface;
 
 const char* const named_directions[] = {_trans("Up"), _trans("Down"), _trans("Left"),
                                         _trans("Right")};
+
+class ControlReference;
 
 namespace ControllerEmu
 {
@@ -41,6 +44,7 @@ public:
   void SetDefaultDevice(ciface::Core::DeviceQualifier devq);
 
   void UpdateReferences(const ControllerInterface& devi);
+  void UpdateSingleControlReference(const ControllerInterface& devi, ControlReference* ref);
 
   // This returns a lock that should be held before calling State() on any control
   // references and GetState(), by extension. This prevents a race condition
@@ -49,6 +53,12 @@ public:
   static std::unique_lock<std::recursive_mutex> GetStateLock();
 
   std::vector<std::unique_ptr<ControlGroup>> groups;
+
+protected:
+  // TODO: Wiimote attachment has its own member that isn't being used..
+  ciface::ExpressionParser::ControlEnvironment::VariableContainer m_expression_vars;
+
+  void UpdateReferences(ciface::ExpressionParser::ControlEnvironment& env);
 
 private:
   ciface::Core::DeviceQualifier m_default_device;
