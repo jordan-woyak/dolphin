@@ -806,24 +806,63 @@ private:
     return type >= TOK_BINARY_OPS_BEGIN && type < TOK_BINARY_OPS_END;
   }
 
-  ParseResult Binary()
+  int BinaryOperatorPrecedence(TokenType type)
   {
-    ParseResult result = Unary();
-    if (result.status == ParseStatus::SyntaxError)
-      return result;
-
-    std::unique_ptr<Expression> expr = std::move(result.expr);
-    while (IsBinaryToken(Peek().type))
+    switch (type)
     {
-      Token tok = Chew();
-      ParseResult unary_result = Unary();
-      if (unary_result.status == ParseStatus::SyntaxError)
+    case TOK_MUL:
+    case TOK_DIV:
+    case TOK_MOD:
+      return 1;
+      break;
+    case TOK_ADD:
+    case TOK_SUB:
+      return 2;
+      break;
+    case TOK_GTHAN:
+    case TOK_LTHAN:
+      return 3;
+      break;
+    case TOK_AND:
+      return 4;
+      break;
+    case TOK_OR:
+      return 5;
+      break;
+    case TOK_COND:
+    case TOK_ASSIGN:
+      return 6;
+      break;
+    case TOK_COMMA:
+      return 7;
+      break;
+    default:
+      assert(false);
+      return 0;
+      break;
+    }
+  }
+
+  ParseResult Binary(int precedence = 999)
+  {
+    ParseResult lhs = Unary();
+
+    if (lhs.status == ParseStatus::SyntaxError)
+      return lhs;
+
+    std::unique_ptr<Expression> expr = std::move(lhs.expr);
+
+    // TODO: handle LTR/RTL associativity?
+    while (IsBinaryToken(Peek().type) && BinaryOperatorPrecedence(Peek().type) < precedence)
+    {
+      const Token tok = Chew();
+      ParseResult rhs = Binary(BinaryOperatorPrecedence(tok.type));
+      if (rhs.status == ParseStatus::SyntaxError)
       {
-        return unary_result;
+        return rhs;
       }
 
-      expr = std::make_unique<BinaryExpression>(tok.type, std::move(expr),
-                                                std::move(unary_result.expr));
+      expr = std::make_unique<BinaryExpression>(tok.type, std::move(expr), std::move(rhs.expr));
     }
 
     return {ParseStatus::Successful, std::move(expr)};
@@ -845,7 +884,7 @@ private:
   }
 
   ParseResult Toplevel() { return Binary(); }
-};
+};  // namespace ExpressionParser
 
 static ParseResult ParseComplexExpression(const std::string& str)
 {
