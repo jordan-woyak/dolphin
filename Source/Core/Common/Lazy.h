@@ -21,12 +21,7 @@ public:
   Lazy() : m_value(T()) {}
   Lazy(const std::variant<T, std::function<T()>>& value) : m_value(value) {}
   Lazy(std::variant<T, std::function<T()>>&& value) : m_value(std::move(value)) {}
-  const Lazy<T>& operator=(const std::variant<T, std::function<T()>>& value)
-  {
-    m_value = value;
-    return *this;
-  }
-  const Lazy<T>& operator=(std::variant<T, std::function<T()>>&& value)
+  const Lazy<T>& operator=(std::variant<T, std::function<T()>> value)
   {
     m_value = std::move(value);
     return *this;
