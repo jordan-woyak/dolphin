@@ -209,6 +209,16 @@ void Wiimote::InterruptChannel(const u16 channel, const void* const data, const 
     rpt[2] &= 0x1;
     rpt.resize(3);
   }
+  else if (rpt[1] == u8(OutputReportID::WriteData))
+  {
+    // Process writes to extract encryption key.
+    const auto& wd_rpt = *reinterpret_cast<WiimoteCommon::OutputReportWriteData*>(rpt.data() + 2);
+
+    if (wd_rpt.space != u8(WiimoteCommon::AddressSpace::EEPROM))
+    {
+      m_emu_ext.BusWrite(wd_rpt.slave_address, wd_rpt.address[1], wd_rpt.size, wd_rpt.data);
+    }
+  }
 
   WriteReport(std::move(rpt));
 }
@@ -348,6 +358,22 @@ Report& Wiimote::ProcessReadQueue()
   // Pop through the queued reports
   while (m_read_reports.Pop(m_last_input_report))
   {
+    // Log extension data.
+    if (IsDataReport(m_last_input_report))
+    {
+      auto manip = MakeDataReportManipulator(InputReportID(m_last_input_report[1]),
+                                             m_last_input_report.data() + 2);
+
+      if (const auto ext_size = manip->GetExtDataSize())
+      {
+        const auto ext_ptr = manip->GetExtDataPtr();
+        std::vector<u8> ext_data(ext_ptr, ext_ptr + ext_size);
+        // Assuming encrypted.
+        m_emu_ext.ext_key.Decrypt(ext_data.data(), 0, ext_size);
+        INFO_LOG(WIIMOTE, "EXT: %s", ArrayToString(ext_data.data(), ext_size).c_str());
+      }
+    }
+
     if (!IsDataReport(m_last_input_report))
     {
       // A non-data report, use it.

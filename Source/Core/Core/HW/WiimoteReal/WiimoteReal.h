@@ -19,6 +19,8 @@
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
 #include "Core/HW/WiimoteCommon/WiimoteHid.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
+#include "Core/HW/WiimoteEmu/Extension/Nunchuk.h"
+#include "Core/HW/WiimoteEmu/Extension/TaTaCon.h"
 
 class PointerWrap;
 
@@ -142,6 +144,10 @@ private:
 
   Common::SPSCQueue<Report> m_read_reports;
   Common::SPSCQueue<Report> m_write_reports;
+
+  // Using to extract encryption key (1st-party vs 3rd-party).
+  WiimoteEmu::Nunchuk m_emu_ext;
+  // WiimoteEmu::TaTaCon m_emu_ext;
 };
 
 class WiimoteScannerBackend

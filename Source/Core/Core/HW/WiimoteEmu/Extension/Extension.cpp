@@ -122,7 +122,10 @@ int EncryptedExtension::BusWrite(u8 slave_addr, u8 addr, int count, const u8* da
   {
     // FYI: Real extensions seem to require the key data written in specifically sized chunks.
     // We just run the key generation on all writes to the key area.
-    m_is_key_dirty = true;
+    // m_is_key_dirty = true;
+
+    UpdateEncryptionKey();
+    m_is_key_dirty = false;
   }
 
   return result;

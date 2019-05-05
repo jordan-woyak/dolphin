@@ -107,7 +107,7 @@ protected:
 
   virtual void UpdateEncryptionKey() = 0;
 
-private:
+public:
   bool m_is_key_dirty = true;
 
   static constexpr u8 ENCRYPTION_ENABLED = 0xaa;
