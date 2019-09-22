@@ -28,6 +28,9 @@
     <Filter Include="ControllerInterface\XInput">
       <UniqueIdentifier>{07bad1aa-7e03-4f5c-ade2-a44857c5cbc3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ControllerInterface\OpenXR">
+      <UniqueIdentifier>{09fa3c99-827e-4ce7-a988-9617469cf9b3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GCAdapter.cpp" />
@@ -116,6 +119,9 @@
     <ClCompile Include="InputProfile.cpp" />
     <ClCompile Include="ControllerEmu\ControlGroup\Attachments.cpp">
       <Filter>ControllerEmu\ControlGroup</Filter>
+    </ClCompile>
+    <ClCompile Include="ControllerInterface\OpenXR\OpenXR.cpp">
+      <Filter>ControllerInterface\OpenXR</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -210,8 +216,14 @@
     <ClInclude Include="ControllerEmu\ControlGroup\Attachments.h">
       <Filter>ControllerEmu\ControlGroup</Filter>
     </ClInclude>
+    <ClInclude Include="ControllerInterface\OpenXR\OpenXR.h">
+      <Filter>ControllerInterface\OpenXR</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
