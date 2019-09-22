@@ -822,6 +822,14 @@ endif()
 
 include_directories(Externals/picojson)
 
+find_package(OpenXR)
+if(OpenXR_loader_FOUND)
+message(STATUS "Using shared OpenXR")
+set(USE_OPENXR 1)
+else()
+message(STATUS "OpenXR not found")
+endif()
+
 add_subdirectory(Externals/rangeset)
 
 ########################################
