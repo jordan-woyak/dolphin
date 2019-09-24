@@ -41,6 +41,7 @@ enum class StereoMode : int
   Anaglyph,
   QuadBuffer,
   Passive,
+  OpenXR,
   Nvidia3DVision,
 };
 
@@ -143,6 +144,11 @@ struct VideoConfig final
   bool bStereoSwapEyes;
   bool bStereoEFBMonoDepth;
   int iStereoDepthPercentage;
+
+  bool IsStereoModeSeparateBuffer() const
+  {
+    return stereo_mode == StereoMode::QuadBuffer || stereo_mode == StereoMode::OpenXR;
+  }
 
   // D3D only config, mostly to be merged into the above
   int iAdapter;

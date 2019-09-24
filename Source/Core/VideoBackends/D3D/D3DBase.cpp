@@ -7,10 +7,14 @@
 #include <algorithm>
 #include <array>
 
+#define XR_USE_GRAPHICS_API_D3D11
+#include <openxr/openxr_platform.h>
+
 #include "Common/CommonTypes.h"
 #include "Common/DynamicLibrary.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/OpenXR.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigManager.h"
 #include "VideoBackends/D3D/D3DState.h"
@@ -128,6 +132,11 @@ bool Create(u32 adapter_index, bool enable_debug_layer)
   }
 
   stateman = std::make_unique<StateManager>();
+
+  XrGraphicsBindingD3D11KHR graphics_binding{XR_TYPE_GRAPHICS_BINDING_D3D11_KHR};
+  graphics_binding.device = device.Get();
+  Common::OpenXR::CreateSession(&graphics_binding);
+
   return true;
 }
 

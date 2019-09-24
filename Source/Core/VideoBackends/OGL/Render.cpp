@@ -983,7 +983,7 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
                                  const MathUtil::Rectangle<int>& source_rc)
 {
   // Quad-buffered stereo is annoying on GL.
-  if (g_ActiveConfig.stereo_mode != StereoMode::QuadBuffer)
+  if (!g_ActiveConfig.IsStereoModeSeparateBuffer())
     return ::Renderer::RenderXFBToScreen(target_rc, source_texture, source_rc);
 
   glDrawBuffer(GL_BACK_LEFT);

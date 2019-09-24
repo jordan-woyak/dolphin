@@ -12,6 +12,7 @@
 // TODO: remove
 #include <iostream>
 
+#if 0
 #include <d3d11.h>
 
 #pragma comment(lib, "D3D11.lib")
@@ -128,13 +129,13 @@ void Init()
   std::strcpy(action_info.actionName, "action");
   std::strcpy(action_info.localizedActionName, "Action");
 
-   const XrPath subaction_paths[] = {
-      GetXrPath("/user/hand/left"),
-      GetXrPath("/user/hand/right"),
-  };
+  // const XrPath subaction_paths[] = {
+  //    GetXrPath("/user/hand/left"),
+  //    GetXrPath("/user/hand/right"),
+  //};
 
-   action_info.countSubactionPaths = uint32_t(std::size(subaction_paths));
-   action_info.subactionPaths = subaction_paths;
+  // action_info.countSubactionPaths = uint32_t(std::size(subaction_paths));
+  // action_info.subactionPaths = subaction_paths;
 
   result = xrCreateAction(s_action_set, &action_info, &s_action);
   assert(XR_SUCCESS == result);
@@ -144,14 +145,16 @@ void Init()
   std::vector<XrActionSuggestedBinding> bindings;
   // bindings.push_back({action, GetXrPath("/user/hand/left/input/grip/pose")});
   // bindings.push_back({s_action, GetXrPath("/user/hand/right/input/grip/pose")});
-  bindings.push_back({s_action, GetXrPath("/user/hand/right/input/select/click")});
-  bindings.push_back({s_action, GetXrPath("/user/hand/left/input/select/click")});
-  //bindings.push_back({s_action, GetXrPath("/user/gamepad/input/a/click")});
+  // bindings.push_back({s_action, GetXrPath("/user/hand/right/input/select/click")});
+  // bindings.push_back({s_action, GetXrPath("/user/hand/left/input/select/click")});
+  bindings.push_back({s_action, GetXrPath("/user/gamepad/input/a/click")});
 
   XrInteractionProfileSuggestedBinding suggestedBindings{
       XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
-  suggestedBindings.interactionProfile = GetXrPath("/interaction_profiles/khr/simple_controller");
-  //suggestedBindings.interactionProfile = GetXrPath("/interaction_profiles/microsoft/xbox_controller");
+  // suggestedBindings.interactionProfile =
+  // GetXrPath("/interaction_profiles/khr/simple_controller");
+  suggestedBindings.interactionProfile =
+      GetXrPath("/interaction_profiles/microsoft/xbox_controller");
   suggestedBindings.suggestedBindings = bindings.data();
   suggestedBindings.countSuggestedBindings = uint32_t(bindings.size());
   result = xrSuggestInteractionProfileBindings(s_instance, &suggestedBindings);
@@ -168,7 +171,7 @@ void Init()
   INFO_LOG(SERIALINTERFACE, "xrAttachSessionActionSets");
 
   auto func = [] {
-    //std::this_thread::sleep_for(std::chrono::seconds(3));
+    // std::this_thread::sleep_for(std::chrono::seconds(3));
 
     XrSessionState session_state = XR_SESSION_STATE_IDLE;
 
@@ -212,16 +215,10 @@ void Init()
 
     while (true)
     {
-      XrFrameWaitInfo wait_info{XR_TYPE_FRAME_WAIT_INFO};
-      XrFrameState frame_state{XR_TYPE_FRAME_STATE};
-      result = xrWaitFrame(s_session, &wait_info, &frame_state);
-      assert(XR_SUCCESS == result);
-      INFO_LOG(SERIALINTERFACE, "xrWaitFrame");
-
-      XrFrameBeginInfo frame_info{XR_TYPE_FRAME_BEGIN_INFO};
-      result = xrBeginFrame(s_session, &frame_info);
-      assert(XR_SUCCESS == result);
-      INFO_LOG(SERIALINTERFACE, "xrBeginFrame");
+      //XrInteractionProfileState profile_state{XR_TYPE_INTERACTION_PROFILE_STATE};
+      //xrGetCurrentInteractionProfile(s_session, GetXrPath("/user/hand/left"), &profile_state);
+      //INFO_LOG(SERIALINTERFACE, "xrGetCurrentInteractionProfile: %s",
+      //         PathToString(profile_state.interactionProfile).c_str());
 
       XrActiveActionSet activeActionSet{s_action_set, XR_NULL_PATH};
       XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
@@ -234,10 +231,23 @@ void Init()
       XrActionStateBoolean state{XR_TYPE_ACTION_STATE_BOOLEAN};
       XrActionStateGetInfo getInfo{XR_TYPE_ACTION_STATE_GET_INFO};
       getInfo.action = s_action;
-      //getInfo.subactionPath = GetXrPath("/user/hand/right");
+      // getInfo.subactionPath = GetXrPath("/user/hand/right");
       result = xrGetActionStateBoolean(s_session, &getInfo, &state);
       assert(XR_SUCCESS == result);
       INFO_LOG(SERIALINTERFACE, "xrGetActionStateBoolean");
+
+      INFO_LOG(SERIALINTERFACE, "bool active: %d state: %d", state.isActive, state.currentState);
+
+      XrFrameWaitInfo wait_info{XR_TYPE_FRAME_WAIT_INFO};
+      XrFrameState frame_state{XR_TYPE_FRAME_STATE};
+      result = xrWaitFrame(s_session, &wait_info, &frame_state);
+      assert(XR_SUCCESS == result);
+      INFO_LOG(SERIALINTERFACE, "xrWaitFrame");
+
+      XrFrameBeginInfo frame_info{XR_TYPE_FRAME_BEGIN_INFO};
+      result = xrBeginFrame(s_session, &frame_info);
+      assert(XR_SUCCESS == result);
+      INFO_LOG(SERIALINTERFACE, "xrBeginFrame");
 
       XrFrameEndInfo frame_end_info{XR_TYPE_FRAME_END_INFO};
       frame_end_info.displayTime = frame_state.predictedDisplayTime;
@@ -245,8 +255,6 @@ void Init()
       result = xrEndFrame(s_session, &frame_end_info);
       assert(XR_SUCCESS == result);
       INFO_LOG(SERIALINTERFACE, "xrEndFrame");
-
-      INFO_LOG(SERIALINTERFACE, "bool active: %d state: %d", state.isActive, state.currentState);
     }
   };
 
@@ -297,3 +305,5 @@ void DeInit()
 }
 
 }  // namespace ciface::OpenXR
+
+#endif

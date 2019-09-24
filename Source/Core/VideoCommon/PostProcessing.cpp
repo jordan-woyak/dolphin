@@ -716,7 +716,7 @@ bool PostProcessing::CompilePipeline()
 {
   AbstractPipelineConfig config = {};
   config.vertex_shader = m_vertex_shader.get();
-  config.geometry_shader = g_ActiveConfig.stereo_mode == StereoMode::QuadBuffer ?
+  config.geometry_shader = g_ActiveConfig.IsStereoModeSeparateBuffer() ?
                                g_shader_cache->GetTexcoordGeometryShader() :
                                nullptr;
   config.pixel_shader = m_pixel_shader.get();

@@ -71,7 +71,7 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 // nothing needed
 #endif
 
-  ciface::OpenXR::Init();
+  //ciface::OpenXR::Init();
 
   RefreshDevices();
 }
@@ -127,7 +127,7 @@ void ControllerInterface::RefreshDevices()
   ciface::Pipes::PopulateDevices();
 #endif
 
-  ciface::OpenXR::PopulateDevices();
+  //ciface::OpenXR::PopulateDevices();
 
   m_is_populating_devices = false;
   InvokeDevicesChangedCallbacks();
@@ -179,7 +179,7 @@ void ControllerInterface::Shutdown()
   ciface::evdev::Shutdown();
 #endif
 
-  ciface::OpenXR::DeInit();
+  //ciface::OpenXR::DeInit();
 }
 
 void ControllerInterface::AddDevice(std::shared_ptr<ciface::Core::Device> device)

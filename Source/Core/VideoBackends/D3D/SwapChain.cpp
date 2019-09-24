@@ -3,6 +3,11 @@
 // Refer to the license.txt file included.
 
 #include "VideoBackends/D3D/SwapChain.h"
+
+#define XR_USE_GRAPHICS_API_D3D11
+#include <openxr/openxr_platform.h>
+
+#include "Common/OpenXR.h"
 #include "VideoBackends/D3D/DXTexture.h"
 
 namespace DX11
@@ -32,8 +37,8 @@ bool SwapChain::CreateSwapChainBuffers()
   CHECK(SUCCEEDED(hr), "Get swap chain buffer");
   if (FAILED(hr))
     return false;
-
   m_texture = DXTexture::CreateAdopted(std::move(texture));
+
   if (!m_texture)
     return false;
 

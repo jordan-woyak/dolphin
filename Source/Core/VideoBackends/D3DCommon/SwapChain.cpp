@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "Common/Assert.h"
+#include "Common/OpenXR.h"
 #include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
@@ -47,7 +48,7 @@ SwapChain::~SwapChain()
 
 bool SwapChain::WantsStereo()
 {
-  return g_ActiveConfig.stereo_mode == StereoMode::QuadBuffer;
+  return g_ActiveConfig.IsStereoModeSeparateBuffer();
 }
 
 u32 SwapChain::GetSwapChainFlags() const
@@ -135,6 +136,8 @@ bool SwapChain::CreateSwapChain(bool stereo)
                                              DXGI_MWA_NO_WINDOW_CHANGES | DXGI_MWA_NO_ALT_ENTER);
   if (FAILED(hr))
     WARN_LOG(VIDEO, "MakeWindowAssociation() failed with HRESULT %08X", hr);
+
+  Common::OpenXR::CreateSwapchain();
 
   m_stereo = stereo;
   if (!CreateSwapChainBuffers())

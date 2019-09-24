@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openxr/openxr.h>
+//#include <openxr/openxr.h>
 
 namespace ciface::OpenXR
 {

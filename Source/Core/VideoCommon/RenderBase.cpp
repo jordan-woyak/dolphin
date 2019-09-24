@@ -33,6 +33,7 @@
 #include "Common/Flag.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/OpenXR.h"
 #include "Common/Profiler.h"
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
@@ -1252,6 +1253,9 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
       BeginUtilityDrawing();
       if (!IsHeadless())
       {
+        Common::OpenXR::WaitFrame();
+        Common::OpenXR::BeginFrame();
+
         BindBackbuffer({{0.0f, 0.0f, 0.0f, 1.0f}});
         UpdateDrawRectangle();
 
@@ -1269,6 +1273,9 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
           std::lock_guard<std::mutex> guard(m_swap_mutex);
           PresentBackbuffer();
         }
+
+        Common::OpenXR::ReleaseSwapchainImage();
+        Common::OpenXR::EndFrame();
 
         // Update the window size based on the frame that was just rendered.
         // Due to depending on guest state, we need to call this every frame.

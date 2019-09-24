@@ -14,10 +14,14 @@
 #include <strsafe.h>
 #include <tuple>
 
+#define XR_USE_GRAPHICS_API_D3D11
+#include <openxr/openxr_platform.h>
+
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
+#include "Common/OpenXR.h"
 
 #include "Core/Core.h"
 
@@ -332,6 +336,39 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
                                  const AbstractTexture* source_texture,
                                  const MathUtil::Rectangle<int>& source_rc)
 {
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    const auto images = Common::OpenXR::GetSwapchainImages(
+        XrSwapchainImageD3D11KHR{XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR});
+
+    const auto image_index = Common::OpenXR::AquireAndWaitForSwapchainImage();
+#if 0
+    ComPtr<ID3D11Texture2D> texture(images[image_index].texture);
+
+    auto dx_texture = DXTexture::CreateAdopted(std::move(texture));
+    auto fb = CreateFramebuffer(dx_texture.get(), nullptr);
+
+    //SetFramebuffer(fb.get());
+    SetAndClearFramebuffer(fb.get(), {1,0,1,1});
+#else
+    const CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(
+        D3D11_RTV_DIMENSION_TEXTURE2DARRAY,
+        static_cast<DXGI_FORMAT>(Common::OpenXR::GetSwapchainFormat()));
+
+    ComPtr<ID3D11RenderTargetView> render_target_view;
+    HRESULT hr = D3D::device->CreateRenderTargetView(
+        images[image_index].texture, &renderTargetViewDesc, render_target_view.GetAddressOf());
+    CHECK(SUCCEEDED(hr), "Creating D3D render target view failed");
+
+    float clear_color[4] = {1, 0, 1, 1};
+    D3D::context->ClearRenderTargetView(render_target_view.Get(), clear_color);
+
+    //ID3D11RenderTargetView* renderTargets[] = {render_target_view.Get()};
+    //D3D::context->OMSetRenderTargets(UINT(std::size(renderTargets)), renderTargets, nullptr);
+#endif
+    return ::Renderer::RenderXFBToScreen(target_rc, source_texture, source_rc);
+  }
+
   if (g_ActiveConfig.stereo_mode != StereoMode::Nvidia3DVision)
     return ::Renderer::RenderXFBToScreen(target_rc, source_texture, source_rc);
 
