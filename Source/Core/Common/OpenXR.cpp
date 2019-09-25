@@ -16,12 +16,16 @@ namespace Common::OpenXR
 static XrInstance s_instance;
 static XrSystemId s_system_id;
 static XrSession s_session;
+static XrSpace s_view_space;
 // static XrActionSet s_action_set;
 // static XrAction s_action;
-XrSwapchain s_swapchain;
-int64_t s_swapchain_format;
+static XrSwapchain s_swapchain;
+static int64_t s_swapchain_format;
+static XrExtent2Di s_swapchain_size;
 
 constexpr XrViewConfigurationType VIEW_CONFIG_TYPE = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
+constexpr uint32_t VIEW_COUNT = 2;
+constexpr XrPosef IDENTITY_POSE{{0, 0, 0, 1}, {0, 0, 0}};
 
 bool Init(const std::vector<std::string>& required_extensions)
 {
@@ -79,10 +83,18 @@ bool CreateSession(const void* graphics_binding)
   sessionCreateInfo.systemId = s_system_id;
   sessionCreateInfo.next = graphics_binding;
 
-  const XrResult result = xrCreateSession(s_instance, &sessionCreateInfo, &s_session);
+  XrResult result = xrCreateSession(s_instance, &sessionCreateInfo, &s_session);
   assert(XR_SUCCESS == result);
 
   INFO_LOG(SERIALINTERFACE, "xrCreateSession");
+
+  XrReferenceSpaceCreateInfo spaceCreateInfo{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+  spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+  spaceCreateInfo.poseInReferenceSpace = IDENTITY_POSE;
+  result = xrCreateReferenceSpace(s_session, &spaceCreateInfo, &s_view_space);
+  assert(XR_SUCCESS == result);
+
+  INFO_LOG(SERIALINTERFACE, "xrCreateReferenceSpace");
 
   // TODO: kill
   WaitForReady();
@@ -172,7 +184,7 @@ bool WaitFrame()
     case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
     {
       const auto& stateEvent = *reinterpret_cast<const XrEventDataSessionStateChanged*>(&buffer);
-      //session_state = stateEvent.state;
+      // session_state = stateEvent.state;
       INFO_LOG(SERIALINTERFACE, "XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: %d", stateEvent.state);
       break;
     }
@@ -197,11 +209,53 @@ bool BeginFrame()
 
 bool EndFrame()
 {
+  uint32_t view_count = VIEW_COUNT;
+
+  std::vector<XrView> views{VIEW_COUNT, {XR_TYPE_VIEW}};
+
+  XrViewState viewState{XR_TYPE_VIEW_STATE};
+
+  XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
+  viewLocateInfo.viewConfigurationType = VIEW_CONFIG_TYPE;
+  viewLocateInfo.displayTime = s_frame_state.predictedDisplayTime;
+  viewLocateInfo.space = s_view_space;
+
+  XrResult result =
+      xrLocateViews(s_session, &viewLocateInfo, &viewState, view_count, &view_count, views.data());
+  assert(XR_SUCCESS == result);
+  assert(view_count == VIEW_COUNT);
+
+  XrCompositionLayerProjectionView projection_views[VIEW_COUNT] = {};
+  for (u32 i = 0; i != std::size(projection_views); ++i)
+  {
+    auto& projection_view = projection_views[i];
+
+    projection_view = {XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW};
+    projection_view.pose = views[i].pose;
+    projection_view.fov = views[i].fov;
+    projection_view.subImage.swapchain = s_swapchain;
+    projection_view.subImage.imageRect = {{0, 0}, s_swapchain_size};
+    projection_view.subImage.imageArrayIndex = i;
+  }
+
+  XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
+  layer.layerFlags = 0;
+  layer.space = s_view_space;
+  layer.viewCount = VIEW_COUNT;
+  layer.views = projection_views;
+
+  const XrCompositionLayerBaseHeader* const layers[] = {
+      reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer)};
+
   XrFrameEndInfo frame_end_info{XR_TYPE_FRAME_END_INFO};
   // TODO: accept display time argument
   frame_end_info.displayTime = s_frame_state.predictedDisplayTime;
   frame_end_info.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-  const XrResult result = xrEndFrame(s_session, &frame_end_info);
+  frame_end_info.layerCount = uint32_t(std::size(layers));
+  frame_end_info.layers = layers;
+
+  result = xrEndFrame(s_session, &frame_end_info);
+  INFO_LOG(SERIALINTERFACE, "xrEndFrame: %d", result);
   assert(XR_SUCCESS == result);
   return true;
 }
@@ -214,7 +268,7 @@ bool CreateSwapchain()
   XrResult result = xrEnumerateViewConfigurationViews(s_instance, s_system_id, VIEW_CONFIG_TYPE, 0,
                                                       &view_count, nullptr);
   // PRIMARY_STEREO view configuration always has 2 views
-  assert(view_count == 2);
+  assert(view_count == VIEW_COUNT);
 
   std::vector<XrViewConfigurationView> config_views(view_count, {XR_TYPE_VIEW_CONFIGURATION_VIEW});
   result = xrEnumerateViewConfigurationViews(s_instance, s_system_id, VIEW_CONFIG_TYPE, view_count,
@@ -234,6 +288,9 @@ bool CreateSwapchain()
          config_views[1].recommendedSwapchainSampleCount);
 
   auto& selected_config_view = config_views[0];
+
+  s_swapchain_size = {int32_t(selected_config_view.recommendedImageRectWidth),
+                      int32_t(selected_config_view.recommendedImageRectHeight)};
 
   // TODO: fix
   auto& selected_swapchain_format = swapchain_formats[0];

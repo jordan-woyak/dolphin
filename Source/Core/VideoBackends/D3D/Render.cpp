@@ -342,14 +342,14 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
         XrSwapchainImageD3D11KHR{XR_TYPE_SWAPCHAIN_IMAGE_D3D11_KHR});
 
     const auto image_index = Common::OpenXR::AquireAndWaitForSwapchainImage();
-#if 0
+#if 1
     ComPtr<ID3D11Texture2D> texture(images[image_index].texture);
 
     auto dx_texture = DXTexture::CreateAdopted(std::move(texture));
     auto fb = CreateFramebuffer(dx_texture.get(), nullptr);
 
-    //SetFramebuffer(fb.get());
-    SetAndClearFramebuffer(fb.get(), {1,0,1,1});
+    // SetFramebuffer(fb.get());
+    SetAndClearFramebuffer(fb.get(), {1, 0, 1, 1});
 #else
     const CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(
         D3D11_RTV_DIMENSION_TEXTURE2DARRAY,
@@ -363,8 +363,8 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
     float clear_color[4] = {1, 0, 1, 1};
     D3D::context->ClearRenderTargetView(render_target_view.Get(), clear_color);
 
-    //ID3D11RenderTargetView* renderTargets[] = {render_target_view.Get()};
-    //D3D::context->OMSetRenderTargets(UINT(std::size(renderTargets)), renderTargets, nullptr);
+    // ID3D11RenderTargetView* renderTargets[] = {render_target_view.Get()};
+    // D3D::context->OMSetRenderTargets(UINT(std::size(renderTargets)), renderTargets, nullptr);
 #endif
     return ::Renderer::RenderXFBToScreen(target_rc, source_texture, source_rc);
   }
