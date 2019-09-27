@@ -7,6 +7,9 @@
 #include <string>
 #include <vector>
 
+#include "Common/MathUtil.h"
+#include "Common/Matrix.h"
+
 namespace Common::OpenXR
 {
 bool Init(const std::vector<std::string>& required_extensions);
@@ -50,5 +53,8 @@ std::vector<T> GetSwapchainImages(const T& image_type)
 uint32_t AquireAndWaitForSwapchainImage();
 bool ReleaseSwapchainImage();
 int64_t GetSwapchainFormat();
+std::pair<int32_t, int32_t> GetSwapchainSize();
+
+Matrix44 GetHeadMatrix();
 
 }  // namespace Common::OpenXR

@@ -6,7 +6,9 @@
 
 #include <openxr/openxr.h>
 
+#include <atomic>
 #include <cassert>
+#include <thread>
 
 #include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
@@ -17,11 +19,16 @@ static XrInstance s_instance;
 static XrSystemId s_system_id;
 static XrSession s_session;
 static XrSpace s_view_space;
+static XrSpace s_local_space;
 // static XrActionSet s_action_set;
 // static XrAction s_action;
 static XrSwapchain s_swapchain;
 static int64_t s_swapchain_format;
 static XrExtent2Di s_swapchain_size;
+
+// TODO: kill
+static std::atomic<XrTime> s_next_frame_display_time;
+static std::atomic<XrTime> s_next_frame_display_time_is_valid;
 
 constexpr XrViewConfigurationType VIEW_CONFIG_TYPE = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
 constexpr uint32_t VIEW_COUNT = 2;
@@ -94,6 +101,11 @@ bool CreateSession(const void* graphics_binding)
   result = xrCreateReferenceSpace(s_session, &spaceCreateInfo, &s_view_space);
   assert(XR_SUCCESS == result);
 
+  spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+  spaceCreateInfo.poseInReferenceSpace = IDENTITY_POSE;
+  result = xrCreateReferenceSpace(s_session, &spaceCreateInfo, &s_local_space);
+  assert(XR_SUCCESS == result);
+
   INFO_LOG(SERIALINTERFACE, "xrCreateReferenceSpace");
 
   // TODO: kill
@@ -150,18 +162,28 @@ bool BeginSession()
 
   INFO_LOG(SERIALINTERFACE, "xrBeginSession");
 
+  std::thread t([]() {
+    while (true)
+    {
+      WaitFrame();
+    }
+  });
+  t.detach();
+
   return true;
 }
 
-// TODO: kill
-XrFrameState s_frame_state;
-
 bool WaitFrame()
 {
-  s_frame_state = XrFrameState{XR_TYPE_FRAME_STATE};
-  XrResult result = xrWaitFrame(s_session, nullptr, &s_frame_state);
+  XrFrameState frame_state = XrFrameState{XR_TYPE_FRAME_STATE};
+  XrResult result = xrWaitFrame(s_session, nullptr, &frame_state);
   assert(XR_SUCCESS == result);
   // INFO_LOG(SERIALINTERFACE, "xrWaitFrame");
+
+  s_next_frame_display_time = frame_state.predictedDisplayTime;
+  s_next_frame_display_time_is_valid = true;
+
+  // TODO: check frame_state.shouldRender
 
   while (true)
   {
@@ -209,6 +231,9 @@ bool BeginFrame()
 
 bool EndFrame()
 {
+  // Get time out of atomic value.
+  const XrTime display_time = s_next_frame_display_time;
+
   uint32_t view_count = VIEW_COUNT;
 
   std::vector<XrView> views{VIEW_COUNT, {XR_TYPE_VIEW}};
@@ -217,7 +242,7 @@ bool EndFrame()
 
   XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
   viewLocateInfo.viewConfigurationType = VIEW_CONFIG_TYPE;
-  viewLocateInfo.displayTime = s_frame_state.predictedDisplayTime;
+  viewLocateInfo.displayTime = display_time;
   viewLocateInfo.space = s_view_space;
 
   XrResult result =
@@ -248,14 +273,13 @@ bool EndFrame()
       reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer)};
 
   XrFrameEndInfo frame_end_info{XR_TYPE_FRAME_END_INFO};
-  // TODO: accept display time argument
-  frame_end_info.displayTime = s_frame_state.predictedDisplayTime;
+  frame_end_info.displayTime = display_time;
   frame_end_info.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
   frame_end_info.layerCount = uint32_t(std::size(layers));
   frame_end_info.layers = layers;
 
   result = xrEndFrame(s_session, &frame_end_info);
-  INFO_LOG(SERIALINTERFACE, "xrEndFrame: %d", result);
+  // INFO_LOG(SERIALINTERFACE, "xrEndFrame: %d", result);
   assert(XR_SUCCESS == result);
   return true;
 }
@@ -326,7 +350,7 @@ bool EnumerateSwapchainImages(uint32_t count, uint32_t* capacity, void* data)
                                                static_cast<XrSwapchainImageBaseHeader*>(data));
   assert(XR_SUCCESS == result);
 
-  INFO_LOG(SERIALINTERFACE, "xrEnumerateSwapchainImages");
+  // INFO_LOG(SERIALINTERFACE, "xrEnumerateSwapchainImages");
 
   return true;
 }
@@ -337,14 +361,14 @@ uint32_t AquireAndWaitForSwapchainImage()
   XrResult result = xrAcquireSwapchainImage(s_swapchain, nullptr, &swapchain_image_index);
   assert(XR_SUCCESS == result);
 
-  INFO_LOG(SERIALINTERFACE, "xrAcquireSwapchainImage");
+  // INFO_LOG(SERIALINTERFACE, "xrAcquireSwapchainImage");
 
   XrSwapchainImageWaitInfo wait_info{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
   wait_info.timeout = XR_INFINITE_DURATION;
   result = xrWaitSwapchainImage(s_swapchain, &wait_info);
   assert(XR_SUCCESS == result);
 
-  INFO_LOG(SERIALINTERFACE, "xrWaitSwapchainImage");
+  // INFO_LOG(SERIALINTERFACE, "xrWaitSwapchainImage");
 
   return swapchain_image_index;
 }
@@ -354,7 +378,7 @@ bool ReleaseSwapchainImage()
   const XrResult result = xrReleaseSwapchainImage(s_swapchain, nullptr);
   assert(XR_SUCCESS == result);
 
-  INFO_LOG(SERIALINTERFACE, "xrReleaseSwapchainImage");
+  // INFO_LOG(SERIALINTERFACE, "xrReleaseSwapchainImage");
 
   return true;
 }
@@ -362,6 +386,45 @@ bool ReleaseSwapchainImage()
 int64_t GetSwapchainFormat()
 {
   return s_swapchain_format;
+}
+
+std::pair<int32_t, int32_t> GetSwapchainSize()
+{
+  return {s_swapchain_size.width, s_swapchain_size.height};
+}
+
+Matrix44 GetHeadMatrix()
+{
+  Matrix44 head_matrix = Matrix44::Identity();
+
+  if (!s_next_frame_display_time_is_valid)
+    return head_matrix;
+
+  // TODO: store this value for the frame.
+  const XrTime display_time = s_next_frame_display_time;
+
+  XrSpaceLocation space_location{XR_TYPE_SPACE_LOCATION};
+
+  XrResult result = xrLocateSpace(s_local_space, s_view_space, display_time, &space_location);
+  // INFO_LOG(SERIALINTERFACE, "xrLocateSpace: %d", result);
+  assert(XR_SUCCESS == result);
+
+  if (space_location.locationFlags && XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
+  {
+    const auto& rot = space_location.pose.orientation;
+    head_matrix =
+        Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w)) * head_matrix;
+  }
+
+  if (space_location.locationFlags && XR_SPACE_LOCATION_POSITION_VALID_BIT)
+  {
+    const float units_per_meter = 100;
+
+    const auto& pos = space_location.pose.position;
+    head_matrix = Matrix44::Translate(Vec3{pos.x, pos.y, pos.z} * units_per_meter) * head_matrix;
+  }
+
+  return head_matrix;
 }
 
 }  // namespace Common::OpenXR

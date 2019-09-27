@@ -14,6 +14,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/Logging/Log.h"
 #include "Common/Matrix.h"
+#include "Common/OpenXR.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "VideoCommon/BPFunctions.h"
@@ -412,8 +413,13 @@ void VertexShaderManager::SetConstants()
 
     auto corrected_matrix = s_viewportCorrection * Common::Matrix44::FromArray(g_fProjectionMatrix);
 
-    if (g_ActiveConfig.bFreeLook && xfmem.projection.type == GX_PERSPECTIVE)
-      corrected_matrix *= s_freelook_matrix;
+    if (xfmem.projection.type == GX_PERSPECTIVE)
+    {
+      corrected_matrix *= Common::OpenXR::GetHeadMatrix();
+
+      if (g_ActiveConfig.bFreeLook)
+        corrected_matrix *= s_freelook_matrix;
+    }
 
     memcpy(constants.projection.data(), corrected_matrix.data.data(), 4 * sizeof(float4));
 

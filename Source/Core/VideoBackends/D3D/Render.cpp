@@ -348,7 +348,7 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
     auto dx_texture = DXTexture::CreateAdopted(std::move(texture));
     auto fb = CreateFramebuffer(dx_texture.get(), nullptr);
 
-    // SetFramebuffer(fb.get());
+    // TODO: kill magenta color.
     SetAndClearFramebuffer(fb.get(), {1, 0, 1, 1});
 #else
     const CD3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc(

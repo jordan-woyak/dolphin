@@ -1253,10 +1253,14 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
       BeginUtilityDrawing();
       if (!IsHeadless())
       {
-        Common::OpenXR::WaitFrame();
+        //Common::OpenXR::WaitFrame();
         Common::OpenXR::BeginFrame();
 
         BindBackbuffer({{0.0f, 0.0f, 0.0f, 1.0f}});
+
+        // Force backbufer size to swapchain size.
+        std::tie(m_backbuffer_width, m_backbuffer_height) = Common::OpenXR::GetSwapchainSize();
+
         UpdateDrawRectangle();
 
         // Adjust the source rectangle instead of using an oversized viewport to render the XFB.
