@@ -88,6 +88,8 @@ add_library(common
   NandPaths.h
   Network.cpp
   Network.h
+  OpenXR.cpp
+  OpenXR.h
   PcapFile.cpp
   PcapFile.h
   PerformanceCounter.cpp
@@ -279,4 +281,12 @@ if(UNIX)
   endif()
 elseif(WIN32)
   target_link_libraries(common PRIVATE "-INCLUDE:enableCompatPatches")
+endif()
+
+find_package(OpenXR)
+if(OpenXR_loader_FOUND)
+  message(STATUS "Using shared OpenXR")
+  target_link_libraries(common PRIVATE OpenXR::Loader)
+else()
+  message(STATUS "OpenXR not found")
 endif()

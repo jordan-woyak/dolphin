@@ -12,7 +12,7 @@
 
 namespace Common::OpenXR
 {
-bool Init(const std::vector<std::string>& required_extensions);
+bool Init(const std::vector<const char*>& required_extensions);
 
 bool CreateSession(const void* graphics_binding);
 

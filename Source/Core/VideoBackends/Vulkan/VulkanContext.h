@@ -106,6 +106,8 @@ public:
   u32 GetUploadMemoryType(u32 bits, bool* is_coherent = nullptr);
   u32 GetReadbackMemoryType(u32 bits, bool* is_coherent = nullptr, bool* is_cached = nullptr);
 
+  bool CreateOpenXRSession();
+
 private:
   using ExtensionList = std::vector<const char*>;
   static bool SelectInstanceExtensions(ExtensionList* extension_list, WindowSystemType wstype,

@@ -2,17 +2,24 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include "VideoBackends/Vulkan/VulkanContext.h"
+
 #include <algorithm>
 #include <array>
 #include <cstring>
+
+#define XR_USE_GRAPHICS_API_VULKAN
+#define XR_USE_GRAPHICS_API_VULKAN
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
 #include "Common/Assert.h"
 #include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/OpenXR.h"
 #include "Common/StringUtil.h"
 
-#include "VideoBackends/Vulkan/VulkanContext.h"
 #include "VideoCommon/DriverDetails.h"
 #include "VideoCommon/VideoCommon.h"
 
@@ -800,6 +807,18 @@ u32 VulkanContext::GetReadbackMemoryType(u32 bits, bool* is_coherent, bool* is_c
     *is_cached = ((flags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0);
 
   return type_index;
+}
+
+bool VulkanContext::CreateOpenXRSession()
+{
+  XrGraphicsBindingVulkanKHR graphics_binding{XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR};
+  graphics_binding.instance = m_instance;
+  graphics_binding.physicalDevice = m_physical_device;
+  graphics_binding.device = m_device;
+  graphics_binding.queueFamilyIndex = m_graphics_queue_family_index;
+  graphics_binding.queueIndex = 0;
+
+  return Common::OpenXR::CreateSession(&graphics_binding);
 }
 
 void VulkanContext::InitDriverDetails()

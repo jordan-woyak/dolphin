@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstring>
 #include <thread>
 
 #include "Common/CommonFuncs.h"
@@ -34,7 +35,7 @@ constexpr XrViewConfigurationType VIEW_CONFIG_TYPE = XR_VIEW_CONFIGURATION_TYPE_
 constexpr uint32_t VIEW_COUNT = 2;
 constexpr XrPosef IDENTITY_POSE{{0, 0, 0, 1}, {0, 0, 0}};
 
-bool Init(const std::vector<std::string>& required_extensions)
+bool Init(const std::vector<const char*>& required_extensions)
 {
   // uint32_t extensionCount;
   // xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr);
@@ -49,14 +50,19 @@ bool Init(const std::vector<std::string>& required_extensions)
   // TODO: extension based on gfx backend
   // TODO: test for EXTs
 
+  // const char* const ext_names[] = {
+  //     "XR_MND_headless",
+  //     "XR_KHR_D3D11_enable",
+  //     "XR_EXT_debug_utils",
+  // };
+
+  // std::vector<const char*> ext_names(required_extensions.size());
+  // std::transform(required_extensions.begin(), required_extensions.end(), ext_names.begin(),
+  // std::mem_fn(&std::string::c_str));
+
   XrInstanceCreateInfo info{XR_TYPE_INSTANCE_CREATE_INFO};
-  const char* const ext_names[] = {
-      //"XR_MND_headless",
-      "XR_KHR_D3D11_enable",
-      //"XR_EXT_debug_utils",
-  };
-  info.enabledExtensionNames = ext_names;
-  info.enabledExtensionCount = uint32_t(std::size(ext_names));
+  info.enabledExtensionNames = required_extensions.data();
+  info.enabledExtensionCount = uint32_t(required_extensions.size());
 
   // info.applicationInfo = {"dolphin-emu", 1, "dolphin-emu engine", 1, XR_CURRENT_API_VERSION};
 
@@ -84,7 +90,7 @@ bool Init(const std::vector<std::string>& required_extensions)
 bool CreateSession(const void* graphics_binding)
 {
   // TODO: kill/user proper strings
-  Init({});
+  // Init({});
 
   XrSessionCreateInfo sessionCreateInfo{XR_TYPE_SESSION_CREATE_INFO};
   sessionCreateInfo.systemId = s_system_id;
@@ -409,14 +415,14 @@ Matrix44 GetHeadMatrix()
   // INFO_LOG(SERIALINTERFACE, "xrLocateSpace: %d", result);
   assert(XR_SUCCESS == result);
 
-  if (space_location.locationFlags && XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
+  if (space_location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
   {
     const auto& rot = space_location.pose.orientation;
     head_matrix =
         Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w)) * head_matrix;
   }
 
-  if (space_location.locationFlags && XR_SPACE_LOCATION_POSITION_VALID_BIT)
+  if (space_location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
   {
     const float units_per_meter = 100;
 

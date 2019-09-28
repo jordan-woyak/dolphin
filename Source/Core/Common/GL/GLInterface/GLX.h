@@ -32,6 +32,8 @@ public:
 
   void* GetFuncAddress(const std::string& name) override;
 
+  bool CreateOpenXRSession() override;
+
 protected:
   bool Initialize(void* display_handle, void* window_handle, bool stereo, bool core) override;
 
