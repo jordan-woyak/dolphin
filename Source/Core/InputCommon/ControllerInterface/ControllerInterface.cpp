@@ -30,8 +30,9 @@
 #ifdef CIFACE_USE_PIPES
 #include "InputCommon/ControllerInterface/Pipes/Pipes.h"
 #endif
-
+#if CIFACE_USE_OPENXR
 #include "InputCommon/ControllerInterface/OpenXR/OpenXR.h"
+#endif
 
 ControllerInterface g_controller_interface;
 
@@ -70,8 +71,9 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 #ifdef CIFACE_USE_PIPES
 // nothing needed
 #endif
-
-  //ciface::OpenXR::Init();
+#if CIFACE_USE_OPENXR
+  ciface::OpenXR::Init();
+#endif
 
   RefreshDevices();
 }
@@ -126,8 +128,9 @@ void ControllerInterface::RefreshDevices()
 #ifdef CIFACE_USE_PIPES
   ciface::Pipes::PopulateDevices();
 #endif
-
-  //ciface::OpenXR::PopulateDevices();
+#if CIFACE_USE_OPENXR
+  ciface::OpenXR::PopulateDevices();
+#endif
 
   m_is_populating_devices = false;
   InvokeDevicesChangedCallbacks();
@@ -178,8 +181,9 @@ void ControllerInterface::Shutdown()
 #ifdef CIFACE_USE_EVDEV
   ciface::evdev::Shutdown();
 #endif
-
-  //ciface::OpenXR::DeInit();
+#if CIFACE_USE_OPENXR
+  ciface::OpenXR::DeInit();
+#endif
 }
 
 void ControllerInterface::AddDevice(std::shared_ptr<ciface::Core::Device> device)

@@ -6,6 +6,7 @@
 
 #include <openxr/openxr.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstring>
@@ -16,16 +17,18 @@
 
 namespace Common::OpenXR
 {
-static XrInstance s_instance;
+static XrInstance s_instance = XR_NULL_HANDLE;
 static XrSystemId s_system_id;
-static XrSession s_session;
-static XrSpace s_view_space;
-static XrSpace s_local_space;
-// static XrActionSet s_action_set;
-// static XrAction s_action;
-static XrSwapchain s_swapchain;
+static XrSession s_session = XR_NULL_HANDLE;
+static XrSpace s_view_space = XR_NULL_HANDLE;
+static XrSpace s_local_space = XR_NULL_HANDLE;
+// static XrActionSet s_action_set = XR_NULL_HANDLE;
+// static XrAction s_action = XR_NULL_HANDLE;
+static XrSwapchain s_swapchain = XR_NULL_HANDLE;
 static int64_t s_swapchain_format;
 static XrExtent2Di s_swapchain_size;
+
+static bool s_is_headless_session;
 
 // TODO: kill
 static std::atomic<XrTime> s_next_frame_display_time;
@@ -35,41 +38,80 @@ constexpr XrViewConfigurationType VIEW_CONFIG_TYPE = XR_VIEW_CONFIGURATION_TYPE_
 constexpr uint32_t VIEW_COUNT = 2;
 constexpr XrPosef IDENTITY_POSE{{0, 0, 0, 1}, {0, 0, 0}};
 
-bool Init(const std::vector<const char*>& required_extensions)
+static std::vector<const char*> s_enabled_extensions;
+
+bool IsInit()
 {
-  // uint32_t extensionCount;
-  // xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr);
-  // std::vector<XrExtensionProperties> extensionProperties(extensionCount,
-  //                                                       {XR_TYPE_EXTENSION_PROPERTIES});
-  // xrEnumerateInstanceExtensionProperties(nullptr, extensionCount, &extensionCount,
-  //                                                   extensionProperties.data());
+  return s_instance != XR_NULL_HANDLE;
+}
 
-  // for (auto& ext : extensionProperties)
-  //  std::cout << "extension: " << ext.extensionName << std::endl;
+XrInstance GetInstance()
+{
+  return s_instance;
+}
 
-  // TODO: extension based on gfx backend
-  // TODO: test for EXTs
+XrSession GetSession()
+{
+  return s_session;
+}
 
-  // const char* const ext_names[] = {
-  //     "XR_MND_headless",
-  //     "XR_KHR_D3D11_enable",
-  //     "XR_EXT_debug_utils",
-  // };
+bool Shutdown()
+{
+  if (!IsInit())
+    return true;
 
-  // std::vector<const char*> ext_names(required_extensions.size());
-  // std::transform(required_extensions.begin(), required_extensions.end(), ext_names.begin(),
-  // std::mem_fn(&std::string::c_str));
+  xrDestroyInstance(s_instance);
+  s_instance = XR_NULL_HANDLE;
+}
+
+bool Init()
+{
+  if (IsInit())
+    return true;
+
+  uint32_t extension_count;
+  xrEnumerateInstanceExtensionProperties(nullptr, 0, &extension_count, nullptr);
+  std::vector<XrExtensionProperties> extensions(extension_count, {XR_TYPE_EXTENSION_PROPERTIES});
+  xrEnumerateInstanceExtensionProperties(nullptr, extension_count, &extension_count,
+                                         extensions.data());
+
+  const auto IsExtensionPresent = [&](std::string_view name) {
+    for (auto& ext : extensions)
+    {
+      if (ext.extensionName == name)
+        return true;
+    }
+
+    return false;
+  };
+
+  const auto TryEnableExtension = [&](const char* name) {
+    if (IsExtensionPresent(name))
+    {
+      s_enabled_extensions.push_back(name);
+      return true;
+    }
+
+    return false;
+  };
+
+  TryEnableExtension("XR_MND_headless");
+  TryEnableExtension("XR_KHR_opengl_enable");
+  TryEnableExtension("XR_KHR_vulkan_enable");
+
+#ifdef WIN32
+  TryEnableExtension("XR_KHR_D3D11_enable");
+  TryEnableExtension("XR_KHR_D3D12_enable");
+#endif
 
   XrInstanceCreateInfo info{XR_TYPE_INSTANCE_CREATE_INFO};
-  info.enabledExtensionNames = required_extensions.data();
-  info.enabledExtensionCount = uint32_t(required_extensions.size());
-
-  // info.applicationInfo = {"dolphin-emu", 1, "dolphin-emu engine", 1, XR_CURRENT_API_VERSION};
+  info.enabledExtensionNames = s_enabled_extensions.data();
+  info.enabledExtensionCount = uint32_t(s_enabled_extensions.size());
 
   std::strcpy(info.applicationInfo.applicationName, "dolphin-emu");
   info.applicationInfo.applicationVersion = 1;
-  std::strcpy(info.applicationInfo.engineName, "dolphin-emu engine");
-  info.applicationInfo.engineVersion = 1;
+  std::strcpy(info.applicationInfo.engineName, "");
+  info.applicationInfo.engineVersion = 0;
   info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
 
   XrResult result = xrCreateInstance(&info, &s_instance);
@@ -84,13 +126,36 @@ bool Init(const std::vector<const char*>& required_extensions)
 
   INFO_LOG(SERIALINTERFACE, "xrGetSystem");
 
+  XrSystemProperties sys_props = {XR_TYPE_SYSTEM_PROPERTIES};
+  result = xrGetSystemProperties(s_instance, s_system_id, &sys_props);
+  assert(XR_SUCCESS == result);
+
+  INFO_LOG(SERIALINTERFACE, "xrGetSystemProperties name: %s", sys_props.systemName);
+
   return true;
 }
 
-bool CreateSession(const void* graphics_binding)
+bool CreateSession(const std::vector<std::string_view>& required_extensions,
+                   const void* graphics_binding)
 {
-  // TODO: kill/user proper strings
-  // Init({});
+  Init();
+
+  if (!IsInit())
+    return false;
+
+  for (auto& ext : required_extensions)
+  {
+    if (std::find(s_enabled_extensions.begin(), s_enabled_extensions.end(), ext) ==
+        s_enabled_extensions.end())
+    {
+      ERROR_LOG(VIDEO, "OpenXR: Missing extension: %s.", std::string(ext).c_str());
+      return false;
+    }
+  }
+
+  if (!std::includes(s_enabled_extensions.begin(), s_enabled_extensions.end(),
+                     required_extensions.begin(), required_extensions.end()))
+    return false;
 
   XrSessionCreateInfo sessionCreateInfo{XR_TYPE_SESSION_CREATE_INFO};
   sessionCreateInfo.systemId = s_system_id;
@@ -98,6 +163,8 @@ bool CreateSession(const void* graphics_binding)
 
   XrResult result = xrCreateSession(s_instance, &sessionCreateInfo, &s_session);
   assert(XR_SUCCESS == result);
+
+  s_is_headless_session = graphics_binding == nullptr;
 
   INFO_LOG(SERIALINTERFACE, "xrCreateSession");
 
@@ -119,6 +186,11 @@ bool CreateSession(const void* graphics_binding)
   BeginSession();
 
   return true;
+}
+
+bool IsActive()
+{
+  return false;
 }
 
 bool WaitForReady()
@@ -168,13 +240,18 @@ bool BeginSession()
 
   INFO_LOG(SERIALINTERFACE, "xrBeginSession");
 
-  std::thread t([]() {
-    while (true)
-    {
-      WaitFrame();
-    }
-  });
-  t.detach();
+  // TODO: kill hacks
+
+  if (!s_is_headless_session)
+  {
+    std::thread t([]() {
+      while (true)
+      {
+        WaitFrame();
+      }
+    });
+    t.detach();
+  }
 
   return true;
 }

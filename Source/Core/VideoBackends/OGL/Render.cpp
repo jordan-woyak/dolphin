@@ -17,11 +17,11 @@
 #include "Common/Atomic.h"
 #include "Common/CommonTypes.h"
 #include "Common/GL/GLContext.h"
-#include "Common/OpenXR.h"
 #include "Common/GL/GLUtil.h"
 #include "Common/Logging/LogManager.h"
 #include "Common/MathUtil.h"
 #include "Common/MsgHandler.h"
+#include "Common/OpenXR.h"
 #include "Common/StringUtil.h"
 
 #include "Core/Config/GraphicsSettings.h"
@@ -803,8 +803,10 @@ bool Renderer::Initialize()
   if (!::Renderer::Initialize())
     return false;
 
-  Common::OpenXR::Init({"XR_KHR_opengl_enable"});
-  m_main_gl_context->CreateOpenXRSession();
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    m_main_gl_context->CreateOpenXRSession();
+  }
 
   return true;
 }

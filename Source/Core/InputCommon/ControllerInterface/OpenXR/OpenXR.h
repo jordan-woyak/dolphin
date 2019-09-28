@@ -1,14 +1,13 @@
-// Copyright 2010 Dolphin Emulator Project
+// Copyright 2019 Dolphin Emulator Project
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
 #pragma once
-
-//#include <openxr/openxr.h>
 
 namespace ciface::OpenXR
 {
 void Init();
 void PopulateDevices();
 void DeInit();
-}
+
+}  // namespace ciface::OpenXR

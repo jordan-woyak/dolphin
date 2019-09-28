@@ -2,6 +2,9 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#define XR_USE_GRAPHICS_API_D3D12
+#include <openxr/openxr_platform.h>
+
 #include "Common/Logging/Log.h"
 
 #include "VideoBackends/D3D12/BoundingBox.h"
@@ -32,6 +35,13 @@ Renderer::Renderer(std::unique_ptr<SwapChain> swap_chain, float backbuffer_scale
   {
     m_state.textures[i].ptr = g_dx_context->GetNullSRVDescriptor().cpu_handle.ptr;
     m_state.samplers.states[i] = RenderState::GetPointSamplerState();
+  }
+
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    XrGraphicsBindingD3D12KHR graphics_binding{XR_TYPE_GRAPHICS_BINDING_D3D12_KHR};
+    graphics_binding.device = device.Get();
+    Common::OpenXR::CreateSession({"XR_KHR_D3D12_enable"}, &graphics_binding);
   }
 }
 

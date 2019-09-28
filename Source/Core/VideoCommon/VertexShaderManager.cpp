@@ -415,7 +415,8 @@ void VertexShaderManager::SetConstants()
 
     if (xfmem.projection.type == GX_PERSPECTIVE)
     {
-      corrected_matrix *= Common::OpenXR::GetHeadMatrix();
+      if (Common::OpenXR::IsActive())
+        corrected_matrix *= Common::OpenXR::GetHeadMatrix();
 
       if (g_ActiveConfig.bFreeLook)
         corrected_matrix *= s_freelook_matrix;

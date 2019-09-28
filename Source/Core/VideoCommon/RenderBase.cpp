@@ -1253,13 +1253,16 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
       BeginUtilityDrawing();
       if (!IsHeadless())
       {
-        //Common::OpenXR::WaitFrame();
-        Common::OpenXR::BeginFrame();
-
         BindBackbuffer({{0.0f, 0.0f, 0.0f, 1.0f}});
 
-        // Force backbufer size to swapchain size.
-        std::tie(m_backbuffer_width, m_backbuffer_height) = Common::OpenXR::GetSwapchainSize();
+        if (Common::OpenXR::IsActive())
+        {
+          // Common::OpenXR::WaitFrame();
+          Common::OpenXR::BeginFrame();
+
+          // Force backbufer size to swapchain size.
+          std::tie(m_backbuffer_width, m_backbuffer_height) = Common::OpenXR::GetSwapchainSize();
+        }
 
         UpdateDrawRectangle();
 
@@ -1278,8 +1281,11 @@ void Renderer::Swap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height, u6
           PresentBackbuffer();
         }
 
-        Common::OpenXR::ReleaseSwapchainImage();
-        Common::OpenXR::EndFrame();
+        if (Common::OpenXR::IsActive())
+        {
+          Common::OpenXR::ReleaseSwapchainImage();
+          Common::OpenXR::EndFrame();
+        }
 
         // Update the window size based on the frame that was just rendered.
         // Due to depending on guest state, we need to call this every frame.

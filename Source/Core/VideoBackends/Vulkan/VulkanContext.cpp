@@ -818,7 +818,7 @@ bool VulkanContext::CreateOpenXRSession()
   graphics_binding.queueFamilyIndex = m_graphics_queue_family_index;
   graphics_binding.queueIndex = 0;
 
-  return Common::OpenXR::CreateSession(&graphics_binding);
+  return Common::OpenXR::CreateSession({"XR_KHR_vulkan_enable"}, &graphics_binding);
 }
 
 void VulkanContext::InitDriverDetails()

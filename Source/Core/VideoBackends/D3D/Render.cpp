@@ -60,6 +60,12 @@ Renderer::Renderer(std::unique_ptr<SwapChain> swap_chain, float backbuffer_scale
                  swap_chain ? swap_chain->GetFormat() : AbstractTextureFormat::Undefined),
       m_swap_chain(std::move(swap_chain))
 {
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    XrGraphicsBindingD3D11KHR graphics_binding{XR_TYPE_GRAPHICS_BINDING_D3D11_KHR};
+    graphics_binding.device = device.Get();
+    Common::OpenXR::CreateSession({"XR_KHR_D3D11_enable"}, &graphics_binding);
+  }
 }
 
 Renderer::~Renderer() = default;

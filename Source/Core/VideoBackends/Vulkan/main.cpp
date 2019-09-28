@@ -248,8 +248,10 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
 
   g_shader_cache->InitializeShaderCache();
 
-  Common::OpenXR::Init({"XR_KHR_vulkan_enable"});
-  g_vulkan_context->CreateOpenXRSession();
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    g_vulkan_context->CreateOpenXRSession();
+  }
 
   return true;
 }

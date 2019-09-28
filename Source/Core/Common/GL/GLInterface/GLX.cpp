@@ -81,7 +81,7 @@ bool GLContextGLX::CreateOpenXRSession()
   graphics_binding.glxDrawable = m_drawable;
   graphics_binding.glxContext = m_context;
 
-  return Common::OpenXR::CreateSession(&graphics_binding);
+  return Common::OpenXR::CreateSession({"XR_KHR_opengl_enable"}, &graphics_binding);
 }
 
 void GLContextGLX::Swap()

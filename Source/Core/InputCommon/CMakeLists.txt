@@ -170,3 +170,11 @@ if(ENABLE_SDL)
     message(STATUS "SDL NOT found, disabling SDL input")
   endif()
 endif()
+
+if(USE_OPENXR)
+  target_sources(inputcommon PRIVATE
+    ControllerInterface/OpenXR/OpenXR.cpp
+    ControllerInterface/OpenXR/OpenXR.h
+  )
+  target_compile_definitions(inputcommon PRIVATE "CIFACE_USE_OPENXR=1")
+endif()

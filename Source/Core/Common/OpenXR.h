@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <openxr/openxr.h>
+
 #include <string>
 #include <vector>
 
@@ -12,9 +14,18 @@
 
 namespace Common::OpenXR
 {
-bool Init(const std::vector<const char*>& required_extensions);
+bool IsInit();
 
-bool CreateSession(const void* graphics_binding);
+bool Init();
+bool Shutdown();
+
+XrInstance GetInstance();
+XrSession GetSession();
+
+bool CreateSession(const std::vector<std::string_view>& required_extensions,
+                   const void* graphics_binding);
+
+bool IsActive();
 
 // TODO: timeout
 bool WaitForReady();
