@@ -6,8 +6,10 @@
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
+#include "Common/Matrix.h"
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/GeometryShaderManager.h"
+#include "VideoCommon/VertexShaderManager.h"
 #include "VideoCommon/VideoConfig.h"
 #include "VideoCommon/XFMemory.h"
 
@@ -45,20 +47,49 @@ void GeometryShaderManager::SetConstants()
   {
     s_projection_changed = false;
 
+    std::array<Common::Matrix44, 2> eye_matrices;
+
     if (xfmem.projection.type == GX_PERSPECTIVE)
     {
       float offset = (g_ActiveConfig.iStereoDepth / 1000.0f) *
                      (g_ActiveConfig.iStereoDepthPercentage / 100.0f);
       constants.stereoparams[0] = g_ActiveConfig.bStereoSwapEyes ? offset : -offset;
       constants.stereoparams[1] = g_ActiveConfig.bStereoSwapEyes ? -offset : offset;
+
+      constants.stereoparams[2] = (float)(g_ActiveConfig.iStereoConvergence *
+                                          (g_ActiveConfig.iStereoConvergencePercentage / 100.0f));
+
+      Common::Matrix44 projection;
+      std::memcpy(projection.data.data(), VertexShaderManager::constants.projection.data(),
+                  sizeof(projection));
+      const auto inv_projection = projection.Inverted();
+
+      eye_matrices[0] =  // Common::Matrix44::Perspective(3.14f / 2, 4.f / 3, 0.1, 1000) *
+          Common::Matrix44::Identity();  // * Common::Matrix44::Translate({-offset, 0, 0});
+
+      float fov_left, fov_right, fov_up, fov_down;
+      fov_left = fov_right = fov_up = fov_down = 3.14f / 2;
+
+      eye_matrices[1] = Common::Matrix44::Perspective(3.14f / 2, 4.f / 3, 0.1, 1000) *
+                        Common::Matrix44::Translate({-offset, 0, 0});
+
+      eye_matrices[1].data[10] = projection.data[10];
+      eye_matrices[1].data[11] = projection.data[11];
+
+      eye_matrices[1] *= inv_projection;
     }
     else
     {
       constants.stereoparams[0] = constants.stereoparams[1] = 0;
+
+      eye_matrices[0] = Common::Matrix44::Identity();
+      eye_matrices[1] = Common::Matrix44::Identity();
     }
 
-    constants.stereoparams[2] = (float)(g_ActiveConfig.iStereoConvergence *
-                                        (g_ActiveConfig.iStereoConvergencePercentage / 100.0f));
+    std::memcpy(constants.eye_matrices[0].data(), eye_matrices[0].data.data(),
+                sizeof(eye_matrices[0]));
+    std::memcpy(constants.eye_matrices[1].data(), eye_matrices[1].data.data(),
+                sizeof(eye_matrices[1]));
 
     dirty = true;
   }

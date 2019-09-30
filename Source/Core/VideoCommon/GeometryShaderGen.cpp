@@ -88,6 +88,7 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
   out.Write("\tfloat4 " I_STEREOPARAMS ";\n"
             "\tfloat4 " I_LINEPTPARAMS ";\n"
             "\tint4 " I_TEXOFFSET ";\n"
+            "\tmat4 eye_matrices[2];\n"
             "};\n");
 
   out.Write("struct VS_OUTPUT {\n");
@@ -231,6 +232,8 @@ ShaderCode GenerateGeometryShaderCode(APIType ApiType, const ShaderHostConfig& h
     out.Write("\tps.layer = eye;\n");
     if (ApiType == APIType::OpenGL || ApiType == APIType::Vulkan)
       out.Write("\tgl_Layer = eye;\n");
+
+    out.Write("\tf.pos = f.pos * eye_matrices[eye];\n");
 
     // For stereoscopy add a small horizontal offset in Normalized Device Coordinates proportional
     // to the depth of the vertex. We retrieve the depth value from the w-component of the projected
