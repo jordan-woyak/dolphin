@@ -264,6 +264,7 @@ public:
   void ForceReloadTextures();
   
   OpenXR::Session* GetOpenXRSession() { return m_openxr_session.get(); }
+  const OpenXR::Session* GetOpenXRSession() const { return m_openxr_session.get(); }
 
 protected:
   // Bitmask containing information about which configuration has changed for the backend.

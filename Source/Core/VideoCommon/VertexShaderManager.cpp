@@ -420,16 +420,13 @@ void VertexShaderManager::SetConstants()
 
     auto corrected_matrix = s_viewportCorrection * Common::Matrix44::FromArray(g_fProjectionMatrix);
 
-    if (g_freelook_camera.IsActive() && xfmem.projection.type == ProjectionType::Perspective)
-      corrected_matrix *= g_freelook_camera.GetView();
-
-    if (xfmem.projection.type == GX_PERSPECTIVE)
+    if (xfmem.projection.type == ProjectionType::Perspective)
     {
       if (auto session = g_renderer->GetOpenXRSession())
         corrected_matrix *= session->GetEyeViewMatrix(0, 0, 0);
 
-      if (g_ActiveConfig.bFreeLook)
-        corrected_matrix *= s_freelook_matrix;
+      if (g_freelook_camera.IsActive())
+        corrected_matrix *= g_freelook_camera.GetView();
     }
 
     memcpy(constants.projection.data(), corrected_matrix.data.data(), 4 * sizeof(float4));
