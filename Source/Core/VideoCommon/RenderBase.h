@@ -263,8 +263,10 @@ public:
   // Will forcibly reload all textures on the next swap
   void ForceReloadTextures();
   
+#if USE_OPENXR
   OpenXR::Session* GetOpenXRSession() { return m_openxr_session.get(); }
   const OpenXR::Session* GetOpenXRSession() const { return m_openxr_session.get(); }
+#endif
 
 protected:
   // Bitmask containing information about which configuration has changed for the backend.
@@ -305,7 +307,9 @@ protected:
   // Should be called with the ImGui lock held.
   void DrawImGui();
 
+#if USE_OPENXR
   virtual std::unique_ptr<OpenXR::Session> CreateOpenXRSession() { return {}; }
+#endif
 
   AbstractFramebuffer* m_current_framebuffer = nullptr;
   const AbstractPipeline* m_current_pipeline = nullptr;
@@ -352,9 +356,11 @@ private:
   PixelFormat m_prev_efb_format = PixelFormat::INVALID_FMT;
   unsigned int m_efb_scale = 1;
 
+#if USE_OPENXR
   void CheckOpenXRState();
 
   std::unique_ptr<OpenXR::Session> m_openxr_session;
+#endif
 
   // These will be set on the first call to SetWindowSize.
   int m_last_window_request_width = 0;
