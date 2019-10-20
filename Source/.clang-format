@@ -19,19 +19,8 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: true
 BinPackArguments: true
 BinPackParameters: true
-BraceWrapping:
-  AfterClass:      true
-  AfterControlStatement: true
-  AfterEnum:       true
-  AfterFunction:   true
-  AfterNamespace:  true
-  AfterStruct:     true
-  AfterUnion:      true
-  BeforeCatch:     true
-  BeforeElse:      true
-  IndentBraces:    false
 BreakBeforeBinaryOperators: None
-BreakBeforeBraces: Custom
+BreakBeforeBraces: Allman
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializersBeforeComma: false
 ColumnLimit:     100
@@ -92,4 +81,3 @@ ObjCSpaceBeforeProtocolList: true
 BraceWrapping:
   AfterObjCDeclaration: true
 ...
-
