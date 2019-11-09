@@ -10,6 +10,23 @@ namespace WiimoteCommon
 {
 constexpr u8 MAX_PAYLOAD = 23;
 
+// TODO: eliminate redundant definitions.
+enum : u16
+{
+  PAD_LEFT = 0x01,
+  PAD_RIGHT = 0x02,
+  PAD_DOWN = 0x04,
+  PAD_UP = 0x08,
+  BUTTON_PLUS = 0x10,
+
+  BUTTON_TWO = 0x0100,
+  BUTTON_ONE = 0x0200,
+  BUTTON_B = 0x0400,
+  BUTTON_A = 0x0800,
+  BUTTON_MINUS = 0x1000,
+  BUTTON_HOME = 0x8000,
+};
+
 enum class InputReportID : u8
 {
   Status = 0x20,
@@ -62,7 +79,7 @@ enum class AddressSpace : u8
   // FYI: The EEPROM address space is offset 0x0070 on i2c slave 0x50.
   // However attempting to access this device directly results in an error.
   EEPROM = 0x00,
-  // I2CBusAlt is never used by games but it does function on a real wiimote.
+  // 0x02 Doesn't always seem to work on a real remote. More testing is needed.
   I2CBus = 0x01,
   I2CBusAlt = 0x02,
 };

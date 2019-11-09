@@ -5,10 +5,21 @@
 #include <cassert>
 
 #include "Common/BitUtils.h"
+#include "Common/MathUtil.h"
 #include "Core/HW/WiimoteCommon/DataReport.h"
 
 namespace WiimoteCommon
 {
+Common::Vec3
+DataReportManipulator::AccelData::GetAcceleration(const AccelerometerCalibration& calibration) const
+{
+  const auto zero_g = calibration.zero_g.GetAccelData();
+  const auto one_g = calibration.one_g.GetAccelData();
+
+  return (Common::Vec3(x, y, z) - Common::Vec3(zero_g)) / Common::Vec3(one_g - zero_g) *
+         float(MathUtil::GRAVITY_ACCELERATION);
+}
+
 bool DataReportManipulator::HasIR() const
 {
   return 0 != GetIRDataSize();
@@ -82,6 +93,8 @@ struct IncludeAccel : virtual DataReportManipulator
     // LSBs
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
     result->x |= core.acc_bits & 0b11;
+
+    // TODO: Properly scale 9 bit values to 10 bits.
     result->y |= (core.acc_bits2 & 0b1) << 1;
     result->z |= core.acc_bits2 & 0b10;
   }
@@ -204,6 +217,7 @@ struct ReportInterleave1 : IncludeCore, IncludeIR<3, 18, 0>, NoExt
     // Retain lower 6 bits.
     accel->z &= 0b111111;
 
+    // TODO: Properly scale 8 bit value to 10 bits.
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
     accel->z |= (core.acc_bits << 6) | (core.acc_bits2 << 8);
   }
@@ -235,6 +249,7 @@ struct ReportInterleave2 : IncludeCore, IncludeIR<3, 18, 18>, NoExt
     // Retain upper 4 bits.
     accel->z &= ~0b111111;
 
+    // TODO: Properly scale 8 bit value to 10 bits.
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
     accel->z |= (core.acc_bits << 2) | (core.acc_bits2 << 4);
   }

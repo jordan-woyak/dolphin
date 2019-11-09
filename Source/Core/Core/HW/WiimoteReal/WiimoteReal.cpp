@@ -26,6 +26,7 @@
 #include "Core/HW/WiimoteReal/IOWin.h"
 #include "Core/HW/WiimoteReal/IOdarwin.h"
 #include "Core/HW/WiimoteReal/IOhidapi.h"
+#include "InputCommon/ControllerInterface/Wiimote/Wiimote.h"
 #include "InputCommon/InputConfig.h"
 
 #include "SFML/Network.hpp"
@@ -50,6 +51,8 @@ static std::mutex s_known_ids_mutex;
 std::mutex g_wiimotes_mutex;
 
 std::unique_ptr<Wiimote> g_wiimotes[MAX_BBMOTES];
+std::vector<std::unique_ptr<Wiimote>> g_wiimote_pool;
+
 WiimoteScanner g_wiimote_scanner;
 
 Wiimote::Wiimote() = default;
@@ -127,7 +130,7 @@ void Wiimote::ResetDataReporting()
   OutputReportMode rpt = {};
   rpt.mode = InputReportID::ReportCore;
   rpt.continuous = 0;
-  QueueReport(OutputReportID::ReportMode, &rpt, sizeof(rpt));
+  QueueReport(rpt);
 }
 
 void Wiimote::ClearReadQueue()
@@ -342,11 +345,19 @@ static bool IsDataReport(const Report& rpt)
   return rpt.size() >= 2 && rpt[1] >= u8(InputReportID::ReportCore);
 }
 
+bool Wiimote::GetNextReport(Report* report)
+{
+  // TODO: make sure m_last_input_report is in a sane state after this.
+  // when switching between ciface and non-ciface.
+
+  return m_read_reports.Pop(*report);
+}
+
 // Returns the next report that should be sent
 Report& Wiimote::ProcessReadQueue()
 {
   // Pop through the queued reports
-  while (m_read_reports.Pop(m_last_input_report))
+  while (GetNextReport(&m_last_input_report))
   {
     if (!IsDataReport(m_last_input_report))
     {
@@ -474,6 +485,9 @@ static unsigned int CalculateConnectedWiimotes()
 
 static unsigned int CalculateWantedWiimotes()
 {
+  // TODO: make this optional.
+  return 8;
+
   std::lock_guard<std::mutex> lk(g_wiimotes_mutex);
   // Figure out how many real Wiimotes are required
   unsigned int wanted_wiimotes = 0;
@@ -577,7 +591,7 @@ void WiimoteScanner::ThreadFunc()
       Wiimote* found_board = nullptr;
       backend->FindWiimotes(found_wiimotes, found_board);
       {
-        std::lock_guard<std::mutex> wm_lk(g_wiimotes_mutex);
+        std::unique_lock wm_lk(g_wiimotes_mutex);
 
         for (auto* wiimote : found_wiimotes)
         {
@@ -597,6 +611,13 @@ void WiimoteScanner::ThreadFunc()
           }
 
           TryToConnectBalanceBoard(std::unique_ptr<Wiimote>(found_board));
+        }
+
+        // TODO: hacky
+        if (!g_wiimote_pool.empty())
+        {
+          wm_lk.unlock();
+          ciface::Wiimote::PopulateDevices();
         }
       }
     }
@@ -841,6 +862,7 @@ static void TryToConnectWiimote(std::unique_ptr<Wiimote> wm)
   }
 
   NOTICE_LOG(WIIMOTE, "No open slot for real wiimote.");
+  g_wiimote_pool.emplace_back(std::move(wm));
 }
 
 static void TryToConnectBalanceBoard(std::unique_ptr<Wiimote> wm)

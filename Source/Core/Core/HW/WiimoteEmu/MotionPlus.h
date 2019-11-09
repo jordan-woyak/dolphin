@@ -7,17 +7,80 @@
 #include <array>
 
 #include "Common/CommonTypes.h"
+#include "Common/Swap.h"
 #include "Core/HW/WiimoteEmu/Dynamics.h"
 #include "Core/HW/WiimoteEmu/ExtensionPort.h"
 #include "Core/HW/WiimoteEmu/I2CBus.h"
 
 namespace WiimoteEmu
 {
-struct AngularVelocity;
-
 struct MotionPlus : public Extension
 {
 public:
+  enum class PassthroughMode : u8
+  {
+    // Note: `Disabled` is an M+ enabled with no passthrough. Maybe there is a better name.
+    Disabled = 0x04,
+    Nunchuk = 0x05,
+    Classic = 0x07,
+  };
+
+#pragma pack(push, 1)
+  struct CalibrationBlock
+  {
+    Common::BigEndianValue<u16> yaw_zero;
+    Common::BigEndianValue<u16> roll_zero;
+    Common::BigEndianValue<u16> pitch_zero;
+    Common::BigEndianValue<u16> yaw_scale;
+    Common::BigEndianValue<u16> roll_scale;
+    Common::BigEndianValue<u16> pitch_scale;
+    u8 degrees_div_6;
+  };
+
+  struct CalibrationData
+  {
+    CalibrationBlock fast;
+    u8 uid_1;
+    Common::BigEndianValue<u16> crc32_msb;
+    CalibrationBlock slow;
+    u8 uid_2;
+    Common::BigEndianValue<u16> crc32_lsb;
+
+    void UpdateChecksum();
+  };
+  static_assert(sizeof(CalibrationData) == 0x20, "Wrong size");
+
+  struct DataFormat
+  {
+    // yaw1, roll1, pitch1: Bits 0-7
+    // yaw2, roll2, pitch2: Bits 8-13
+
+    u8 yaw1;
+    u8 roll1;
+    u8 pitch1;
+
+    u8 pitch_slow : 1;
+    u8 yaw_slow : 1;
+    u8 yaw2 : 6;
+
+    u8 extension_connected : 1;
+    u8 roll_slow : 1;
+    u8 roll2 : 6;
+
+    u8 zero : 1;
+    u8 is_mp_data : 1;
+    u8 pitch2 : 6;
+
+    // Get rad/s with given calibration data.
+    Common::Vec3 GetAngularVelocity(const CalibrationData&) const;
+  };
+  static_assert(sizeof(DataFormat) == 6, "Wrong size");
+#pragma pack(pop)
+
+  static constexpr u8 INACTIVE_DEVICE_ADDR = 0x53;
+  static constexpr u8 ACTIVE_DEVICE_ADDR = 0x52;
+  static constexpr u8 PASSTHROUGH_MODE_OFFSET = 0xfe;
+
   MotionPlus();
 
   void Update() override;
@@ -42,13 +105,6 @@ private:
     ParameterYReady = 0x1a,
   };
 
-  enum class PassthroughMode : u8
-  {
-    Disabled = 0x04,
-    Nunchuk = 0x05,
-    Classic = 0x07,
-  };
-
   enum class ActivationStatus
   {
     Inactive,
@@ -58,28 +114,6 @@ private:
   };
 
 #pragma pack(push, 1)
-  struct DataFormat
-  {
-    // yaw1, roll1, pitch1: Bits 0-7
-    // yaw2, roll2, pitch2: Bits 8-13
-
-    u8 yaw1;
-    u8 roll1;
-    u8 pitch1;
-
-    u8 pitch_slow : 1;
-    u8 yaw_slow : 1;
-    u8 yaw2 : 6;
-
-    u8 extension_connected : 1;
-    u8 roll_slow : 1;
-    u8 roll2 : 6;
-
-    u8 zero : 1;
-    u8 is_mp_data : 1;
-    u8 pitch2 : 6;
-  };
-
   struct Register
   {
     std::array<u8, 21> controller_data;
@@ -135,13 +169,7 @@ private:
     std::array<u8, 6> ext_identifier;
   };
 #pragma pack(pop)
-  static_assert(sizeof(DataFormat) == 6, "Wrong size");
   static_assert(0x100 == sizeof(Register), "Wrong size");
-
-  static constexpr u8 INACTIVE_DEVICE_ADDR = 0x53;
-  static constexpr u8 ACTIVE_DEVICE_ADDR = 0x52;
-
-  static constexpr u8 PASSTHROUGH_MODE_OFFSET = 0xfe;
 
   static constexpr int CALIBRATION_BITS = 16;
 

@@ -52,15 +52,12 @@ namespace WiimoteEmu
 {
 using namespace WiimoteCommon;
 
-static const u16 button_bitmasks[] = {
-    Wiimote::BUTTON_A,     Wiimote::BUTTON_B,    Wiimote::BUTTON_ONE, Wiimote::BUTTON_TWO,
-    Wiimote::BUTTON_MINUS, Wiimote::BUTTON_PLUS, Wiimote::BUTTON_HOME};
+static const u16 button_bitmasks[] = {BUTTON_A,     BUTTON_B,    BUTTON_ONE, BUTTON_TWO,
+                                      BUTTON_MINUS, BUTTON_PLUS, BUTTON_HOME};
 
-static const u16 dpad_bitmasks[] = {Wiimote::PAD_UP, Wiimote::PAD_DOWN, Wiimote::PAD_LEFT,
-                                    Wiimote::PAD_RIGHT};
+static const u16 dpad_bitmasks[] = {PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT};
 
-static const u16 dpad_sideways_bitmasks[] = {Wiimote::PAD_RIGHT, Wiimote::PAD_LEFT, Wiimote::PAD_UP,
-                                             Wiimote::PAD_DOWN};
+static const u16 dpad_sideways_bitmasks[] = {PAD_RIGHT, PAD_LEFT, PAD_UP, PAD_DOWN};
 
 static const char* const named_buttons[] = {
     "A", "B", "1", "2", "-", "+", "Home",

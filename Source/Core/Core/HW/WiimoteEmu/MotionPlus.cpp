@@ -16,7 +16,6 @@
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Common/MsgHandler.h"
-#include "Common/Swap.h"
 
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/Dynamics.h"
@@ -56,6 +55,34 @@ struct MPI : mbedtls_mpi
 
 namespace WiimoteEmu
 {
+Common::Vec3 MotionPlus::DataFormat::GetAngularVelocity(const CalibrationData& calibration) const
+{
+  // Each component may be using either slow or fast calibration.
+  const auto& pitch_cal = pitch_slow ? calibration.slow : calibration.fast;
+  const auto& roll_cal = roll_slow ? calibration.slow : calibration.fast;
+  const auto& yaw_cal = yaw_slow ? calibration.slow : calibration.fast;
+
+  // Adjust calibration's 1/6 degree/s to radian/s.
+  constexpr auto calibration_scalar = float(MathUtil::TAU) / 360 * 6;
+
+  const auto cal_zero = Common::Vec3(pitch_cal.pitch_zero, roll_cal.roll_zero, yaw_cal.yaw_zero);
+  const auto cal_scale =
+      Common::Vec3(pitch_cal.pitch_scale, roll_cal.roll_scale, yaw_cal.yaw_scale) - cal_zero;
+  const auto cal_rad =
+      Common::Vec3(pitch_cal.degrees_div_6, roll_cal.degrees_div_6, yaw_cal.degrees_div_6) *
+      calibration_scalar;
+
+  const u16 pitch = (pitch1 | (pitch2 << 8));
+  const u16 roll = (roll1 | (roll2 << 8));
+  const u16 yaw = (yaw1 | (yaw2 << 8));
+
+  // Adjust 14 bit values for 16 bit calibration.
+  return (Common::Vec3(Common::ExpandValue(pitch, 2), Common::ExpandValue(roll, 2),
+                       Common::ExpandValue(yaw, 2)) -
+          cal_zero) /
+         cal_scale * cal_rad;
+}
+
 MotionPlus::MotionPlus() : Extension("MotionPlus")
 {
 }
@@ -82,35 +109,20 @@ void MotionPlus::Reset()
   constexpr u16 ROLL_SCALE = CALIBRATION_ZERO + CALIBRATION_SCALE_OFFSET;
   constexpr u16 PITCH_SCALE = CALIBRATION_ZERO - CALIBRATION_SCALE_OFFSET;
 
-#pragma pack(push, 1)
-  struct CalibrationBlock
-  {
-    u16 yaw_zero = Common::swap16(CALIBRATION_ZERO);
-    u16 roll_zero = Common::swap16(CALIBRATION_ZERO);
-    u16 pitch_zero = Common::swap16(CALIBRATION_ZERO);
-    u16 yaw_scale = Common::swap16(YAW_SCALE);
-    u16 roll_scale = Common::swap16(ROLL_SCALE);
-    u16 pitch_scale = Common::swap16(PITCH_SCALE);
-    u8 degrees_div_6;
-  };
-
-  struct CalibrationData
-  {
-    CalibrationBlock fast;
-    u8 uid_1;
-    Common::BigEndianValue<u16> crc32_msb;
-    CalibrationBlock slow;
-    u8 uid_2;
-    Common::BigEndianValue<u16> crc32_lsb;
-  };
-#pragma pack(pop)
-
   static_assert(sizeof(CalibrationData) == 0x20, "Bad size.");
 
   static_assert(CALIBRATION_FAST_SCALE_DEGREES % 6 == 0, "Value should be divisible by 6.");
   static_assert(CALIBRATION_SLOW_SCALE_DEGREES % 6 == 0, "Value should be divisible by 6.");
 
   CalibrationData calibration;
+  calibration.fast.yaw_zero = calibration.slow.yaw_zero = CALIBRATION_ZERO;
+  calibration.fast.roll_zero = calibration.slow.roll_zero = CALIBRATION_ZERO;
+  calibration.fast.pitch_zero = calibration.slow.pitch_zero = CALIBRATION_ZERO;
+
+  calibration.fast.yaw_scale = calibration.slow.yaw_scale = YAW_SCALE;
+  calibration.fast.roll_scale = calibration.slow.roll_scale = ROLL_SCALE;
+  calibration.fast.pitch_scale = calibration.slow.pitch_scale = PITCH_SCALE;
+
   calibration.fast.degrees_div_6 = CALIBRATION_FAST_SCALE_DEGREES / 6;
   calibration.slow.degrees_div_6 = CALIBRATION_SLOW_SCALE_DEGREES / 6;
 
@@ -120,15 +132,20 @@ void MotionPlus::Reset()
   calibration.uid_1 = 0x0b;
   calibration.uid_2 = 0xe9;
 
-  // Update checksum (crc32 of all data other than the checksum itself):
-  auto crc_result = crc32(0, Z_NULL, 0);
-  crc_result = crc32(crc_result, reinterpret_cast<const Bytef*>(&calibration), 0xe);
-  crc_result = crc32(crc_result, reinterpret_cast<const Bytef*>(&calibration) + 0x10, 0xe);
-
-  calibration.crc32_lsb = u16(crc_result);
-  calibration.crc32_msb = u16(crc_result >> 16);
+  calibration.UpdateChecksum();
 
   Common::BitCastPtr<CalibrationData>(m_reg_data.calibration_data.data()) = calibration;
+}
+
+void MotionPlus::CalibrationData::UpdateChecksum()
+{
+  // Update checksum (crc32 of all data other than the checksum itself):
+  auto crc_result = crc32(0, Z_NULL, 0);
+  crc_result = crc32(crc_result, reinterpret_cast<const Bytef*>(this), 0xe);
+  crc_result = crc32(crc_result, reinterpret_cast<const Bytef*>(this) + 0x10, 0xe);
+
+  crc32_lsb = u16(crc_result);
+  crc32_msb = u16(crc_result >> 16);
 }
 
 void MotionPlus::DoState(PointerWrap& p)

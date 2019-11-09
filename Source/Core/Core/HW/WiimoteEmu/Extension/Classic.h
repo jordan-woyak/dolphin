@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "Common/Matrix.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
 #include "Core/HW/WiimoteEmu/Extension/Extension.h"
 
@@ -58,6 +59,18 @@ public:
 
   struct DataFormat
   {
+    using StickValue = Common::TVec2<u8>;
+
+    // 6-bit X and Y values (0-63)
+    auto GetLeftStick() const { return StickValue(lx, ly); };
+
+    // 5-bit X and Y values (0-31)
+    auto GetRightStick() const { return StickValue(rx1 | rx2 << 1 | rx3 << 3, ry); };
+
+    // 5-bit values (0-31)
+    u8 GetLeftTrigger() const { return lt1 | lt2 << 3; }
+    u8 GetRightTrigger() const { return rt; }
+
     // lx/ly/lz; left joystick
     // rx/ry/rz; right joystick
     // lt; left trigger
@@ -79,6 +92,27 @@ public:
     ButtonFormat bt;  // byte 4, 5
   };
   static_assert(sizeof(DataFormat) == 6, "Wrong size");
+
+  struct CalibrationData
+  {
+    struct Stick
+    {
+      u8 max;
+      u8 min;
+      u8 center;
+    };
+
+    Stick left_stick_x;
+    Stick left_stick_y;
+    Stick right_stick_x;
+    Stick right_stick_y;
+
+    u8 left_trigger_zero;
+    u8 right_trigger_zero;
+
+    std::array<u8, 2> checksum;
+  };
+  static_assert(sizeof(CalibrationData) == 16, "Wrong size");
 
   Classic();
 

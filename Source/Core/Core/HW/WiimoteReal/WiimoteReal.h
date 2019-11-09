@@ -65,6 +65,7 @@ public:
   void Update();
   bool CheckForButtonPress();
 
+  bool GetNextReport(Report* report);
   Report& ProcessReadQueue();
 
   void Read();
@@ -100,6 +101,12 @@ public:
   void ResetDataReporting();
 
   void QueueReport(WiimoteCommon::OutputReportID rpt_id, const void* data, unsigned int size);
+
+  template <typename T>
+  void QueueReport(const T& report)
+  {
+    QueueReport(report.REPORT_ID, &report, sizeof(report));
+  }
 
   int GetIndex() const;
 
@@ -186,6 +193,7 @@ private:
 extern std::mutex g_wiimotes_mutex;
 extern WiimoteScanner g_wiimote_scanner;
 extern std::unique_ptr<Wiimote> g_wiimotes[MAX_BBMOTES];
+extern std::vector<std::unique_ptr<Wiimote>> g_wiimote_pool;
 
 void InterruptChannel(int wiimote_number, u16 channel_id, const void* data, u32 size);
 void ControlChannel(int wiimote_number, u16 channel_id, const void* data, u32 size);

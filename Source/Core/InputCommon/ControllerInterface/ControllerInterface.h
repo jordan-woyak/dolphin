@@ -31,6 +31,8 @@
 #endif
 #define CIFACE_USE_DUALSHOCKUDPCLIENT
 
+#define CIFACE_USE_WIIMOTE
+
 //
 // ControllerInterface
 //

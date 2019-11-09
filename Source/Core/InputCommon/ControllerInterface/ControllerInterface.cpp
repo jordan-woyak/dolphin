@@ -8,6 +8,9 @@
 
 #include "Common/Logging/Log.h"
 
+#ifdef CIFACE_USE_WIIMOTE
+#include "InputCommon/ControllerInterface/Wiimote/Wiimote.h"
+#endif
 #ifdef CIFACE_USE_WIN32
 #include "InputCommon/ControllerInterface/Win32/Win32.h"
 #endif
@@ -48,6 +51,9 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 
   m_is_populating_devices = true;
 
+#ifdef CIFACE_USE_WIIMOTE
+  ciface::Wiimote::Init();
+#endif
 #ifdef CIFACE_USE_WIN32
   ciface::Win32::Init(wsi.render_surface);
 #endif
@@ -102,6 +108,9 @@ void ControllerInterface::RefreshDevices()
   // Make sure shared_ptr<Device> objects are released before repopulating.
   InvokeDevicesChangedCallbacks();
 
+#ifdef CIFACE_USE_WIIMOTE
+  ciface::Wiimote::PopulateDevices();
+#endif
 #ifdef CIFACE_USE_WIN32
   ciface::Win32::PopulateDevices(m_wsi.render_surface);
 #endif
@@ -162,6 +171,9 @@ void ControllerInterface::Shutdown()
   // BEFORE we shutdown the backends.
   InvokeDevicesChangedCallbacks();
 
+#ifdef CIFACE_USE_WIIMOTE
+  ciface::Wiimote::Shutdown();
+#endif
 #ifdef CIFACE_USE_WIN32
   ciface::Win32::DeInit();
 #endif

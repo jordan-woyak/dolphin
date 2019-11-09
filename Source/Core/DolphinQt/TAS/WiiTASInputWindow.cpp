@@ -335,17 +335,17 @@ void WiiTASInputWindow::GetValues(DataReportBuilder& rpt, int ext,
     rpt.GetCoreData(&core);
 
     u16& buttons = core.hex;
-    GetButton<u16>(m_a_button, buttons, WiimoteEmu::Wiimote::BUTTON_A);
-    GetButton<u16>(m_b_button, buttons, WiimoteEmu::Wiimote::BUTTON_B);
-    GetButton<u16>(m_1_button, buttons, WiimoteEmu::Wiimote::BUTTON_ONE);
-    GetButton<u16>(m_2_button, buttons, WiimoteEmu::Wiimote::BUTTON_TWO);
-    GetButton<u16>(m_plus_button, buttons, WiimoteEmu::Wiimote::BUTTON_PLUS);
-    GetButton<u16>(m_minus_button, buttons, WiimoteEmu::Wiimote::BUTTON_MINUS);
-    GetButton<u16>(m_home_button, buttons, WiimoteEmu::Wiimote::BUTTON_HOME);
-    GetButton<u16>(m_left_button, buttons, WiimoteEmu::Wiimote::PAD_LEFT);
-    GetButton<u16>(m_up_button, buttons, WiimoteEmu::Wiimote::PAD_UP);
-    GetButton<u16>(m_down_button, buttons, WiimoteEmu::Wiimote::PAD_DOWN);
-    GetButton<u16>(m_right_button, buttons, WiimoteEmu::Wiimote::PAD_RIGHT);
+    GetButton<u16>(m_a_button, buttons, BUTTON_A);
+    GetButton<u16>(m_b_button, buttons, BUTTON_B);
+    GetButton<u16>(m_1_button, buttons, BUTTON_ONE);
+    GetButton<u16>(m_2_button, buttons, BUTTON_TWO);
+    GetButton<u16>(m_plus_button, buttons, BUTTON_PLUS);
+    GetButton<u16>(m_minus_button, buttons, BUTTON_MINUS);
+    GetButton<u16>(m_home_button, buttons, BUTTON_HOME);
+    GetButton<u16>(m_left_button, buttons, PAD_LEFT);
+    GetButton<u16>(m_up_button, buttons, PAD_UP);
+    GetButton<u16>(m_down_button, buttons, PAD_DOWN);
+    GetButton<u16>(m_right_button, buttons, PAD_RIGHT);
 
     rpt.SetCoreData(core);
   }

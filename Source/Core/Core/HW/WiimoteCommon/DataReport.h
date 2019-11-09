@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "Common/CommonTypes.h"
+#include "Common/Matrix.h"
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
 #include "Core/HW/WiimoteCommon/WiimoteHid.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
@@ -24,7 +25,11 @@ public:
   // Accel data handled as if there were always 10 bits of precision.
   struct AccelData
   {
+    // TODO: Use Vec3
     u16 x, y, z;
+
+    // Get m/s/s with given calibration data.
+    Common::Vec3 GetAcceleration(const AccelerometerCalibration&) const;
   };
 
   using CoreData = ButtonData;

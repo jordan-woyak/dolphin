@@ -43,6 +43,7 @@ public:
       u8 z : 1;
       u8 c : 1;
 
+      // TODO: verify order of these.
       // LSBs of accelerometer
       u8 acc_x_lsb : 2;
       u8 acc_y_lsb : 2;
@@ -51,24 +52,80 @@ public:
   };
   static_assert(sizeof(ButtonFormat) == 1, "Wrong size");
 
-  union DataFormat
+  struct DataFormat
   {
-    struct
-    {
-      // joystick x, y
-      u8 jx;
-      u8 jy;
+    using AccelData = Common::TVec3<u16>;
+    using StickValue = Common::TVec2<u8>;
 
-      // accelerometer
-      u8 ax;
-      u8 ay;
-      u8 az;
+    // All components have 10 bits of precision.
+    u16 GetAccelX() const { return ax << 2 | bt.acc_x_lsb; }
+    u16 GetAccelY() const { return ay << 2 | bt.acc_y_lsb; }
+    u16 GetAccelZ() const { return az << 2 | bt.acc_z_lsb; }
 
-      // buttons + accelerometer LSBs
-      ButtonFormat bt;
-    };
+    auto GetAccelData() const { return AccelData{GetAccelX(), GetAccelY(), GetAccelZ()}; }
+
+    auto GetStick() const { return StickValue{jx, jy}; }
+
+    // joystick x, y
+    u8 jx;
+    u8 jy;
+
+    // accelerometer
+    u8 ax;
+    u8 ay;
+    u8 az;
+
+    // buttons + accelerometer LSBs
+    ButtonFormat bt;
   };
   static_assert(sizeof(DataFormat) == 6, "Wrong size");
+
+  struct CalibrationData
+  {
+    using AccelData = DataFormat::AccelData;
+    using StickValue = DataFormat::StickValue;
+
+    struct Accel
+    {
+      // Note these are 10 bit values.
+      u16 GetX() const { return x2 << 2 | x1; }
+      u16 GetY() const { return y2 << 2 | y1; }
+      u16 GetZ() const { return z2 << 2 | z1; }
+
+      // TODO: bad name
+      auto GetAccelData() const { return AccelData{GetX(), GetY(), GetZ()}; }
+
+      u8 x2;
+      u8 y2;
+      u8 z2;
+
+      // Note: LSBs are assumed based on Wii Remote accelerometer calibration.
+      // TODO: verify order of these.
+      u8 z1 : 2;
+      u8 y1 : 2;
+      u8 x1 : 2;
+      u8 : 2;
+    };
+
+    struct Stick
+    {
+      u8 max;
+      u8 min;
+      u8 center;
+    };
+
+    auto GetStickCenter() const { return StickValue{stick_x.center, stick_y.center}; }
+    auto GetStickMin() const { return StickValue{stick_x.min, stick_y.min}; }
+    auto GetStickMax() const { return StickValue{stick_x.max, stick_y.max}; }
+
+    Accel accel_zero_g;
+    Accel accel_one_g;
+    Stick stick_x;
+    Stick stick_y;
+
+    std::array<u8, 2> checksum;
+  };
+  static_assert(sizeof(CalibrationData) == 16, "Wrong size");
 
   Nunchuk();
 

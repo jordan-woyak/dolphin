@@ -17,6 +17,8 @@ class Matrix44;
 
 namespace WiimoteEmu
 {
+using IRObject = Common::TVec2<u16>;
+
 // Four bytes for two objects. Filled with 0xFF if empty
 struct IRBasic
 {
@@ -28,6 +30,9 @@ struct IRBasic
   u8 y1hi : 2;
   u8 x2;
   u8 y2;
+
+  auto GetObject1() const { return IRObject(x1hi << 8 | x1, y1hi << 8 | y1); }
+  auto GetObject2() const { return IRObject(x2hi << 8 | x2, y2hi << 8 | y2); }
 };
 static_assert(sizeof(IRBasic) == 5, "Wrong size");
 

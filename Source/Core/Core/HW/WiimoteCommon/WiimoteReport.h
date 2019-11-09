@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
+#include "Common/Matrix.h"
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
 
 #ifdef _MSC_VER
@@ -41,6 +42,8 @@ static_assert(sizeof(OutputReportGeneric) == 2, "Wrong size");
 
 struct OutputReportRumble
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::Rumble;
+
   u8 rumble : 1;
 };
 static_assert(sizeof(OutputReportRumble) == 1, "Wrong size");
@@ -55,8 +58,34 @@ struct OutputReportEnableFeature
 };
 static_assert(sizeof(OutputReportEnableFeature) == 1, "Wrong size");
 
+struct OutputReportIRLogicEnable : OutputReportEnableFeature
+{
+  static constexpr OutputReportID REPORT_ID = OutputReportID::IRLogicEnable;
+};
+static_assert(sizeof(OutputReportIRLogicEnable) == 1, "Wrong size");
+
+struct OutputReportIRLogicEnable2 : OutputReportEnableFeature
+{
+  static constexpr OutputReportID REPORT_ID = OutputReportID::IRLogicEnable2;
+};
+static_assert(sizeof(OutputReportIRLogicEnable2) == 1, "Wrong size");
+
+struct OutputReportSpeakerEnable : OutputReportEnableFeature
+{
+  static constexpr OutputReportID REPORT_ID = OutputReportID::SpeakerEnable;
+};
+static_assert(sizeof(OutputReportSpeakerEnable) == 1, "Wrong size");
+
+struct OutputReportSpeakerMute : OutputReportEnableFeature
+{
+  static constexpr OutputReportID REPORT_ID = OutputReportID::SpeakerMute;
+};
+static_assert(sizeof(OutputReportSpeakerMute) == 1, "Wrong size");
+
 struct OutputReportLeds
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::LED;
+
   u8 rumble : 1;
   u8 ack : 1;
   u8 : 2;
@@ -66,6 +95,8 @@ static_assert(sizeof(OutputReportLeds) == 1, "Wrong size");
 
 struct OutputReportMode
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::ReportMode;
+
   u8 rumble : 1;
   u8 ack : 1;
   u8 continuous : 1;
@@ -76,6 +107,8 @@ static_assert(sizeof(OutputReportMode) == 2, "Wrong size");
 
 struct OutputReportRequestStatus
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::RequestStatus;
+
   u8 rumble : 1;
   u8 : 7;
 };
@@ -83,6 +116,8 @@ static_assert(sizeof(OutputReportRequestStatus) == 1, "Wrong size");
 
 struct OutputReportWriteData
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::WriteData;
+
   u8 rumble : 1;
   u8 : 1;
   u8 space : 2;
@@ -100,6 +135,8 @@ static_assert(sizeof(OutputReportWriteData) == 21, "Wrong size");
 
 struct OutputReportReadData
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::ReadData;
+
   u8 rumble : 1;
   u8 : 1;
   u8 space : 2;
@@ -116,6 +153,8 @@ static_assert(sizeof(OutputReportReadData) == 6, "Wrong size");
 
 struct OutputReportSpeakerData
 {
+  static constexpr OutputReportID REPORT_ID = OutputReportID::SpeakerData;
+
   u8 rumble : 1;
   u8 : 2;
   u8 length : 5;
@@ -157,6 +196,8 @@ static_assert(sizeof(ButtonData) == 2, "Wrong size");
 
 struct InputReportStatus
 {
+  static constexpr InputReportID REPORT_ID = InputReportID::Status;
+
   ButtonData buttons;
   u8 battery_low : 1;
   u8 extension : 1;
@@ -170,6 +211,8 @@ static_assert(sizeof(InputReportStatus) == 6, "Wrong size");
 
 struct InputReportAck
 {
+  static constexpr InputReportID REPORT_ID = InputReportID::Ack;
+
   ButtonData buttons;
   OutputReportID rpt_id;
   ErrorCode error_code;
@@ -178,6 +221,8 @@ static_assert(sizeof(InputReportAck) == 4, "Wrong size");
 
 struct InputReportReadDataReply
 {
+  static constexpr InputReportID REPORT_ID = InputReportID::ReadDataReply;
+
   ButtonData buttons;
   u8 error : 4;
   u8 size_minus_one : 4;
@@ -186,6 +231,33 @@ struct InputReportReadDataReply
   u8 data[16];
 };
 static_assert(sizeof(InputReportReadDataReply) == 21, "Wrong size");
+
+// Data located at 0x16 and 0x20 of Wii Remote EEPROM.
+struct AccelerometerCalibration
+{
+  using AccelData = Common::TVec3<u16>;
+
+  struct
+  {
+    // All components have 10 bits of precision.
+    u16 GetX() const { return x2 << 2 | x1; }
+    u16 GetY() const { return y2 << 2 | y1; }
+    u16 GetZ() const { return z2 << 2 | z1; }
+
+    // TODO: bad name
+    auto GetAccelData() const { return AccelData{GetX(), GetY(), GetZ()}; }
+
+    u8 x2, y2, z2;
+    u8 z1 : 2;
+    u8 y1 : 2;
+    u8 x1 : 2;
+    u8 : 2;
+  } zero_g, one_g;
+
+  u8 volume : 7;
+  u8 motor : 1;
+  u8 checksum;
+};
 
 }  // namespace WiimoteCommon
 
