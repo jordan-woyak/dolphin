@@ -290,16 +290,16 @@ TVec2<T> operator/(TVec2<T> lhs, const TVec2<T>& rhs)
   return lhs /= rhs;
 }
 
-template <typename T>
-TVec2<T> operator*(TVec2<T> lhs, T scalar)
+template <typename T, typename T2>
+auto operator*(TVec2<T> lhs, T2 scalar)
 {
-  return lhs *= scalar;
+  return TVec2<decltype(lhs.x * scalar)>(lhs) *= scalar;
 }
 
-template <typename T>
-TVec2<T> operator/(TVec2<T> lhs, T scalar)
+template <typename T, typename T2>
+auto operator/(TVec2<T> lhs, T2 scalar)
 {
-  return lhs /= scalar;
+  return TVec2<decltype(lhs.x / scalar)>(lhs) /= scalar;
 }
 
 using Vec2 = TVec2<float>;
@@ -383,3 +383,55 @@ inline Vec4 operator*(const Matrix44& lhs, Vec4 rhs)
 }
 
 }  // namespace Common
+
+namespace std
+{
+template <typename T>
+class tuple_size<Common::TVec2<T>> : public integral_constant<size_t, 2>
+{
+};
+
+template <typename T>
+class tuple_size<Common::TVec3<T>> : public integral_constant<size_t, 3>
+{
+};
+
+template <typename T>
+class tuple_size<Common::TVec4<T>> : public integral_constant<size_t, 4>
+{
+};
+
+template <size_t I, typename T>
+auto& get(Common::TVec2<T>& v)
+{
+  return v.data[I];
+}
+template <size_t I, typename T>
+auto& get(const Common::TVec2<T>& v)
+{
+  return v.data[I];
+}
+
+template <size_t I, typename T>
+auto& get(Common::TVec3<T>& v)
+{
+  return v.data[I];
+}
+template <size_t I, typename T>
+auto& get(const Common::TVec3<T>& v)
+{
+  return v.data[I];
+}
+
+template <size_t I, typename T>
+auto& get(Common::TVec4<T>& v)
+{
+  return v.data[I];
+}
+template <size_t I, typename T>
+auto& get(const Common::TVec4<T>& v)
+{
+  return v.data[I];
+}
+
+}  // namespace std

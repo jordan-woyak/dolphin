@@ -347,7 +347,7 @@ public:
 };
 
 // Left-shift a value and set new LSBs to that of the supplied LSB.
-// Converts a value from a N-bit range to an (N+X)-bit-range. e.g. 0x101 -> 0x10111
+// Converts a value from a N-bit range to an (N+X)-bit range. e.g. 0x101 -> 0x10111
 template <typename T>
 T ExpandValue(T value, size_t left_shift_amount)
 {

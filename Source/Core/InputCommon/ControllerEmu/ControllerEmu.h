@@ -27,6 +27,76 @@ namespace ControllerEmu
 {
 class ControlGroup;
 
+// TODO: make the Bits parameter a regular member.
+template <typename T, size_t Bits>
+struct TwoPointCalibration
+{
+  TwoPointCalibration() = default;
+  TwoPointCalibration(const T& zero_, const T& max_) : zero{zero_}, max{max_} {}
+
+  static constexpr size_t BITS_OF_PRECISION = Bits;
+
+  T zero;
+  T max;
+};
+
+template <typename T, size_t Bits>
+struct ThreePointCalibration
+{
+  ThreePointCalibration() = default;
+  ThreePointCalibration(const T& min_, const T& zero_, const T& max_)
+      : min{min_}, zero{zero_}, max{max_}
+  {
+  }
+
+  static constexpr size_t BITS_OF_PRECISION = Bits;
+
+  T min;
+  T zero;
+  T max;
+};
+
+template <typename T, size_t Bits>
+struct RawValue
+{
+  RawValue() = default;
+  RawValue(const T& value_) : value{value_} {}
+
+  static constexpr size_t BITS_OF_PRECISION = Bits;
+
+  T value;
+
+  template <typename OtherT, size_t OtherBits>
+  auto GetNormalizedValue(TwoPointCalibration<OtherT, OtherBits>& calibration)
+  {
+    // if constexpr (std::is_arithmetic_v<T>)
+    {
+      // TODO: better conversions
+      // TODO: ExpandValue
+      return (value * 1.f - calibration.zero * 1.f) /
+             (calibration.max * 1.f - calibration.zero * 1.f);
+    }
+    // else
+    // {
+    //   // Work with tuples as well.
+    //   std::apply([&](auto&... vals) { ((vals = GetNormalizedValue(vals, calibration)), ...); },
+    //              value);
+    //   return value;
+    // }
+  }
+
+  template <typename OtherT, size_t OtherBits>
+  auto GetNormalizedValue(ThreePointCalibration<OtherT, OtherBits>& calibration)
+  {
+    // if (value < calibration.zero)
+    //   return (value * 1.f - calibration.zero * 1.f) /
+    //          (calibration.zero * 1.f - calibration.min * 1.f);
+    // else
+    return (value * 1.f - calibration.zero * 1.f) /
+           (calibration.max * 1.f - calibration.zero * 1.f);
+  }
+};
+
 class EmulatedController
 {
 public:

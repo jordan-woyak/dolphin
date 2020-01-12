@@ -88,12 +88,9 @@ private:
 
     struct Calibration
     {
-      // TODO: just make these all float vecs?
-      Common::TVec2<u8> stick_zero;
-      Common::TVec2<u8> stick_max;
-
-      Common::TVec3<u16> accel_zero_g;
-      Common::TVec3<u16> accel_one_g;
+      // TODO: Nicer declarations.
+      decltype(std::declval<WiimoteEmu::Nunchuk::CalibrationData>().GetAcceleration()) accel;
+      decltype(std::declval<WiimoteEmu::Nunchuk::CalibrationData>().GetStick()) stick;
     };
 
     std::optional<Calibration> calibration;
@@ -111,9 +108,11 @@ private:
 
     struct Calibration
     {
-      std::array<Common::TVec2<u8>, 2> stick_zeros;
-      std::array<Common::TVec2<u8>, 2> stick_maxes;
-      std::array<u8, 2> trigger_zeros;
+      // TODO: combine these?
+      decltype(std::declval<WiimoteEmu::Classic::CalibrationData>().GetLeftStick()) left_stick;
+      decltype(std::declval<WiimoteEmu::Classic::CalibrationData>().GetRightStick()) right_stick;
+
+      std::array<ControllerEmu::TwoPointCalibration<u8, 8>, 2> triggers;
     };
 
     std::optional<Calibration> calibration;

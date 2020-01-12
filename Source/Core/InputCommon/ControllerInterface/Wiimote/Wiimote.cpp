@@ -656,12 +656,8 @@ void Device::NunchukState::SetCalibrationData(const WiimoteEmu::Nunchuk::Calibra
 
   calibration.emplace();
 
-  calibration->accel_zero_g = data.accel_zero_g.GetAccelData();
-  calibration->accel_one_g = data.accel_one_g.GetAccelData();
-
-  // Note: Not using stick "min" values.
-  calibration->stick_max = data.GetStickMax();
-  calibration->stick_zero = data.GetStickCenter();
+  calibration->stick = data.GetStick();
+  calibration->accel = data.GetAcceleration();
 }
 
 void Device::ClassicState::SetCalibrationData(const WiimoteEmu::Classic::CalibrationData& data)
@@ -670,14 +666,9 @@ void Device::ClassicState::SetCalibrationData(const WiimoteEmu::Classic::Calibra
 
   calibration.emplace();
 
-  calibration->stick_zeros = {{{data.left_stick_x.center, data.left_stick_y.center},
-                               {data.right_stick_x.center, data.right_stick_y.center}}};
-
-  // Note: Not using stick "min" values.
-  calibration->stick_maxes = {{{data.left_stick_x.max, data.left_stick_y.max},
-                               {data.right_stick_x.max, data.right_stick_y.max}}};
-
-  calibration->trigger_zeros = {{data.left_trigger_zero, data.right_trigger_zero}};
+  calibration->left_stick = data.GetLeftStick();
+  calibration->right_stick = data.GetRightStick();
+  calibration->triggers = {{data.GetLeftTrigger(), data.GetRightTrigger()}};
 }
 
 void Device::ReadActiveExtensionID()
@@ -1262,11 +1253,8 @@ void Device::NunchukState::ProcessData(const WiimoteEmu::Nunchuk::DataFormat& da
   if (!calibration.has_value())
     return;
 
-  stick = Common::Vec2(data.GetStick() - calibration->stick_zero) /
-          Common::Vec2(calibration->stick_max - calibration->stick_zero);
-
-  accel = Common::Vec3(data.GetAccelData() - calibration->accel_zero_g) /
-          Common::Vec3(calibration->accel_one_g - calibration->accel_zero_g) *
+  stick = data.GetStick().GetNormalizedValue(calibration->stick);
+  accel = data.GetAccelData().GetNormalizedValue(calibration->accel) *
           float(MathUtil::GRAVITY_ACCELERATION);
 }
 
@@ -1279,29 +1267,10 @@ void Device::ClassicState::ProcessData(const WiimoteEmu::Classic::DataFormat& da
   if (!calibration.has_value())
     return;
 
-  std::array raw_sticks = {data.GetLeftStick(), data.GetRightStick()};
-  std::array stick_bits = {WiimoteEmu::Classic::LEFT_STICK_BITS,
-                           WiimoteEmu::Classic::RIGHT_STICK_BITS};
-
-  for (std::size_t i = 0; i != sticks.size(); ++i)
-  {
-    const auto stick_zero = Common::Vec2(calibration->stick_zeros[i]);
-    const auto stick_max = Common::Vec2(calibration->stick_maxes[i]);
-
-    sticks[i] = (Common::Vec2(Common::ExpandValue(raw_sticks[i].x, CHAR_BIT - stick_bits[i]),
-                              Common::ExpandValue(raw_sticks[i].y, CHAR_BIT - stick_bits[i])) -
-                 stick_zero) /
-                (stick_max - stick_zero);
-  }
-
-  // Both triggers have the same range.
-  constexpr float trigger_max = WiimoteEmu::Classic::LEFT_TRIGGER_RANGE;
-  constexpr float trigger_zero_max = std::numeric_limits<u8>::max();
-
-  triggers[0] = ControllerEmu::ControlGroup::ApplyDeadzone(
-      data.GetLeftTrigger() / trigger_max, calibration->trigger_zeros[0] / trigger_zero_max);
-  triggers[1] = ControllerEmu::ControlGroup::ApplyDeadzone(
-      data.GetRightTrigger() / trigger_max, calibration->trigger_zeros[1] / trigger_zero_max);
+  sticks[0] = data.GetLeftStickValue().GetNormalizedValue(calibration->left_stick);
+  sticks[1] = data.GetLeftStickValue().GetNormalizedValue(calibration->right_stick);
+  triggers[0] = data.GetLeftTriggerValue().GetNormalizedValue(calibration->triggers[0]);
+  triggers[1] = data.GetRightTriggerValue().GetNormalizedValue(calibration->triggers[1]);
 }
 
 void Device::ReadData(AddressSpace space, u8 slave, u16 address, u16 size,

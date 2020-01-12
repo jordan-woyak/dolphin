@@ -71,6 +71,20 @@ public:
     u8 GetLeftTrigger() const { return lt1 | lt2 << 3; }
     u8 GetRightTrigger() const { return rt; }
 
+    // TODO: naming?
+    auto GetLeftStickValue() const
+    {
+      return ControllerEmu::RawValue<StickValue, LEFT_STICK_BITS>(GetLeftStick());
+    }
+    auto GetRightStickValue() const
+    {
+      return ControllerEmu::RawValue<StickValue, RIGHT_STICK_BITS>(GetRightStick());
+    }
+
+    // TODO: magic numbers
+    auto GetLeftTriggerValue() const { return ControllerEmu::RawValue<u8, 5>(GetLeftTrigger()); }
+    auto GetRightTriggerValue() const { return ControllerEmu::RawValue<u8, 5>(GetRightTrigger()); }
+
     // lx/ly/lz; left joystick
     // rx/ry/rz; right joystick
     // lt; left trigger
@@ -95,12 +109,42 @@ public:
 
   struct CalibrationData
   {
+    using StickValue = DataFormat::StickValue;
+
     struct Stick
     {
       u8 max;
       u8 min;
       u8 center;
     };
+
+    auto GetLeftStick() const
+    {
+      return ControllerEmu::ThreePointCalibration<StickValue, 8>(
+          StickValue{left_stick_x.min, left_stick_y.min},
+          StickValue{left_stick_x.center, left_stick_y.center},
+          StickValue{left_stick_x.max, left_stick_y.max});
+    }
+
+    auto GetRightStick() const
+    {
+      return ControllerEmu::ThreePointCalibration<StickValue, 8>(
+          StickValue{right_stick_x.min, right_stick_y.min},
+          StickValue{right_stick_x.center, right_stick_y.center},
+          StickValue{right_stick_x.max, right_stick_y.max});
+    }
+
+    auto GetLeftTrigger() const
+    {
+      // TODO: magic numbers
+      return ControllerEmu::TwoPointCalibration<u8, 8>(left_trigger_zero, 0xff);
+    }
+
+    auto GetRightTrigger() const
+    {
+      // TODO: magic numbers
+      return ControllerEmu::TwoPointCalibration<u8, 8>(right_trigger_zero, 0xff);
+    }
 
     Stick left_stick_x;
     Stick left_stick_y;

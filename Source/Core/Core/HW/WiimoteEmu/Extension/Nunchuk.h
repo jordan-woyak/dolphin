@@ -57,14 +57,18 @@ public:
     using AccelData = Common::TVec3<u16>;
     using StickValue = Common::TVec2<u8>;
 
-    // All components have 10 bits of precision.
+    auto GetStick() const { return ControllerEmu::RawValue<StickValue, 8>({jx, jy}); }
+
+    // Components have 10 bits of precision.
     u16 GetAccelX() const { return ax << 2 | bt.acc_x_lsb; }
     u16 GetAccelY() const { return ay << 2 | bt.acc_y_lsb; }
     u16 GetAccelZ() const { return az << 2 | bt.acc_z_lsb; }
 
-    auto GetAccelData() const { return AccelData{GetAccelX(), GetAccelY(), GetAccelZ()}; }
-
-    auto GetStick() const { return StickValue{jx, jy}; }
+    auto GetAccelData() const
+    {
+      return ControllerEmu::RawValue<AccelData, 10>{
+          AccelData{GetAccelX(), GetAccelY(), GetAccelZ()}};
+    }
 
     // joystick x, y
     u8 jx;
@@ -92,8 +96,7 @@ public:
       u16 GetY() const { return y2 << 2 | y1; }
       u16 GetZ() const { return z2 << 2 | z1; }
 
-      // TODO: bad name
-      auto GetAccelData() const { return AccelData{GetX(), GetY(), GetZ()}; }
+      auto GetData() const { return AccelData{GetX(), GetY(), GetZ()}; }
 
       u8 x2;
       u8 y2;
@@ -114,9 +117,18 @@ public:
       u8 center;
     };
 
-    auto GetStickCenter() const { return StickValue{stick_x.center, stick_y.center}; }
-    auto GetStickMin() const { return StickValue{stick_x.min, stick_y.min}; }
-    auto GetStickMax() const { return StickValue{stick_x.max, stick_y.max}; }
+    auto GetStick() const
+    {
+      return ControllerEmu::ThreePointCalibration<StickValue, 8>(
+          StickValue{stick_x.min, stick_y.min}, StickValue{stick_x.center, stick_y.center},
+          StickValue{stick_x.max, stick_y.max});
+    }
+
+    auto GetAcceleration() const
+    {
+      return ControllerEmu::TwoPointCalibration<AccelData, 10>(accel_zero_g.GetData(),
+                                                               accel_one_g.GetData());
+    }
 
     Accel accel_zero_g;
     Accel accel_one_g;
