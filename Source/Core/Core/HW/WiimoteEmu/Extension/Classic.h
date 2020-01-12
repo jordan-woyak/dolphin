@@ -85,10 +85,11 @@ public:
     auto GetLeftTriggerValue() const { return ControllerEmu::RawValue<u8, 5>(GetLeftTrigger()); }
     auto GetRightTriggerValue() const { return ControllerEmu::RawValue<u8, 5>(GetRightTrigger()); }
 
-    // lx/ly/lz; left joystick
-    // rx/ry/rz; right joystick
-    // lt; left trigger
-    // rt; left trigger
+    u8 GetButtons() const
+    {
+      // 0 == pressed.
+      return ~bt.hex;
+    }
 
     u8 lx : 6;  // byte 0
     u8 rx3 : 2;

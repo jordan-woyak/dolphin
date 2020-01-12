@@ -70,6 +70,12 @@ public:
           AccelData{GetAccelX(), GetAccelY(), GetAccelZ()}};
     }
 
+    u8 GetButtons() const
+    {
+      // 0 == pressed.
+      return ~bt.hex;
+    }
+
     // joystick x, y
     u8 jx;
     u8 jy;

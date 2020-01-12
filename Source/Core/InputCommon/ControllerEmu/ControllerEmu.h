@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "Common/BitUtils.h"
 #include "Common/Common.h"
 #include "Common/IniFile.h"
 #include "InputCommon/ControlReference/ExpressionParser.h"
@@ -67,33 +68,54 @@ struct RawValue
   T value;
 
   template <typename OtherT, size_t OtherBits>
-  auto GetNormalizedValue(TwoPointCalibration<OtherT, OtherBits>& calibration)
+  auto GetNormalizedValue(const TwoPointCalibration<OtherT, OtherBits>& calibration) const
   {
-    // if constexpr (std::is_arithmetic_v<T>)
-    {
-      // TODO: better conversions
-      // TODO: ExpandValue
-      return (value * 1.f - calibration.zero * 1.f) /
-             (calibration.max * 1.f - calibration.zero * 1.f);
-    }
-    // else
-    // {
-    //   // Work with tuples as well.
-    //   std::apply([&](auto&... vals) { ((vals = GetNormalizedValue(vals, calibration)), ...); },
-    //              value);
-    //   return value;
-    // }
+    const auto value_expansion =
+        std::max(0, int(calibration.BITS_OF_PRECISION) - int(BITS_OF_PRECISION));
+
+    const auto calibration_expansion =
+        std::max(0, int(BITS_OF_PRECISION) - int(calibration.BITS_OF_PRECISION));
+
+    const auto calibration_zero = ExpandValue(calibration.zero, calibration_expansion) * 1.f;
+    const auto calibration_max = ExpandValue(calibration.max, calibration_expansion) * 1.f;
+
+    return (ExpandValue(value, value_expansion) * 1.f - calibration_zero) /
+           (calibration_max - calibration_zero);
   }
 
   template <typename OtherT, size_t OtherBits>
-  auto GetNormalizedValue(ThreePointCalibration<OtherT, OtherBits>& calibration)
+  auto GetNormalizedValue(const ThreePointCalibration<OtherT, OtherBits>& calibration) const
   {
-    // if (value < calibration.zero)
-    //   return (value * 1.f - calibration.zero * 1.f) /
-    //          (calibration.zero * 1.f - calibration.min * 1.f);
-    // else
-    return (value * 1.f - calibration.zero * 1.f) /
-           (calibration.max * 1.f - calibration.zero * 1.f);
+    const auto value_expansion =
+        std::max(0, int(calibration.BITS_OF_PRECISION) - int(BITS_OF_PRECISION));
+
+    const auto calibration_expansion =
+        std::max(0, int(BITS_OF_PRECISION) - int(calibration.BITS_OF_PRECISION));
+
+    const auto calibration_min = ExpandValue(calibration.min, calibration_expansion) * 1.f;
+    const auto calibration_zero = ExpandValue(calibration.zero, calibration_expansion) * 1.f;
+    const auto calibration_max = ExpandValue(calibration.max, calibration_expansion) * 1.f;
+
+    const auto use_max = calibration.zero < value;
+
+    return (ExpandValue(value, value_expansion) * 1.f - calibration_zero) /
+           (use_max * 1.f * (calibration_max - calibration_zero) +
+            !use_max * 1.f * (calibration_zero - calibration_min));
+  }
+
+  template <typename OtherT>
+  static OtherT ExpandValue(OtherT value, size_t bits)
+  {
+    if constexpr (std::is_arithmetic_v<OtherT>)
+    {
+      return Common::ExpandValue(value, bits);
+    }
+    else
+    {
+      for (size_t i = 0; i != std::size(value.data); ++i)
+        value.data[i] = Common::ExpandValue(value.data[i], bits);
+      return value;
+    }
   }
 };
 

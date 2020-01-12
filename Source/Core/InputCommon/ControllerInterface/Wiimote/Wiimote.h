@@ -53,6 +53,7 @@ private:
   class MotionPlusState
   {
   public:
+    void SetCalibrationData(const WiimoteEmu::MotionPlus::CalibrationData&);
     void ProcessData(const WiimoteEmu::MotionPlus::DataFormat&);
 
     using PassthroughMode = WiimoteEmu::MotionPlus::PassthroughMode;
@@ -66,8 +67,7 @@ private:
 
     Common::Vec3 gyro_data = {};
 
-    // TODO: make our own calibration data struct?
-    std::optional<WiimoteEmu::MotionPlus::CalibrationData> calibration;
+    std::optional<WiimoteEmu::MotionPlus::CalibrationBlocks> calibration;
 
   private:
     // Used to perform realtime calibration.

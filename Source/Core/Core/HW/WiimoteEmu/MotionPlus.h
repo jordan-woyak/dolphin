@@ -37,21 +37,74 @@ public:
     u8 degrees_div_6;
   };
 
+  // TODO: name?
+  struct CalibrationBlocks
+  {
+    struct RelevantCalibration
+    {
+      ControllerEmu::TwoPointCalibration<Common::TVec3<u16>, 16> value;
+      Common::TVec3<u16> degrees;
+    };
+
+    // Each axis may be using either slow or fast calibration.
+    // This function builds calibration that is relevant for current data.
+    auto GetRelevantCalibration(Common::TVec3<bool> is_slow) const
+    {
+      RelevantCalibration result;
+
+      const auto& pitch_block = is_slow.x ? slow : fast;
+      const auto& roll_block = is_slow.y ? slow : fast;
+      const auto& yaw_block = is_slow.z ? slow : fast;
+
+      result.value.max = {pitch_block.pitch_scale, roll_block.roll_scale, yaw_block.yaw_scale};
+
+      result.value.zero = {pitch_block.pitch_zero, roll_block.roll_zero, yaw_block.yaw_zero};
+
+      result.degrees.x = pitch_block.degrees_div_6 * 6;
+      result.degrees.y = roll_block.degrees_div_6 * 6;
+      result.degrees.z = yaw_block.degrees_div_6 * 6;
+
+      return result;
+    }
+
+    CalibrationBlock fast;
+    CalibrationBlock slow;
+  };
+
   struct CalibrationData
   {
+    void UpdateChecksum();
+
     CalibrationBlock fast;
     u8 uid_1;
     Common::BigEndianValue<u16> crc32_msb;
     CalibrationBlock slow;
     u8 uid_2;
     Common::BigEndianValue<u16> crc32_lsb;
-
-    void UpdateChecksum();
   };
   static_assert(sizeof(CalibrationData) == 0x20, "Wrong size");
 
   struct DataFormat
   {
+    // TODO: name?
+    struct Data
+    {
+      using ValueType = Common::TVec3<u16>;
+      using SlowType = Common::TVec3<bool>;
+
+      // Retuns radian/s with given calibration data.
+      Common::Vec3 GetAngularVelocity(const CalibrationBlocks&) const;
+
+      ControllerEmu::RawValue<ValueType, 14> value;
+      SlowType is_slow;
+    };
+
+    auto GetData() const
+    {
+      return Data{Data::ValueType(pitch1 | pitch2 << 8, roll1 | roll2 << 8, yaw1 | yaw2 << 8),
+                  Data::SlowType(pitch_slow, roll_slow, yaw_slow)};
+    }
+
     // yaw1, roll1, pitch1: Bits 0-7
     // yaw2, roll2, pitch2: Bits 8-13
 
@@ -70,9 +123,6 @@ public:
     u8 zero : 1;
     u8 is_mp_data : 1;
     u8 pitch2 : 6;
-
-    // Get rad/s with given calibration data.
-    Common::Vec3 GetAngularVelocity(const CalibrationData&) const;
   };
   static_assert(sizeof(DataFormat) == 6, "Wrong size");
 #pragma pack(pop)
@@ -91,6 +141,10 @@ public:
 
   // Vec3 is interpreted as radians/s about the x,y,z axes following the "right-hand rule".
   void PrepareInput(const Common::Vec3& angular_velocity);
+
+  // Pointer to 6 bytes is expected.
+  static void ApplyPassthroughModifications(PassthroughMode, u8* data);
+  static void ReversePassthroughModifications(PassthroughMode, u8* data);
 
 private:
   enum class ChallengeState : u8

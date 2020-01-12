@@ -62,7 +62,7 @@ public:
   bool IsDetectable() override { return false; }
 };
 
-// TODO: Rename or kill.
+// TODO: Rename or kill. `SignedInput`?
 class StickInput : public AnalogInput<float>
 {
 public:
@@ -297,7 +297,6 @@ void Device::RunTasks()
     return;
 
   // TODO:
-  // enable IR
   // disable + mute speaker
 
   // Request status.
@@ -394,6 +393,7 @@ void Device::RunTasks()
   }
   else
   {
+#if 0
     std::vector<u8> speaker_data;
 
     u16 sample;
@@ -419,6 +419,7 @@ void Device::RunTasks()
       std::copy(speaker_data.begin(), speaker_data.end(), rpt.data);
       QueueReport(rpt);
     }
+#endif
   }
 
   // Perform the following tasks only after M+ is settled.
@@ -546,16 +547,19 @@ void Device::RunTasks()
 
                INFO_LOG(WIIMOTE, "WiiRemote: Read M+ calibration.");
 
-               m_mplus_state.calibration =
+               // TODO: Try setting some hardcoded ranges once we have the orientations.
+               // The scaling seems to be bad. Returned rad/s are too high.
+
+               WiimoteEmu::MotionPlus::CalibrationData calibration =
                    Common::BitCastPtr<WiimoteEmu::MotionPlus::CalibrationData>(response->data());
 
-               const auto read_checksum = std::pair(m_mplus_state.calibration->crc32_lsb,
-                                                    m_mplus_state.calibration->crc32_msb);
+               const auto read_checksum = std::pair(calibration.crc32_lsb, calibration.crc32_msb);
 
-               m_mplus_state.calibration->UpdateChecksum();
+               calibration.UpdateChecksum();
 
-               if (read_checksum != std::pair(m_mplus_state.calibration->crc32_lsb,
-                                              m_mplus_state.calibration->crc32_msb))
+               m_mplus_state.SetCalibrationData(calibration);
+
+               if (read_checksum != std::pair(calibration.crc32_lsb, calibration.crc32_msb))
                {
                  // We could potentially try another read or call the M+ unusable.
                  WARN_LOG(WIIMOTE, "WiiRemote: Bad M+ calibration checksum.");
@@ -648,6 +652,17 @@ void Device::ProcessExtensionID(u8 id_0, u8 id_4, u8 id_5)
     INFO_LOG(WIIMOTE, "WiiRemote: Unknown extension: %d %d %d.", id_0, id_4, id_5);
     m_extension_id = ExtensionID::Unsupported;
   }
+}
+
+void Device::MotionPlusState::SetCalibrationData(
+    const WiimoteEmu::MotionPlus::CalibrationData& data)
+{
+  INFO_LOG(WIIMOTE, "WiiRemote: Set M+ calibration.");
+
+  calibration.emplace();
+
+  calibration->fast = data.fast;
+  calibration->slow = data.slow;
 }
 
 void Device::NunchukState::SetCalibrationData(const WiimoteEmu::Nunchuk::CalibrationData& data)
@@ -1001,6 +1016,7 @@ void Device::ProcessInputReport(WiimoteReal::Report& report)
     // TODO: Should IR position be rotated by accelerometer data?
     // This would make for nice looking input in odd orientations.
     // But sending the raw IR-dot center position also makes sense.
+    // Probably should provide a raw and orientation-corrected input.
   }
 
   // Process extension data.
@@ -1091,34 +1107,8 @@ void Device::ProcessMotionPlusExtensionData(const u8* ext_data, u32 ext_size)
   std::array<u8, sizeof(WiimoteEmu::Nunchuk::DataFormat)> data;
   std::copy_n(ext_data, ext_size, data.begin());
 
-  if (m_mplus_state.current_mode == MotionPlusState::PassthroughMode::Nunchuk)
-  {
-    // Undo M+'s "nunchuk passthrough" modifications.
-    Common::SetBit<0>(data[5], Common::ExtractBit<2>(data[5]));
-    Common::SetBit<1>(data[5], Common::ExtractBit<3>(data[5]));
-    Common::SetBit<3>(data[5], Common::ExtractBit<4>(data[5]));
-    Common::SetBit<0>(data[4], Common::ExtractBit<7>(data[5]));
-    Common::SetBit<7>(data[5], Common::ExtractBit<6>(data[5]));
-
-    // Set the overwritten bits from the next LSB.
-    Common::SetBit<2>(data[5], Common::ExtractBit<3>(data[5]));
-    Common::SetBit<4>(data[5], Common::ExtractBit<5>(data[5]));
-    Common::SetBit<6>(data[5], Common::ExtractBit<7>(data[5]));
-  }
-  else if (m_mplus_state.current_mode == MotionPlusState::PassthroughMode::Classic)
-  {
-    // Undo M+'s "classic controller passthrough" modifications.
-    Common::SetBit<0>(data[5], Common::ExtractBit<0>(data[0]));
-    Common::SetBit<1>(data[5], Common::ExtractBit<0>(data[1]));
-
-    // Set the overwritten bits from the next LSB.
-    Common::SetBit<0>(data[0], Common::ExtractBit<1>(data[0]));
-    Common::SetBit<0>(data[1], Common::ExtractBit<1>(data[1]));
-
-    // This is an overwritten unused button bit on the Classic Controller.
-    // Note it's a significant bit on the DJ Hero Turntable. (passthrough not feasible)
-    Common::SetBit<0>(data[4], 1);
-  }
+  // Undo bit-hacks of M+ passthrough.
+  WiimoteEmu::MotionPlus::ReversePassthroughModifications(*m_mplus_state.current_mode, data.data());
 
   ProcessNormalExtensionData(data.data(), data.size());
 }
@@ -1196,7 +1186,7 @@ void Device::MotionPlusState::ProcessData(const WiimoteEmu::MotionPlus::DataForm
 
   // Unfortunately M+ calibration zero values are very poor.
   // We calibrate when we receive a few seconds of stable data.
-  const auto unadjusted_gyro_data = data.GetAngularVelocity(*calibration);
+  const auto unadjusted_gyro_data = data.GetData().GetAngularVelocity(*calibration);
 
   // Use zero-data calibration until acquired.
   const auto adjusted_gyro_data =
@@ -1246,10 +1236,9 @@ void Device::WaitForMotionPlus()
 
 void Device::NunchukState::ProcessData(const WiimoteEmu::Nunchuk::DataFormat& data)
 {
-  // 0 == pressed.
-  buttons = ~data.bt.hex;
+  buttons = data.GetButtons();
 
-  // Everything else needs calibration data.
+  // Stick/accel require calibration data.
   if (!calibration.has_value())
     return;
 
@@ -1260,15 +1249,14 @@ void Device::NunchukState::ProcessData(const WiimoteEmu::Nunchuk::DataFormat& da
 
 void Device::ClassicState::ProcessData(const WiimoteEmu::Classic::DataFormat& data)
 {
-  // 0 == pressed.
-  buttons = ~data.bt.hex;
+  buttons = data.GetButtons();
 
-  // Everything else needs calibration data.
+  // Sticks/triggers require calibration data.
   if (!calibration.has_value())
     return;
 
   sticks[0] = data.GetLeftStickValue().GetNormalizedValue(calibration->left_stick);
-  sticks[1] = data.GetLeftStickValue().GetNormalizedValue(calibration->right_stick);
+  sticks[1] = data.GetRightStickValue().GetNormalizedValue(calibration->right_stick);
   triggers[0] = data.GetLeftTriggerValue().GetNormalizedValue(calibration->triggers[0]);
   triggers[1] = data.GetRightTriggerValue().GetNormalizedValue(calibration->triggers[1]);
 }
@@ -1372,6 +1360,7 @@ void Device::WriteData(AddressSpace space, u8 slave, u16 address, const std::vec
 }
 
 // TODO: Make a report handler accept multiple handlers for different report IDs.
+// Needed for ReadData where ReadDataReply or Ack can be returned.
 template <typename T>
 void Device::AddReportHandler(T&& handler)
 {
