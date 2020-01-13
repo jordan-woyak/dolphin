@@ -110,12 +110,9 @@ void Nunchuk::Update()
   // Calibration values are 8-bit but we want 10-bit precision, so << 2.
   const auto acc = ConvertAccelData(accel, ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
 
-  nc_data.ax = (acc.x >> 2) & 0xFF;
-  nc_data.ay = (acc.y >> 2) & 0xFF;
-  nc_data.az = (acc.z >> 2) & 0xFF;
-  nc_data.bt.acc_x_lsb = acc.x & 0x3;
-  nc_data.bt.acc_y_lsb = acc.y & 0x3;
-  nc_data.bt.acc_z_lsb = acc.z & 0x3;
+  nc_data.SetAccelX(acc.x);
+  nc_data.SetAccelY(acc.y);
+  nc_data.SetAccelZ(acc.z);
 
   Common::BitCastPtr<DataFormat>(&m_reg.controller_data) = nc_data;
 }

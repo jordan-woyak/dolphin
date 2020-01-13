@@ -64,6 +64,22 @@ public:
     u16 GetAccelY() const { return ay << 2 | bt.acc_y_lsb; }
     u16 GetAccelZ() const { return az << 2 | bt.acc_z_lsb; }
 
+    void SetAccelX(u16 val)
+    {
+      ax = val >> 2;
+      bt.acc_x_lsb = val & 0b11;
+    }
+    void SetAccelY(u16 val)
+    {
+      ay = val >> 2;
+      bt.acc_y_lsb = val & 0b11;
+    }
+    void SetAccelZ(u16 val)
+    {
+      az = val >> 2;
+      bt.acc_z_lsb = val & 0b11;
+    }
+
     auto GetAccelData() const
     {
       return ControllerEmu::RawValue<AccelData, 10>{

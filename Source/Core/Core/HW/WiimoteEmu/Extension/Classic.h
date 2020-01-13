@@ -63,13 +63,32 @@ public:
 
     // 6-bit X and Y values (0-63)
     auto GetLeftStick() const { return StickValue(lx, ly); };
+    void SetLeftStick(const StickValue& value)
+    {
+      lx = value.x;
+      ly = value.y;
+    }
 
     // 5-bit X and Y values (0-31)
     auto GetRightStick() const { return StickValue(rx1 | rx2 << 1 | rx3 << 3, ry); };
+    void SetRightStick(const StickValue& value)
+    {
+      rx1 = value.x & 0b1;
+      rx2 = (value.x >> 1) & 0b11;
+      rx3 = (value.x >> 3) & 0b11;
+      ry = value.y;
+    }
 
     // 5-bit values (0-31)
     u8 GetLeftTrigger() const { return lt1 | lt2 << 3; }
+    void SetLeftTrigger(u8 value)
+    {
+      lt1 = value & 0b111;
+      lt2 = (value >> 3) & 0b11;
+    }
+
     u8 GetRightTrigger() const { return rt; }
+    void SetRightTrigger(u8 value) { rt = value; }
 
     // TODO: naming?
     auto GetLeftStickValue() const
@@ -211,5 +230,5 @@ private:
   ControllerEmu::Buttons* m_dpad;
   ControllerEmu::AnalogStick* m_left_stick;
   ControllerEmu::AnalogStick* m_right_stick;
-};
+};  // namespace WiimoteEmu
 }  // namespace WiimoteEmu

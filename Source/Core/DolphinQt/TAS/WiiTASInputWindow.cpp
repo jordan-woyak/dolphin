@@ -439,21 +439,17 @@ void WiiTASInputWindow::GetValues(DataReportBuilder& rpt, int ext,
     GetSpinBoxU8(m_nunchuk_stick_x_value, nunchuk.jx);
     GetSpinBoxU8(m_nunchuk_stick_y_value, nunchuk.jy);
 
-    u16 accel_x = nunchuk.ax << 2 & (nunchuk.bt.acc_x_lsb & 0b11);
-    u16 accel_y = nunchuk.ay << 2 & (nunchuk.bt.acc_y_lsb & 0b11);
-    u16 accel_z = nunchuk.az << 2 & (nunchuk.bt.acc_z_lsb & 0b11);
+    u16 accel_x = nunchuk.GetAccelX();
+    u16 accel_y = nunchuk.GetAccelY();
+    u16 accel_z = nunchuk.GetAccelZ();
 
     GetSpinBoxU16(m_nunchuk_orientation_x_value, accel_x);
     GetSpinBoxU16(m_nunchuk_orientation_y_value, accel_y);
     GetSpinBoxU16(m_nunchuk_orientation_z_value, accel_z);
 
-    nunchuk.ax = accel_x >> 2;
-    nunchuk.ay = accel_y >> 2;
-    nunchuk.az = accel_z >> 2;
-
-    nunchuk.bt.acc_x_lsb = accel_x & 0b11;
-    nunchuk.bt.acc_y_lsb = accel_y & 0b11;
-    nunchuk.bt.acc_z_lsb = accel_z & 0b11;
+    nunchuk.SetAccelX(accel_x);
+    nunchuk.SetAccelY(accel_y);
+    nunchuk.SetAccelZ(accel_z);
 
     nunchuk.bt.hex ^= 0b11;
     GetButton<u8>(m_c_button, nunchuk.bt.hex, WiimoteEmu::Nunchuk::BUTTON_C);
@@ -488,32 +484,23 @@ void WiiTASInputWindow::GetValues(DataReportBuilder& rpt, int ext,
     GetButton<u16>(m_classic_right_button, cc.bt.hex, WiimoteEmu::Classic::PAD_RIGHT);
     cc.bt.hex ^= 0xFFFF;
 
-    u8 rx = (cc.rx1 & 0b1) & ((cc.rx2 & 0b11) << 1) & ((cc.rx3 & 0b11) << 3);
-    GetSpinBoxU8(m_classic_right_stick_x_value, rx);
-    cc.rx1 = rx & 0b1;
-    cc.rx2 = (rx >> 1) & 0b11;
-    cc.rx3 = (rx >> 3) & 0b11;
+    auto right_stick = cc.GetRightStick();
+    GetSpinBoxU8(m_classic_right_stick_x_value, right_stick.x);
+    GetSpinBoxU8(m_classic_right_stick_y_value, right_stick.y);
+    cc.SetRightStick(right_stick);
 
-    u8 ry = cc.ry;
-    GetSpinBoxU8(m_classic_right_stick_y_value, ry);
-    cc.ry = ry;
+    auto left_stick = cc.GetLeftStick();
+    GetSpinBoxU8(m_classic_left_stick_x_value, left_stick.x);
+    GetSpinBoxU8(m_classic_left_stick_y_value, left_stick.y);
+    cc.SetLeftStick(left_stick);
 
-    u8 lx = cc.lx;
-    GetSpinBoxU8(m_classic_left_stick_x_value, lx);
-    cc.lx = lx;
-
-    u8 ly = cc.ly;
-    GetSpinBoxU8(m_classic_left_stick_y_value, ly);
-    cc.ly = ly;
-
-    u8 rt = cc.rt;
+    u8 rt = cc.GetRightTrigger();
     GetSpinBoxU8(m_right_trigger_value, rt);
-    cc.rt = rt;
+    cc.SetRightTrigger(rt);
 
-    u8 lt = (cc.lt1 & 0b111) & (cc.lt2 >> 3);
+    u8 lt = cc.GetLeftTrigger();
     GetSpinBoxU8(m_left_trigger_value, lt);
-    cc.lt1 = lt & 0b111;
-    cc.lt2 = (lt >> 3) & 0b11;
+    cc.SetLeftTrigger(lt);
 
     key.Encrypt(reinterpret_cast<u8*>(&cc), 0, sizeof(cc));
   }

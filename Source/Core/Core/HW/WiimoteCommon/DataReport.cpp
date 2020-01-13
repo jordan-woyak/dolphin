@@ -86,17 +86,15 @@ struct IncludeAccel : virtual DataReportManipulator
   void GetAccelData(AccelData* result) const override
   {
     const AccelMSB accel = Common::BitCastPtr<AccelMSB>(data_ptr + 2);
-    result->x = accel.x << 2;
-    result->y = accel.y << 2;
-    result->z = accel.z << 2;
-
-    // LSBs
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
+
+    // X has 10 bits of precision.
+    result->x = accel.x << 2;
     result->x |= core.acc_bits & 0b11;
 
-    // TODO: Properly scale 9 bit values to 10 bits.
-    result->y |= (core.acc_bits2 & 0b1) << 1;
-    result->z |= core.acc_bits2 & 0b10;
+    // Y and Z only have 9 bits of precision. (convert them to 10)
+    result->y = Common::ExpandValue<u16>(accel.y << 1 | Common::ExtractBit<0>(core.acc_bits2), 1);
+    result->z = Common::ExpandValue<u16>(accel.z << 1 | Common::ExtractBit<1>(core.acc_bits2), 1);
   }
 
   void SetAccelData(const AccelData& new_accel) override
@@ -208,16 +206,17 @@ struct ReportExt21 : NoCore, NoAccel, NoIR, IncludeExt<0, 21>
 struct ReportInterleave1 : IncludeCore, IncludeIR<3, 18, 0>, NoExt
 {
   // FYI: Only 8-bits of precision in this report, and no Y axis.
-  // Only contains 4 MSB of Z axis.
-
   void GetAccelData(AccelData* accel) const override
   {
-    accel->x = data_ptr[2] << 2;
+    // Y axis only has 8 bits of precision. (converted to 10)
+    accel->x = Common::ExpandValue<u16>(data_ptr[2], 2);
 
-    // Retain lower 6 bits.
+    // Y axis is not contained in this report. (provided by "Interleave2")
+
+    // Clear upper bits, retain lower bits. (provided by "Interleave2")
     accel->z &= 0b111111;
 
-    // TODO: Properly scale 8 bit value to 10 bits.
+    // Report only contains 4 MSB of Z axis.
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
     accel->z |= (core.acc_bits << 6) | (core.acc_bits2 << 8);
   }
@@ -240,18 +239,19 @@ struct ReportInterleave1 : IncludeCore, IncludeIR<3, 18, 0>, NoExt
 struct ReportInterleave2 : IncludeCore, IncludeIR<3, 18, 18>, NoExt
 {
   // FYI: Only 8-bits of precision in this report, and no X axis.
-  // Only contains 4 LSB of Z axis.
-
   void GetAccelData(AccelData* accel) const override
   {
-    accel->y = data_ptr[2] << 2;
+    // X axis is not contained in this report. (provided by "Interleave1")
 
-    // Retain upper 4 bits.
+    // Y axis only has 8 bits of precision. (converted to 10)
+    accel->y = Common::ExpandValue<u16>(data_ptr[2], 2);
+
+    // Clear lower bits, retain upper bits. (provided by "Interleave1")
     accel->z &= ~0b111111;
 
-    // TODO: Properly scale 8 bit value to 10 bits.
+    // Report only contains 4 LSBs of Z axis. (converted to 6)
     const CoreData core = Common::BitCastPtr<CoreData>(data_ptr);
-    accel->z |= (core.acc_bits << 2) | (core.acc_bits2 << 4);
+    accel->z |= Common::ExpandValue<u16>(core.acc_bits | core.acc_bits2 << 2, 2);
   }
 
   void SetAccelData(const AccelData& accel) override
