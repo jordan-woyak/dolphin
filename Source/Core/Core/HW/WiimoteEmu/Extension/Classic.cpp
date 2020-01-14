@@ -147,13 +147,11 @@ void Classic::Update()
     classic_data.SetRightTrigger(rt);
   }
 
-  // buttons
-  m_buttons->GetState(&classic_data.bt.hex, classic_button_bitmasks.data());
-  // dpad
-  m_dpad->GetState(&classic_data.bt.hex, classic_dpad_bitmasks.data());
-
-  // flip button bits
-  classic_data.bt.hex ^= 0xFFFF;
+  // buttons and dpad
+  u16 buttons = 0;
+  m_buttons->GetState(&buttons, classic_button_bitmasks.data());
+  m_dpad->GetState(&buttons, classic_dpad_bitmasks.data());
+  classic_data.SetButtons(buttons);
 
   Common::BitCastPtr<DataFormat>(&m_reg.controller_data) = classic_data;
 }

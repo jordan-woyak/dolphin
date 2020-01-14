@@ -127,7 +127,13 @@ private:
     bool sensitivity_set = false;
     bool mode_set = false;
 
+    // Average of visible IR "dots".
     Common::Vec2 center_position = {};
+
+    // Sensor-oriented version of above.
+    // TODO: naming
+    Common::Vec2 pointer_position = {};
+
     bool is_hidden = true;
   };
 
@@ -157,7 +163,7 @@ private:
     std::function<HandlerResult(const WiimoteReal::Report& report)> m_callback;
   };
 
-  // TODO: make parameter const
+  // TODO: make parameter const (need to tweak data report manipulator)
   void ProcessInputReport(WiimoteReal::Report& report);
   void ProcessMotionPlusExtensionData(const u8* data, u32 size);
   void ProcessNormalExtensionData(const u8* data, u32 size);
@@ -206,6 +212,9 @@ private:
 
   void UpdateRumble();
 
+  // TODO: Rename for M+
+  void UpdateExtensionNumberInput();
+
   std::unique_ptr<WiimoteReal::Wiimote> m_wiimote;
 
   const u8 m_index;
@@ -252,6 +261,10 @@ private:
 
   // Assume mode is disabled so one gets set.
   InputReportID m_reporting_mode = InputReportID::ReportDisabled;
+
+  // Used only to provide a value for a specialty "input". (for attached extension passthrough)
+  WiimoteEmu::ExtensionNumber m_extension_number_input = WiimoteEmu::ExtensionNumber::NONE;
+  bool m_mplus_attached_input = false;
 
   // Holds callbacks for output report replies.
   // TODO: make this vector?

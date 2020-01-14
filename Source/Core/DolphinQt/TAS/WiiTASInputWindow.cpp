@@ -451,10 +451,10 @@ void WiiTASInputWindow::GetValues(DataReportBuilder& rpt, int ext,
     nunchuk.SetAccelY(accel_y);
     nunchuk.SetAccelZ(accel_z);
 
-    nunchuk.bt.hex ^= 0b11;
-    GetButton<u8>(m_c_button, nunchuk.bt.hex, WiimoteEmu::Nunchuk::BUTTON_C);
-    GetButton<u8>(m_z_button, nunchuk.bt.hex, WiimoteEmu::Nunchuk::BUTTON_Z);
-    nunchuk.bt.hex ^= 0b11;
+    u8 bt = nunchuk.GetButtons();
+    GetButton<u8>(m_c_button, bt, WiimoteEmu::Nunchuk::BUTTON_C);
+    GetButton<u8>(m_z_button, bt, WiimoteEmu::Nunchuk::BUTTON_Z);
+    nunchuk.SetButtons(bt);
 
     key.Encrypt(reinterpret_cast<u8*>(&nunchuk), 0, sizeof(nunchuk));
   }
@@ -466,23 +466,23 @@ void WiiTASInputWindow::GetValues(DataReportBuilder& rpt, int ext,
     auto& cc = *reinterpret_cast<WiimoteEmu::Classic::DataFormat*>(ext_data);
     key.Decrypt(reinterpret_cast<u8*>(&cc), 0, sizeof(cc));
 
-    cc.bt.hex ^= 0xFFFF;
-    GetButton<u16>(m_classic_a_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_A);
-    GetButton<u16>(m_classic_b_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_B);
-    GetButton<u16>(m_classic_x_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_X);
-    GetButton<u16>(m_classic_y_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_Y);
-    GetButton<u16>(m_classic_plus_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_PLUS);
-    GetButton<u16>(m_classic_minus_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_MINUS);
-    GetButton<u16>(m_classic_l_button, cc.bt.hex, WiimoteEmu::Classic::TRIGGER_L);
-    GetButton<u16>(m_classic_r_button, cc.bt.hex, WiimoteEmu::Classic::TRIGGER_R);
-    GetButton<u16>(m_classic_zl_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_ZL);
-    GetButton<u16>(m_classic_zr_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_ZR);
-    GetButton<u16>(m_classic_home_button, cc.bt.hex, WiimoteEmu::Classic::BUTTON_HOME);
-    GetButton<u16>(m_classic_left_button, cc.bt.hex, WiimoteEmu::Classic::PAD_LEFT);
-    GetButton<u16>(m_classic_up_button, cc.bt.hex, WiimoteEmu::Classic::PAD_UP);
-    GetButton<u16>(m_classic_down_button, cc.bt.hex, WiimoteEmu::Classic::PAD_DOWN);
-    GetButton<u16>(m_classic_right_button, cc.bt.hex, WiimoteEmu::Classic::PAD_RIGHT);
-    cc.bt.hex ^= 0xFFFF;
+    u16 bt = cc.GetButtons();
+    GetButton<u16>(m_classic_a_button, bt, WiimoteEmu::Classic::BUTTON_A);
+    GetButton<u16>(m_classic_b_button, bt, WiimoteEmu::Classic::BUTTON_B);
+    GetButton<u16>(m_classic_x_button, bt, WiimoteEmu::Classic::BUTTON_X);
+    GetButton<u16>(m_classic_y_button, bt, WiimoteEmu::Classic::BUTTON_Y);
+    GetButton<u16>(m_classic_plus_button, bt, WiimoteEmu::Classic::BUTTON_PLUS);
+    GetButton<u16>(m_classic_minus_button, bt, WiimoteEmu::Classic::BUTTON_MINUS);
+    GetButton<u16>(m_classic_l_button, bt, WiimoteEmu::Classic::TRIGGER_L);
+    GetButton<u16>(m_classic_r_button, bt, WiimoteEmu::Classic::TRIGGER_R);
+    GetButton<u16>(m_classic_zl_button, bt, WiimoteEmu::Classic::BUTTON_ZL);
+    GetButton<u16>(m_classic_zr_button, bt, WiimoteEmu::Classic::BUTTON_ZR);
+    GetButton<u16>(m_classic_home_button, bt, WiimoteEmu::Classic::BUTTON_HOME);
+    GetButton<u16>(m_classic_left_button, bt, WiimoteEmu::Classic::PAD_LEFT);
+    GetButton<u16>(m_classic_up_button, bt, WiimoteEmu::Classic::PAD_UP);
+    GetButton<u16>(m_classic_down_button, bt, WiimoteEmu::Classic::PAD_DOWN);
+    GetButton<u16>(m_classic_right_button, bt, WiimoteEmu::Classic::PAD_RIGHT);
+    cc.SetButtons(bt);
 
     auto right_stick = cc.GetRightStick();
     GetSpinBoxU8(m_classic_right_stick_x_value, right_stick.x);

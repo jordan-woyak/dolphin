@@ -89,7 +89,13 @@ public:
     u8 GetButtons() const
     {
       // 0 == pressed.
-      return ~bt.hex;
+      return ~bt.hex & (BUTTON_C | BUTTON_Z);
+    }
+    void SetButtons(u8 value)
+    {
+      // 0 == pressed.
+      bt.hex |= (BUTTON_C | BUTTON_Z);
+      bt.hex ^= value & (BUTTON_C | BUTTON_Z);
     }
 
     // joystick x, y

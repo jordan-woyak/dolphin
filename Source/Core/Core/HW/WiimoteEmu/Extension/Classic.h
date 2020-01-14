@@ -110,6 +110,12 @@ public:
       return ~bt.hex;
     }
 
+    void SetButtons(u16 value)
+    {
+      // 0 == pressed.
+      bt.hex = ~value;
+    }
+
     u8 lx : 6;  // byte 0
     u8 rx3 : 2;
 

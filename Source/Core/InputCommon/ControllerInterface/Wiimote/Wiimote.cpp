@@ -5,10 +5,9 @@
 #include "InputCommon/ControllerInterface/Wiimote/Wiimote.h"
 
 #include "Common/BitUtils.h"
-#include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
-#include "Common/Swap.h"
+#include "Core/Config/SYSCONFSettings.h"
 #include "Core/HW/WiimoteEmu/ExtensionPort.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
@@ -20,8 +19,8 @@ template <typename T>
 class Button final : public Core::Device::Input
 {
 public:
-  Button(const T& value, std::common_type_t<T> mask, std::string name)
-      : m_value(value), m_mask(mask), m_name(std::move(name))
+  Button(const T* value, std::common_type_t<T> mask, std::string name)
+      : m_value(*value), m_mask(mask), m_name(std::move(name))
   {
   }
 
@@ -39,31 +38,33 @@ template <typename T>
 class AnalogInput : public Core::Device::Input
 {
 public:
-  AnalogInput(const T& value, std::string name, T range)
-      : m_value(value), m_name(std::move(name)), m_range(range)
+  AnalogInput(const T* value, std::string name, ControlState range)
+      : m_value(*value), m_name(std::move(name)), m_range(range)
   {
   }
 
   std::string GetName() const override { return m_name; }
 
-  ControlState GetState() const override { return ControlState(m_value) / m_range; }
+  ControlState GetState() const final override { return ControlState(m_value) / m_range; }
 
 protected:
   const T& m_value;
   const std::string m_name;
-  const T m_range;
+  const ControlState m_range;
 };
 
-class MotionInput : public AnalogInput<float>
+// TODO: rename.
+template <typename T>
+class UndetectableAnalogInput final : public AnalogInput<T>
 {
 public:
-  using AnalogInput<float>::AnalogInput;
+  using AnalogInput<T>::AnalogInput;
 
   bool IsDetectable() override { return false; }
 };
 
 // TODO: Rename or kill. `SignedInput`?
-class StickInput : public AnalogInput<float>
+class StickInput final : public AnalogInput<float>
 {
 public:
   using AnalogInput<float>::AnalogInput;
@@ -74,7 +75,7 @@ public:
 class Motor final : public Core::Device::Output
 {
 public:
-  Motor(ControlState& value) : m_value(value) {}
+  Motor(ControlState* value) : m_value(*value) {}
 
   std::string GetName() const override { return "Motor"; }
 
@@ -96,6 +97,7 @@ void Device::QueueReport(T&& report, std::function<void(ErrorCode)> ack_handler)
     AddAckHandler(report.REPORT_ID, std::move(ack_handler));
 }
 
+// TODO: Kill if not needed.
 void Init()
 {
 }
@@ -117,7 +119,7 @@ void PopulateDevices()
       continue;
     }
 
-    // TODO: Ugly call needed for our real wiimote interface to have a valid channel.
+    // TODO: Ugly call needed for our silly real wiimote interface to have a valid channel.
     constexpr u8 report[] = {WiimoteReal::WR_SET_REPORT | WiimoteReal::BT_OUTPUT,
                              u8(OutputReportID::Rumble), 0};
     wiimote->InterruptChannel(1, report, sizeof(report));
@@ -143,7 +145,7 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
   };
 
   for (std::size_t i = 0; i != std::size(button_masks); ++i)
-    AddInput(new Button(m_core_data.hex, button_masks[i], button_names[i]));
+    AddInput(new Button(&m_core_data.hex, button_masks[i], button_names[i]));
 
   static constexpr u16 dpad_masks[] = {
       Wiimote::PAD_UP,
@@ -154,7 +156,7 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
 
   // TODO: naming?
   for (std::size_t i = 0; i != std::size(dpad_masks); ++i)
-    AddInput(new Button(m_core_data.hex, dpad_masks[i], named_directions[i]));
+    AddInput(new Button(&m_core_data.hex, dpad_masks[i], named_directions[i]));
 
   static constexpr std::array<std::array<const char*, 2>, 3> accel_names = {{
       {"Accel Left", "Accel Right"},
@@ -164,22 +166,31 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
 
   for (std::size_t i = 0; i != m_accel_data.data.size(); ++i)
   {
-    AddInput(new MotionInput(m_accel_data.data[i], accel_names[i][0], 1));
-    AddInput(new MotionInput(m_accel_data.data[i], accel_names[i][1], -1));
+    AddInput(new UndetectableAnalogInput<float>(&m_accel_data.data[i], accel_names[i][0], 1));
+    AddInput(new UndetectableAnalogInput<float>(&m_accel_data.data[i], accel_names[i][1], -1));
   }
 
-  // TODO: naming?
+  // TODO: naming? Up Down Left Right?
   static constexpr const char* const ir_names[] = {"Cursor X", "Cursor Y"};
 
   for (std::size_t i = 0; i != std::size(ir_names); ++i)
   {
     // TODO: Should these be detectable?
-    AddInput(new StickInput(m_ir_state.center_position.data[i], ir_names[i], -1.f));
-    AddInput(new StickInput(m_ir_state.center_position.data[i], ir_names[i], 1.f));
+    AddInput(new StickInput(&m_ir_state.center_position.data[i], ir_names[i], -1.f));
+    AddInput(new StickInput(&m_ir_state.center_position.data[i], ir_names[i], 1.f));
   }
 
-  // TODO: Hide, Hidden, Visible?
-  AddInput(new Button(m_ir_state.is_hidden, true, "Cursor Hide"));
+  // TODO: naming? Up Down Left Right?
+  static constexpr const char* const point_names[] = {"Point X", "Point Y"};
+  for (std::size_t i = 0; i != std::size(point_names); ++i)
+  {
+    // TODO: Should these be detectable?
+    AddInput(new StickInput(&m_ir_state.pointer_position.data[i], point_names[i], -1.f));
+    AddInput(new StickInput(&m_ir_state.pointer_position.data[i], point_names[i], 1.f));
+  }
+
+  // TODO: Hide, Hidden, Visible? IR, Point, Cursor?
+  AddInput(new Button(&m_ir_state.is_hidden, true, "Cursor Hide"));
 
   // TODO: Add these inputs only after M+ is activated.
   static constexpr std::array<std::array<const char*, 2>, 3> gyro_names = {{
@@ -190,8 +201,10 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
 
   for (std::size_t i = 0; i != m_accel_data.data.size(); ++i)
   {
-    AddInput(new MotionInput(m_mplus_state.gyro_data.data[i], gyro_names[i][0], 1));
-    AddInput(new MotionInput(m_mplus_state.gyro_data.data[i], gyro_names[i][1], -1));
+    AddInput(
+        new UndetectableAnalogInput<float>(&m_mplus_state.gyro_data.data[i], gyro_names[i][0], 1));
+    AddInput(
+        new UndetectableAnalogInput<float>(&m_mplus_state.gyro_data.data[i], gyro_names[i][1], -1));
   }
 
   // TODO: Add these inputs only when nunchuck is present.
@@ -199,23 +212,26 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
   const std::string nunchuk_prefix = "Nunchuk ";
 
   // TODO: naming?
-  AddInput(new Button(m_nunchuk_state.buttons, Nunchuk::BUTTON_C, nunchuk_prefix + "Button C"));
-  AddInput(new Button(m_nunchuk_state.buttons, Nunchuk::BUTTON_Z, nunchuk_prefix + "Button Z"));
+  AddInput(new Button(&m_nunchuk_state.buttons, Nunchuk::BUTTON_C, nunchuk_prefix + "Button C"));
+  AddInput(new Button(&m_nunchuk_state.buttons, Nunchuk::BUTTON_Z, nunchuk_prefix + "Button Z"));
+
+  // TODO: Should all X/Y input names be changed to up/down/left/right ?
 
   static constexpr const char* const nunchuk_stick_names[] = {"Stick X", "Stick Y"};
   for (std::size_t i = 0; i != std::size(nunchuk_stick_names); ++i)
   {
-    AddInput(new StickInput(m_nunchuk_state.stick.data[i], nunchuk_prefix + nunchuk_stick_names[i],
+    AddInput(new StickInput(&m_nunchuk_state.stick.data[i], nunchuk_prefix + nunchuk_stick_names[i],
                             -1.f));
-    AddInput(new StickInput(m_nunchuk_state.stick.data[i], nunchuk_prefix + nunchuk_stick_names[i],
+    AddInput(new StickInput(&m_nunchuk_state.stick.data[i], nunchuk_prefix + nunchuk_stick_names[i],
                             1.f));
   }
 
   for (std::size_t i = 0; i != m_accel_data.data.size(); ++i)
   {
-    AddInput(new MotionInput(m_nunchuk_state.accel.data[i], nunchuk_prefix + accel_names[i][0], 1));
-    AddInput(
-        new MotionInput(m_nunchuk_state.accel.data[i], nunchuk_prefix + accel_names[i][1], -1));
+    AddInput(new UndetectableAnalogInput<float>(&m_nunchuk_state.accel.data[i],
+                                                nunchuk_prefix + accel_names[i][0], 1));
+    AddInput(new UndetectableAnalogInput<float>(&m_nunchuk_state.accel.data[i],
+                                                nunchuk_prefix + accel_names[i][1], -1));
   }
 
   // TODO: Add these inputs only when classic controller is present.
@@ -230,7 +246,7 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
   };
 
   for (std::size_t i = 0; i != std::size(classic_dpad_masks); ++i)
-    AddInput(new Button(m_classic_state.buttons, classic_dpad_masks[i],
+    AddInput(new Button(&m_classic_state.buttons, classic_dpad_masks[i],
                         classic_prefix + named_directions[i]));
 
   static constexpr u16 classic_button_masks[] = {
@@ -245,7 +261,7 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
   };
 
   for (std::size_t i = 0; i != std::size(classic_button_masks); ++i)
-    AddInput(new Button(m_classic_state.buttons, classic_button_masks[i],
+    AddInput(new Button(&m_classic_state.buttons, classic_button_masks[i],
                         classic_prefix + classic_button_names[i]));
 
   static constexpr const char* const classic_stick_names[][2] = {
@@ -255,21 +271,26 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote, u8 index)
   {
     for (std::size_t i = 0; i != std::size(m_classic_state.sticks[0].data); ++i)
     {
-      AddInput(new StickInput(m_classic_state.sticks[s].data[i],
+      AddInput(new StickInput(&m_classic_state.sticks[s].data[i],
                               classic_prefix + classic_stick_names[s][i], -1.f));
-      AddInput(new StickInput(m_classic_state.sticks[s].data[i],
+      AddInput(new StickInput(&m_classic_state.sticks[s].data[i],
                               classic_prefix + classic_stick_names[s][i], 1.f));
     }
   }
 
-  AddInput(new AnalogInput(m_classic_state.triggers[0], classic_prefix + "L-Analog", 1.f));
-  AddInput(new AnalogInput(m_classic_state.triggers[1], classic_prefix + "R-Analog", 1.f));
+  AddInput(new AnalogInput(&m_classic_state.triggers[0], classic_prefix + "L-Analog", 1.f));
+  AddInput(new AnalogInput(&m_classic_state.triggers[1], classic_prefix + "R-Analog", 1.f));
 
-  // TODO: magic number.
-  constexpr u8 MAX_LEVEL = 200;
-  AddInput(new AnalogInput(m_battery, "Battery", MAX_LEVEL));
+  // Specialty inputs:
+  AddInput(new UndetectableAnalogInput<u8>(
+      &m_battery, "Battery", WiimoteCommon::MAX_BATTERY_LEVEL / ciface::BATTERY_INPUT_MAX_VALUE));
+  // TODO: naming of these:
+  AddInput(new UndetectableAnalogInput<WiimoteEmu::ExtensionNumber>(
+      &m_extension_number_input, "Attached Extension", WiimoteEmu::ExtensionNumber(1)));
+  AddInput(new UndetectableAnalogInput<bool>(&m_mplus_attached_input, "Attached MotionPlus", 1));
 
-  AddOutput(new Motor(m_rumble_level));
+  // Output:
+  AddOutput(new Motor(&m_rumble_level));
 }
 
 Device::~Device()
@@ -313,6 +334,7 @@ void Device::RunTasks()
   }
 
   // Set LEDs.
+  // TODO: Support LEDs beyond 4
   const auto desired_leds = (1 << m_index);
   if (m_leds != desired_leds)
   {
@@ -469,6 +491,14 @@ void Device::RunTasks()
   if (!IsMotionPlusStateKnown())
     return;
 
+  // We now know the status of the M+.
+  // Updating it too frequently results off/on flashes on mode change.
+  m_mplus_attached_input = IsMotionPlusActive();
+
+  // Extension removal status is known here. Attachment status is updated after the ID is read.
+  if (m_extension_port != true)
+    m_extension_number_input = WiimoteEmu::ExtensionNumber::NONE;
+
   // Periodically try to activate an inactive M+.
   if (!IsMotionPlusActive() && m_mplus_desired_mode.has_value() &&
       m_mplus_state.current_mode != m_mplus_desired_mode)
@@ -534,6 +564,10 @@ void Device::RunTasks()
   if (!IsMotionPlusInDesiredMode())
     return;
 
+  // Now that M+ config has settled we can update the extension number.
+  // Updating it too frequently results off/on flashes on M+ mode change.
+  UpdateExtensionNumberInput();
+
   constexpr u16 normal_calibration_addr = 0x20;
 
   // Read M+ calibration.
@@ -547,8 +581,8 @@ void Device::RunTasks()
 
                INFO_LOG(WIIMOTE, "WiiRemote: Read M+ calibration.");
 
-               // TODO: Try setting some hardcoded ranges once we have the orientations.
-               // The scaling seems to be bad. Returned rad/s are too high.
+               // TODO: Try setting some hardcoded ranges once we have orientations.
+               // The scaling seems to be bad. Returned rad/s are a bit high.
 
                WiimoteEmu::MotionPlus::CalibrationData calibration =
                    Common::BitCastPtr<WiimoteEmu::MotionPlus::CalibrationData>(response->data());
@@ -618,6 +652,23 @@ void Device::RunTasks()
   }
 }
 
+void Device::UpdateExtensionNumberInput()
+{
+  switch (m_extension_id.value_or(ExtensionID::Unsupported))
+  {
+  case ExtensionID::Nunchuk:
+    m_extension_number_input = WiimoteEmu::ExtensionNumber::NUNCHUK;
+    break;
+  case ExtensionID::Classic:
+    m_extension_number_input = WiimoteEmu::ExtensionNumber::CLASSIC;
+    break;
+  case ExtensionID::Unsupported:
+  default:
+    m_extension_number_input = WiimoteEmu::ExtensionNumber::NONE;
+    break;
+  }
+}
+
 void Device::ProcessExtensionEvent(bool connected)
 {
   // Reset extension state.
@@ -633,6 +684,8 @@ void Device::ProcessExtensionEvent(bool connected)
 
 void Device::ProcessExtensionID(u8 id_0, u8 id_4, u8 id_5)
 {
+  // TODO: Provide an input for the current extension, used to set emu-ext on physical swap.
+
   if (id_4 == 0x00 && id_5 == 0x00)
   {
     INFO_LOG(WIIMOTE, "WiiRemote: Nunchuk is attached.");
@@ -723,6 +776,35 @@ bool Device::IRState::IsFullyConfigured() const
 
 void Device::ConfigureIRCamera()
 {
+  struct IRSensitivityConfig
+  {
+    std::array<u8, 9> block1;
+    std::array<u8, 2> block2;
+  };
+
+  // Data for Wii levels 1 to 5.
+  static constexpr std::array<IRSensitivityConfig, 5> sensitivity_configs = {{
+      {{0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0x64, 0x00, 0xfe}, {0xfd, 0x05}},
+      {{0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0x96, 0x00, 0xb4}, {0xb3, 0x04}},
+      {{0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0xaa, 0x00, 0x64}, {0x63, 0x03}},
+      {{0x02, 0x00, 0x00, 0x71, 0x01, 0x00, 0xc8, 0x00, 0x36}, {0x35, 0x03}},
+      {{0x07, 0x00, 0x00, 0x71, 0x01, 0x00, 0x72, 0x00, 0x20}, {0x1f, 0x03}},
+  }};
+
+  constexpr u16 block1_addr = 0x00;
+  constexpr u16 block2_addr = 0x1a;
+
+  // TODO: change sensitivity when config changes!
+
+  // Wii stores values from 1 to 5.
+  u32 requested_sensitivity = Config::Get(Config::SYSCONF_SENSOR_BAR_SENSITIVITY) - 1;
+
+  // Default to the middle value on bad value.
+  if (requested_sensitivity >= std::size(sensitivity_configs))
+    requested_sensitivity = 2;
+
+  const auto& sensitivity_config = sensitivity_configs[requested_sensitivity];
+
   // TODO: magic numbers for days!
   if (!m_ir_state.enabled)
   {
@@ -752,22 +834,25 @@ void Device::ConfigureIRCamera()
   if (!m_ir_state.sensitivity_set)
   {
     WriteData(AddressSpace::I2CBus, WiimoteEmu::CameraLogic::I2C_ADDR, 0x30, {0x01},
-              [this](ErrorCode result) {
+              [&](ErrorCode result) {
                 if (result != ErrorCode::Success)
                   return;
 
-                const std::vector<u8> sensitivity_block = {0x02, 0x00, 0x00, 0x71, 0x01,
-                                                           0x00, 0xaa, 0x00, 0x64};
+                // TODO: would be nice if conversion to vector was not needed.
+                std::vector block1(std::begin(sensitivity_config.block1),
+                                   std::end(sensitivity_config.block1));
 
-                WriteData(AddressSpace::I2CBus, WiimoteEmu::CameraLogic::I2C_ADDR, 0x00,
-                          sensitivity_block, [this](ErrorCode block_result) {
+                WriteData(AddressSpace::I2CBus, WiimoteEmu::CameraLogic::I2C_ADDR, block1_addr,
+                          block1, [&](ErrorCode block_result) {
                             if (block_result != ErrorCode::Success)
                               return;
 
-                            const std::vector<u8> sensitivity_block2 = {0x63, 0x03};
+                            // TODO: would be nice if conversion to vector was not needed.
+                            std::vector block2(std::begin(sensitivity_config.block2),
+                                               std::end(sensitivity_config.block2));
 
-                            WriteData(AddressSpace::I2CBus, WiimoteEmu::CameraLogic::I2C_ADDR, 0x1a,
-                                      sensitivity_block2, [this](ErrorCode block2_result) {
+                            WriteData(AddressSpace::I2CBus, WiimoteEmu::CameraLogic::I2C_ADDR,
+                                      block2_addr, block2, [this](ErrorCode block2_result) {
                                         if (block2_result != ErrorCode::Success)
                                           return;
 
@@ -1001,6 +1086,7 @@ void Device::ProcessInputReport(WiimoteReal::Report& report)
   // Process accel data.
   if (manipulator->HasAccel() && m_accel_calibration.has_value())
   {
+    // FYI: This logic fails to properly handle the (never used) "interleaved" reports.
     DataReportManipulator::AccelData accel_data = {};
     manipulator->GetAccelData(&accel_data);
 
@@ -1013,10 +1099,16 @@ void Device::ProcessInputReport(WiimoteReal::Report& report)
     m_ir_state.ProcessData(
         Common::BitCastPtr<std::array<WiimoteEmu::IRBasic, 2>>(manipulator->GetIRDataPtr()));
 
-    // TODO: Should IR position be rotated by accelerometer data?
-    // This would make for nice looking input in odd orientations.
-    // But sending the raw IR-dot center position also makes sense.
-    // Probably should provide a raw and orientation-corrected input.
+    // Update oriented version of IR data.
+
+    // TODO: Should the accelerometer be smoothed for this? YES, it is very shakey.
+    // We could use gyro data too (Same math used for IMU cursor)
+    const auto roll = std::atan2(m_accel_data.x, m_accel_data.z);
+
+    const auto rotated_position =
+        Common::Matrix33::RotateZ(-roll) *
+        Common::Vec3(m_ir_state.center_position.x, m_ir_state.center_position.y, 0.f);
+    m_ir_state.pointer_position = {rotated_position.x, rotated_position.y};
   }
 
   // Process extension data.
@@ -1024,6 +1116,9 @@ void Device::ProcessInputReport(WiimoteReal::Report& report)
   {
     const auto ext_data = manipulator->GetExtDataPtr();
     const auto ext_size = manipulator->GetExtDataSize();
+
+    // TODO: If M+ is not present, generate gyro data from accel/IR
+    // Generalize ComplementaryFilter so it can take IR data with a forward normal.
 
     if (IsMotionPlusActive())
       ProcessMotionPlusExtensionData(ext_data, ext_size);
@@ -1322,7 +1417,7 @@ void Device::AddReadDataReplyHandler(AddressSpace space, u8 slave, u16 address, 
   });
 }
 
-// TODO: Allow this to accept std::array ?
+// TODO: accept more than std::vector
 void Device::WriteData(AddressSpace space, u8 slave, u16 address, const std::vector<u8>& data,
                        std::function<void(ErrorCode)> callback)
 {
@@ -1333,15 +1428,16 @@ void Device::WriteData(AddressSpace space, u8 slave, u16 address, const std::vec
   write_data.address[1] = u8(address);
 
   constexpr auto MAX_DATA_SIZE = std::size(write_data.data);
-  write_data.size = std::min(data.size(), MAX_DATA_SIZE);
+  write_data.size = std::min(std::size(data), MAX_DATA_SIZE);
 
-  std::copy_n(data.begin(), write_data.size, write_data.data);
+  std::copy_n(std::begin(data), write_data.size, write_data.data);
 
   // Writes of more than 16 bytes must be done in multiple reports.
-  if (data.size() > MAX_DATA_SIZE)
+  if (std::size(data) > MAX_DATA_SIZE)
   {
     auto next_write = [this, space, slave, address,
-                       additional_data = std::vector(data.begin() + MAX_DATA_SIZE, data.end()),
+                       additional_data =
+                           std::vector<u8>{std::begin(data) + MAX_DATA_SIZE, std::end(data)},
                        callback = std::move(callback)](ErrorCode result) mutable {
       if (result != ErrorCode::Success)
         callback(result);
@@ -1472,6 +1568,10 @@ void Device::ProcessStatusReport(const InputReportStatus& status)
 
     // The M+ is now in an unknown state.
     m_mplus_state = {};
+
+    // TODO: Provide an input for the current M+ status to passthrough to emu-wm
+    // We might not want the status to change so frequently like the real one does, tho.
+    // Only change the status when not waiting on M+.
 
     if (is_ext_connected)
     {

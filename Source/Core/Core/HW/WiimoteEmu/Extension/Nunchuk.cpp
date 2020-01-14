@@ -87,10 +87,9 @@ void Nunchuk::Update()
   }
 
   // buttons
-  m_buttons->GetState(&nc_data.bt.hex, nunchuk_button_bitmasks.data());
-
-  // flip the button bits :/
-  nc_data.bt.hex ^= 0x03;
+  u8 buttons = 0;
+  m_buttons->GetState(&buttons, nunchuk_button_bitmasks.data());
+  nc_data.SetButtons(buttons);
 
   // Acceleration data:
   EmulateSwing(&m_swing_state, m_swing, 1.f / ::Wiimote::UPDATE_FREQ);
