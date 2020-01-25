@@ -14,260 +14,211 @@
 
 namespace Common
 {
-template <typename T>
-union TVec3
+template <typename T, size_t N>
+struct TVecN;
+
+namespace VecDetail
 {
-  TVec3() = default;
-  TVec3(T _x, T _y, T _z) : data{_x, _y, _z} {}
+template <size_t N, typename T>
+auto& Get(T& value)
+{
+  if constexpr (std::is_arithmetic_v<T>)
+    return value;
+  else
+    return value.data[N];
+}
 
-  TVec3 Cross(const TVec3& rhs) const
-  {
-    return {(y * rhs.z) - (rhs.y * z), (z * rhs.x) - (rhs.z * x), (x * rhs.y) - (rhs.x * y)};
-  }
-  T Dot(const TVec3& other) const { return x * other.x + y * other.y + z * other.z; }
-  T LengthSquared() const { return Dot(*this); }
-  T Length() const { return std::sqrt(LengthSquared()); }
-  TVec3 Normalized() const { return *this / Length(); }
+template <typename T, size_t N>
+struct VecMembers;
 
-  TVec3& operator+=(const TVec3& rhs)
+template <typename T>
+struct VecMembers<T, 2>
+{
+  template <typename OtherT>
+  auto Cross(const TVecN<OtherT, 2>& rhs) const
   {
-    x += rhs.x;
-    y += rhs.y;
-    z += rhs.z;
-    return *this;
-  }
-
-  TVec3& operator-=(const TVec3& rhs)
-  {
-    x -= rhs.x;
-    y -= rhs.y;
-    z -= rhs.z;
-    return *this;
+    return (x * rhs.y) - (y * rhs.x);
   }
 
-  TVec3& operator*=(const TVec3& rhs)
+  union
   {
-    x *= rhs.x;
-    y *= rhs.y;
-    z *= rhs.z;
-    return *this;
+    std::array<T, 2> data;
+    struct
+    {
+      T x, y;
+    };
+  };
+};
+template <typename T>
+struct VecMembers<T, 3>
+{
+  template <typename OtherT>
+  auto Cross(const TVecN<OtherT, 3>& rhs) const
+  {
+    // TODO: take advantage of CTAD. using base ctors maybe?
+    return TVecN<decltype(Get<0>(*this) * Get<0>(rhs)), 3>(
+        (y * rhs.z) - (rhs.y * z), (z * rhs.x) - (rhs.z * x), (x * rhs.y) - (rhs.x * y));
   }
 
-  TVec3& operator/=(const TVec3& rhs)
+  union
   {
-    x /= rhs.x;
-    y /= rhs.y;
-    z /= rhs.z;
-    return *this;
-  }
-
-  TVec3 operator-() const { return {-x, -y, -z}; }
-
-  // Apply function to each element and return the result.
-  template <typename F>
-  auto Map(F&& f) const -> TVec3<decltype(f(T{}))>
+    std::array<T, 3> data;
+    struct
+    {
+      T x, y, z;
+    };
+  };
+};
+template <typename T>
+struct VecMembers<T, 4>
+{
+  union
   {
-    return {f(x), f(y), f(z)};
-  }
-
-  template <typename F, typename T2>
-  auto Map(F&& f, const TVec3<T2>& t) const -> TVec3<decltype(f(T{}, t.x))>
-  {
-    return {f(x, t.x), f(y, t.y), f(z, t.z)};
-  }
-
-  template <typename F, typename T2>
-  auto Map(F&& f, T2 scalar) const -> TVec3<decltype(f(T{}, scalar))>
-  {
-    return {f(x, scalar), f(y, scalar), f(z, scalar)};
-  }
-
-  std::array<T, 3> data = {};
-
-  struct
-  {
-    T x;
-    T y;
-    T z;
+    std::array<T, 4> data;
+    struct
+    {
+      T x, y, z, w;
+    };
   };
 };
 
-template <typename T>
-TVec3<bool> operator<(const TVec3<T>& lhs, const TVec3<T>& rhs)
+template <typename T, size_t... Is>
+struct VecFunctions : VecMembers<T, sizeof...(Is)>
 {
-  return lhs.Map(std::less<T>{}, rhs);
-}
+  using value_type = T;
+  static constexpr size_t size = sizeof...(Is);
+
+private:
+  using VecType = TVecN<value_type, size>;
+
+public:
+  auto Dot(const VecType& other) const { return ((Get<Is>(*this) * Get<Is>(other)) + ...); }
+
+  template <typename... Args>
+  void Assign(Args&&... args)
+  {
+    static_assert(sizeof...(args) == size);
+
+    ((Get<Is>(*this) = args), ...);
+  }
+
+  auto operator-() const { return VecType(Get<Is>(*this)...); }
+
+  template <typename Other>
+  auto operator*=(const Other& rhs)
+  {
+    return *this * rhs;
+  }
+
+  template <typename Other>
+  auto operator*(const Other& rhs) const
+  {
+    return TVecN{(Get<Is>(*this) * Get<Is>(rhs))...};
+  }
+
+  template <typename Other>
+  auto operator/=(const Other& rhs)
+  {
+    return *this / rhs;
+  }
+
+  template <typename Other>
+  auto operator/(const Other& rhs) const
+  {
+    return TVecN{(Get<Is>(*this) / Get<Is>(rhs))...};
+  }
+
+  template <typename OtherT, size_t OtherN>
+  auto operator+=(const TVecN<OtherT, OtherN>& rhs)
+  {
+    return *this + rhs;
+  }
+
+  template <typename OtherT, size_t OtherN>
+  auto operator+(const TVecN<OtherT, OtherN>& rhs) const
+  {
+    return TVecN{(Get<Is>(*this) + Get<Is>(rhs))...};
+  }
+
+  template <typename OtherT, size_t OtherN>
+  auto operator-=(const TVecN<OtherT, OtherN>& rhs)
+  {
+    return *this - rhs;
+  }
+
+  template <typename OtherT, size_t OtherN>
+  auto operator-(const TVecN<OtherT, OtherN>& rhs) const
+  {
+    return TVecN{(Get<Is>(*this) - Get<Is>(rhs))...};
+  }
+
+  template <typename OtherT, size_t OtherN>
+  auto operator<(const TVecN<OtherT, OtherN>& rhs) const
+  {
+    return TVecN{(Get<Is>(*this) < Get<Is>(rhs))...};
+  }
+};
+
+template <typename T, size_t N>
+struct VecImpl;
 
 template <typename T>
-auto operator+(const TVec3<T>& lhs, const TVec3<T>& rhs) -> TVec3<decltype(lhs.x + rhs.x)>
+struct VecImpl<T, 2> : VecFunctions<T, 0, 1>
 {
-  return lhs.Map(std::plus<decltype(lhs.x + rhs.x)>{}, rhs);
-}
+};
+template <typename T>
+struct VecImpl<T, 3> : VecFunctions<T, 0, 1, 2>
+{
+};
+template <typename T>
+struct VecImpl<T, 4> : VecFunctions<T, 0, 1, 2, 3>
+{
+};
+
+};  // namespace VecDetail
+
+template <typename T, size_t N>
+struct TVecN : VecDetail::VecImpl<T, N>
+{
+  TVecN() = default;
+
+  ~TVecN() { static_assert(sizeof(*this) == sizeof(typename TVecN::value_type) * TVecN::size); }
+
+  template <typename OtherT, size_t OtherN, typename... Args>
+  TVecN(const TVecN<OtherT, OtherN>& other, const Args&... args)
+  {
+    // TODO:
+  }
+
+  template <typename... Args, typename = std::enable_if_t<(std::is_arithmetic_v<Args> && ...)>>
+  TVecN(const Args&... args)
+  {
+    this->Assign(args...);
+  }
+
+  auto LengthSquared() const { return this->Dot(*this); }
+  auto Length() { return std::sqrt(LengthSquared()); }
+  auto Normalized() const { return *this / Length(); }
+};
+
+// TODO: ensure all T are the same.
+template <typename... T>
+TVecN(T&&...)->TVecN<std::common_type_t<T...>, sizeof...(T)>;
 
 template <typename T>
-auto operator-(const TVec3<T>& lhs, const TVec3<T>& rhs) -> TVec3<decltype(lhs.x - rhs.x)>
-{
-  return lhs.Map(std::minus<decltype(lhs.x - rhs.x)>{}, rhs);
-}
-
-template <typename T1, typename T2>
-auto operator*(const TVec3<T1>& lhs, const TVec3<T2>& rhs) -> TVec3<decltype(lhs.x * rhs.x)>
-{
-  return lhs.Map(std::multiplies<decltype(lhs.x * rhs.x)>{}, rhs);
-}
+using TVec2 = TVecN<T, 2>;
+using Vec2 = TVec2<float>;
+using DVec2 = TVec2<double>;
 
 template <typename T>
-auto operator/(const TVec3<T>& lhs, const TVec3<T>& rhs) -> TVec3<decltype(lhs.x / rhs.x)>
-{
-  return lhs.Map(std::divides<decltype(lhs.x / rhs.x)>{}, rhs);
-}
-
-template <typename T1, typename T2>
-auto operator*(const TVec3<T1>& lhs, T2 scalar) -> TVec3<decltype(lhs.x * scalar)>
-{
-  return lhs.Map(std::multiplies<decltype(lhs.x * scalar)>{}, scalar);
-}
-
-template <typename T1, typename T2>
-auto operator/(const TVec3<T1>& lhs, T2 scalar) -> TVec3<decltype(lhs.x / scalar)>
-{
-  return lhs.Map(std::divides<decltype(lhs.x / scalar)>{}, scalar);
-}
-
+using TVec3 = TVecN<T, 3>;
 using Vec3 = TVec3<float>;
 using DVec3 = TVec3<double>;
 
 template <typename T>
-union TVec4
-{
-  TVec4() = default;
-  TVec4(TVec3<T> _vec, T _w) : TVec4{_vec.x, _vec.y, _vec.z, _w} {}
-  TVec4(T _x, T _y, T _z, T _w) : data{_x, _y, _z, _w} {}
-
-  TVec4& operator*=(const TVec4& rhs)
-  {
-    x *= rhs.x;
-    y *= rhs.y;
-    z *= rhs.z;
-    w *= rhs.w;
-    return *this;
-  }
-
-  TVec4& operator/=(const TVec4& rhs)
-  {
-    x /= rhs.x;
-    y /= rhs.y;
-    z /= rhs.z;
-    w /= rhs.w;
-    return *this;
-  }
-
-  TVec4& operator*=(T scalar) { return *this *= TVec4{scalar, scalar, scalar, scalar}; }
-  TVec4& operator/=(T scalar) { return *this /= TVec4{scalar, scalar, scalar, scalar}; }
-
-  std::array<T, 4> data = {};
-
-  struct
-  {
-    T x;
-    T y;
-    T z;
-    T w;
-  };
-};
-
-template <typename T>
-TVec4<T> operator*(TVec4<T> lhs, std::common_type_t<T> scalar)
-{
-  return lhs *= scalar;
-}
-
-template <typename T>
-TVec4<T> operator/(TVec4<T> lhs, std::common_type_t<T> scalar)
-{
-  return lhs /= scalar;
-}
-
+using TVec4 = TVecN<T, 4>;
 using Vec4 = TVec4<float>;
 using DVec4 = TVec4<double>;
-
-template <typename T>
-union TVec2
-{
-  TVec2() = default;
-  TVec2(T _x, T _y) : data{_x, _y} {}
-
-  T Cross(const TVec2& rhs) const { return (x * rhs.y) - (y * rhs.x); }
-  T Dot(const TVec2& rhs) const { return (x * rhs.x) + (y * rhs.y); }
-  T LengthSquared() const { return Dot(*this); }
-  T Length() const { return std::sqrt(LengthSquared()); }
-  TVec2 Normalized() const { return *this / Length(); }
-
-  TVec2& operator+=(const TVec2& rhs)
-  {
-    x += rhs.x;
-    y += rhs.y;
-    return *this;
-  }
-
-  TVec2& operator-=(const TVec2& rhs)
-  {
-    x -= rhs.x;
-    y -= rhs.y;
-    return *this;
-  }
-
-  TVec2& operator*=(T scalar)
-  {
-    x *= scalar;
-    y *= scalar;
-    return *this;
-  }
-
-  TVec2& operator/=(T scalar)
-  {
-    x /= scalar;
-    y /= scalar;
-    return *this;
-  }
-
-  TVec2 operator-() const { return {-x, -y}; }
-
-  std::array<T, 2> data = {};
-
-  struct
-  {
-    T x;
-    T y;
-  };
-};
-
-template <typename T>
-TVec2<T> operator+(TVec2<T> lhs, const TVec2<T>& rhs)
-{
-  return lhs += rhs;
-}
-
-template <typename T>
-TVec2<T> operator-(TVec2<T> lhs, const TVec2<T>& rhs)
-{
-  return lhs -= rhs;
-}
-
-template <typename T>
-TVec2<T> operator*(TVec2<T> lhs, T scalar)
-{
-  return lhs *= scalar;
-}
-
-template <typename T>
-TVec2<T> operator/(TVec2<T> lhs, T scalar)
-{
-  return lhs /= scalar;
-}
-
-using Vec2 = TVec2<float>;
-using DVec2 = TVec2<double>;
 
 class Matrix33
 {
