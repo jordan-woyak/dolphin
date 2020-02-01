@@ -14,7 +14,7 @@ namespace AudioCommon
 {
 AudioStretcher::AudioStretcher(unsigned int sample_rate) : m_sample_rate(sample_rate)
 {
-  m_sound_touch.setChannels(2);
+  m_sound_touch.setChannels(CHANNEL_COUNT);
   m_sound_touch.setSampleRate(sample_rate);
   m_sound_touch.setPitch(1.0);
   m_sound_touch.setTempo(1.0);
@@ -27,6 +27,9 @@ AudioStretcher::AudioStretcher(unsigned int sample_rate) : m_sample_rate(sample_
 void AudioStretcher::Clear()
 {
   m_sound_touch.clear();
+#if SOUNDTOUCH_FLOAT_SAMPLES
+  m_float_buffer = {};
+#endif
 }
 
 void AudioStretcher::ProcessSamples(const short* in, unsigned int num_in, unsigned int num_out)
@@ -65,24 +68,37 @@ void AudioStretcher::ProcessSamples(const short* in, unsigned int num_in, unsign
   DEBUG_LOG(AUDIO, "Audio stretching: samples:%u/%u ratio:%f backlog:%f gain: %f", num_in, num_out,
             m_stretch_ratio, backlog_fullness, lpf_gain);
 
+#if SOUNDTOUCH_FLOAT_SAMPLES
+  m_float_buffer.resize(num_in * CHANNEL_COUNT);
+  // FYI: There is no need to normalize samples.
+  std::copy_n(in, m_float_buffer.size(), m_float_buffer.begin());
+  m_sound_touch.putSamples(m_float_buffer.data(), num_in);
+#else
   m_sound_touch.putSamples(in, num_in);
+#endif
 }
 
 void AudioStretcher::GetStretchedSamples(short* out, unsigned int num_out)
 {
+#if SOUNDTOUCH_FLOAT_SAMPLES
+  m_float_buffer.resize(num_out * CHANNEL_COUNT);
+  const size_t samples_received = m_sound_touch.receiveSamples(m_float_buffer.data(), num_out);
+  std::copy_n(m_float_buffer.data(), samples_received * CHANNEL_COUNT, out);
+#else
   const size_t samples_received = m_sound_touch.receiveSamples(out, num_out);
+#endif
 
   if (samples_received != 0)
   {
-    m_last_stretched_sample[0] = out[samples_received * 2 - 2];
-    m_last_stretched_sample[1] = out[samples_received * 2 - 1];
+    for (int i = 0; i != CHANNEL_COUNT; ++i)
+      m_last_stretched_sample[i] = out[(samples_received - 1) * CHANNEL_COUNT + i];
   }
 
   // Perform padding if we've run out of samples.
   for (size_t i = samples_received; i < num_out; i++)
   {
-    out[i * 2 + 0] = m_last_stretched_sample[0];
-    out[i * 2 + 1] = m_last_stretched_sample[1];
+    for (int i = 0; i != CHANNEL_COUNT; ++i)
+      out[i * CHANNEL_COUNT + i] = m_last_stretched_sample[i];
   }
 }
 
