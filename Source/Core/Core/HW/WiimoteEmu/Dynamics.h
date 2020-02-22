@@ -75,8 +75,8 @@ float GetYaw(const Common::Quaternion& world_rotation);
 void ApproachPositionWithJerk(PositionalState* state, const Common::Vec3& target,
                               const Common::Vec3& max_jerk, float time_elapsed);
 
-void ApproachAngleWithAccel(RotationalState* state, const Common::Vec3& target, float max_accel,
-                            float time_elapsed);
+void ApproachAngleWithAccel(RotationalState* state, const Common::Vec3& target,
+                            const Common::Vec3& max_accel, float time_elapsed);
 
 void EmulateShake(PositionalState* state, ControllerEmu::Shake* shake_group, float time_elapsed);
 void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* tilt_group, float time_elapsed);

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
@@ -115,19 +116,10 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
   const ControlState roll = target.x * MathUtil::PI;
   const ControlState pitch = target.y * MathUtil::PI;
 
-  const auto target_angle = Common::Vec3(pitch, -roll, 0);
+  const float max_accel = std::pow(tilt_group->GetMaxRotationalVelocity(), 2) / MathUtil::TAU;
 
-  // For each axis, wrap around current angle if target is farther than 180 degrees.
-  for (std::size_t i = 0; i != target_angle.data.size(); ++i)
-  {
-    auto& angle = state->angle.data[i];
-    if (std::abs(angle - target_angle.data[i]) > float(MathUtil::PI))
-      angle -= std::copysign(MathUtil::TAU, angle);
-  }
-
-  const auto max_accel = std::pow(tilt_group->GetMaxRotationalVelocity(), 2) / MathUtil::TAU;
-
-  ApproachAngleWithAccel(state, target_angle, max_accel, time_elapsed);
+  ApproachAngleWithAccel(state, Common::Vec3(pitch, -roll, 0), Common::Vec3{1, 1, 1} * max_accel,
+                         time_elapsed);
 }
 
 void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float time_elapsed)
@@ -141,19 +133,39 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   const auto target_position = Common::Vec3{-input_state.x, -input_state.z, input_state.y};
 
   // Jerk is scaled based on input distance from center.
-  // X and Z scale is connected for sane movement about the circle.
-  const auto xz_target_dist = Common::Vec2{target_position.x, target_position.z}.Length();
-  const auto y_target_dist = std::abs(target_position.y);
-  const auto target_dist = Common::Vec3{xz_target_dist, y_target_dist, xz_target_dist};
+  const auto target_dist = Common::Vec3{std::abs(target_position.x), std::abs(target_position.y),
+                                        std::abs(target_position.z)};
   const auto speed = MathUtil::Lerp(Common::Vec3{1, 1, 1} * float(swing_group->GetReturnSpeed()),
                                     Common::Vec3{1, 1, 1} * float(swing_group->GetSpeed()),
                                     target_dist / max_distance);
 
+  // TODO: Fix comment.
   // Convert our m/s "speed" to the jerk required to reach this speed when traveling 1 meter.
-  const auto max_jerk = speed * speed * speed * 4;
+  // const auto max_jerk = speed * speed * speed * 4;
 
+  // const auto t = Common::Vec3{1, 1, 1} / speed;
+  // const auto max_jerk = Common::Vec3{1, 1, 1} / (t * t * t) * 4;
+
+  const auto max_jerk = speed * 32;
+
+  INFO_LOG(WIIMOTE, "using jerk: %lf", max_jerk.x);
+  const auto calc_time = 2 * state->velocity.x / state->acceleration.x;
+  const auto calc_jerk = state->acceleration.x / calc_time;
+  INFO_LOG(WIIMOTE, "calculated jerk: %lf", calc_jerk);
+  INFO_LOG(WIIMOTE, "is accelerating: %d",
+           MathUtil::Sign(state->acceleration.x) == MathUtil::Sign(state->velocity.x));
+
+  const auto stop_dist = CalculateStopDistance(state->velocity.x, state->acceleration.x, calc_jerk);
+  if (stop_dist / (target_position.x - state->position.x) > 1)
+  {
+    INFO_LOG(WIIMOTE, "stop too late!");
+    // TODO: use the configured speed.
+  }
+
+  // TODO: Fix:
   // Rotational acceleration to approximately match the completion time of our swing.
-  const auto max_accel = max_angle * speed.x * speed.x;
+  const auto speed_for_accel = Common::Vec3{speed.z, 0, speed.x};
+  const auto max_accel = speed_for_accel * speed_for_accel * max_angle;
 
   // Apply rotation based on amount of swing.
   const auto target_angle =
@@ -176,7 +188,7 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   // Adjust target position backwards based on swing progress and max angle
   // to simulate a swing with an outstretched arm.
   const auto backwards_angle = std::max(std::abs(state->angle.x), std::abs(state->angle.z));
-  const auto backwards_movement = (1 - std::cos(backwards_angle)) * max_distance;
+  const auto backwards_movement = 0;  //(1 - std::cos(backwards_angle)) * max_distance;
 
   // TODO: Backswing jerk should be based on x/z speed.
 
@@ -266,25 +278,25 @@ void EmulatePoint(MotionState* state, ControllerEmu::Cursor* ir_group, float tim
   // At this value, sync is very good and responsiveness still appears instant.
   constexpr auto MAX_ACCEL = float(MathUtil::TAU * 8);
 
-  ApproachAngleWithAccel(state, target_angle, MAX_ACCEL, time_elapsed);
+  ApproachAngleWithAccel(state, target_angle, Common::Vec3{1, 1, 1} * MAX_ACCEL, time_elapsed);
 }
 
 void ApproachAngleWithAccel(RotationalState* state, const Common::Vec3& angle_target,
-                            float max_accel, float time_elapsed)
+                            const Common::Vec3& max_accel, float time_elapsed)
 {
   const auto stop_distance =
-      Common::Vec3(CalculateStopDistance(state->angular_velocity.x, max_accel),
-                   CalculateStopDistance(state->angular_velocity.y, max_accel),
-                   CalculateStopDistance(state->angular_velocity.z, max_accel));
+      Common::Vec3(CalculateStopDistance(state->angular_velocity.x, max_accel.x),
+                   CalculateStopDistance(state->angular_velocity.y, max_accel.y),
+                   CalculateStopDistance(state->angular_velocity.z, max_accel.z));
 
   const auto offset = angle_target - state->angle;
   const auto stop_offset = offset - stop_distance;
   const auto accel = MathUtil::Sign(stop_offset) * max_accel;
 
-  state->angular_velocity += accel * time_elapsed;
-
   const auto change_in_angle =
       state->angular_velocity * time_elapsed + accel * time_elapsed * time_elapsed / 2;
+
+  state->angular_velocity += accel * time_elapsed;
 
   for (std::size_t i = 0; i != offset.data.size(); ++i)
   {
@@ -357,13 +369,13 @@ void ApproachPositionWithJerk(PositionalState* state, const Common::Vec3& positi
   const auto stop_offset = offset - stop_distance;
   const auto jerk = MathUtil::Sign(stop_offset) * max_jerk;
 
-  state->acceleration += jerk * time_elapsed;
-
-  state->velocity += state->acceleration * time_elapsed + jerk * time_elapsed * time_elapsed / 2;
-
   const auto change_in_position = state->velocity * time_elapsed +
                                   state->acceleration * time_elapsed * time_elapsed / 2 +
                                   jerk * time_elapsed * time_elapsed * time_elapsed / 6;
+
+  state->velocity += state->acceleration * time_elapsed + jerk * time_elapsed * time_elapsed / 2;
+
+  state->acceleration += jerk * time_elapsed;
 
   for (std::size_t i = 0; i != offset.data.size(); ++i)
   {
