@@ -137,7 +137,7 @@ bool Init()
 
   s_enabled_extensions = {};
 
-  uint32_t extension_count;
+  uint32_t extension_count = 0;
   xrEnumerateInstanceExtensionProperties(nullptr, 0, &extension_count, nullptr);
   std::vector<XrExtensionProperties> extensions(extension_count, {XR_TYPE_EXTENSION_PROPERTIES});
   xrEnumerateInstanceExtensionProperties(nullptr, extension_count, &extension_count,
