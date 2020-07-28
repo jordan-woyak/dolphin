@@ -4,11 +4,14 @@
 
 #include "InputCommon/ControllerInterface/Wiimote/Wiimote.h"
 
+#include <fstream>
+
 #include "Common/BitUtils.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Core/Config/SYSCONFSettings.h"
 #include "Core/HW/WiimoteEmu/ExtensionPort.h"
+#include "Core/HW/WiimoteEmu/Speaker.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
@@ -18,6 +21,9 @@ namespace ciface::Wiimote
 static constexpr char SOURCE_NAME[] = "Bluetooth";
 
 static constexpr size_t IR_SENSITIVITY_LEVEL_COUNT = 5;
+
+static constexpr int SPEAKER_TEST_BITRATE = 3000;
+static constexpr bool SPEAKER_TEST_ADPCM = true;
 
 template <typename T>
 class Button final : public Core::Device::Input
@@ -420,9 +426,93 @@ void Device::RunTasks()
 
   if (!m_speaker_configured)
   {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     ConfigureSpeaker();
 
     return;
+  }
+  else
+  {
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    std::fstream file("/home/jordan/dolphin-stuff/file.pcm");
+
+    WiimoteEmu::ADPCMState encoder_state;
+
+    auto restart_time = Clock::now();
+    auto encoder_start_time = restart_time;
+
+    std::array<s16, 20 * (1 + SPEAKER_TEST_ADPCM)> samples;
+    while (file.read(reinterpret_cast<char*>(&samples), sizeof(samples)))
+    {
+      const auto now = Clock::now();
+      if (now - restart_time > std::chrono::seconds(15))
+      {
+        restart_time = now;
+        file.seekg(0);
+      }
+
+      OutputReportSpeakerData rpt = {};
+      rpt.length = 20;
+      if constexpr (SPEAKER_TEST_ADPCM)
+      {
+        WiimoteEmu::SpeakerLogic::Encode(&encoder_state, samples.data(), samples.size(), rpt.data);
+      }
+      else
+      {
+        std::transform(samples.begin(), samples.end(), rpt.data,
+                       [](s16 sample) { return s8(sample / 0x100); });
+      }
+
+      QueueReport(rpt);
+      std::this_thread::sleep_for(std::chrono::microseconds(20 * (1 + SPEAKER_TEST_ADPCM) * 1000 *
+                                                            1000 / SPEAKER_TEST_BITRATE));
+      // INFO_LOG(WIIMOTE, "wrote speaker data: %s", ArrayToString(rpt.data, rpt.length).c_str());
+
+      if (now - encoder_start_time > std::chrono::seconds(2))
+      {
+        encoder_start_time = now;
+        encoder_state = {};
+
+        // std::this_thread::sleep_for(std::chrono::seconds(1));
+        // ReadData(AddressSpace::I2CBus, 0x51, 0x01, 20, [](ReadResponse rr) {
+        //   if (!rr)
+        //     INFO_LOG(WIIMOTE, "Read error.");
+        //   INFO_LOG(WIIMOTE, "Read config back: %s", ArrayToString(rr->data(),
+        //   rr->size()).c_str());
+        // });
+
+        // WiimoteReal::Report report;
+        // while (m_wiimote->GetNextReport(&report))
+        //   ProcessInputReport(report);
+
+        INFO_LOG(WIIMOTE, "encoder reset.");
+
+        // WriteData(AddressSpace::I2CBus, 0x51, 0x01, {0x80}, [this](ErrorCode) {});
+        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        // WriteData(AddressSpace::I2CBus, 0x51, 0x01, {0x00}, [this](ErrorCode) {});
+        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        // WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x01}, [this](ErrorCode) {});
+        // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        if constexpr (SPEAKER_TEST_ADPCM)
+        {
+          encoder_state.predictor = 0x7fff / 2;
+
+          WriteData(AddressSpace::I2CBus, 0x51, 0x02, {0x00}, [this](ErrorCode) {});
+          WriteData(AddressSpace::I2CBus, 0x51, 0x06, {0x00, 0x00}, [this](ErrorCode) {});
+          // WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x00}, [this](ErrorCode) {});
+        }
+        // OutputReportSpeakerEnable spkr = {};
+        // spkr.enable = 0;
+        // QueueReport(spkr);
+        // spkr.enable = 1;
+        // QueueReport(spkr);
+
+        // std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      }
+    }
   }
 
   // Perform the following tasks only after M+ is settled.
@@ -981,31 +1071,109 @@ void Device::ConfigureIRCamera()
 
 void Device::ConfigureSpeaker()
 {
-  OutputReportSpeakerMute mute = {};
-  mute.enable = 1;
-  mute.ack = 1;
-  QueueReport(mute, [this](ErrorCode mute_result) {
-    if (mute_result != ErrorCode::Success)
-    {
-      WARN_LOG(WIIMOTE, "WiiRemote: Failed to mute speaker.");
-      return;
-    }
-
-    OutputReportSpeakerEnable spkr = {};
-    spkr.enable = 0;
-    spkr.ack = 1;
-    QueueReport(spkr, [this](ErrorCode enable_result) {
-      if (enable_result != ErrorCode::Success)
+#if 0
+    OutputReportSpeakerMute mute = {};
+    mute.enable = 1;
+    mute.ack = 1;
+    QueueReport(mute, [this](ErrorCode mute_result) {
+      if (mute_result != ErrorCode::Success)
       {
-        WARN_LOG(WIIMOTE, "WiiRemote: Failed to disable speaker.");
+        WARN_LOG(WIIMOTE, "WiiRemote: Failed to mute speaker.");
         return;
       }
 
-      DEBUG_LOG(WIIMOTE, "WiiRemote: Speaker muted and disabled.");
+      OutputReportSpeakerEnable spkr = {};
+      spkr.enable = 0;
+      spkr.ack = 1;
+      QueueReport(spkr, [this](ErrorCode enable_result) {
+        if (enable_result != ErrorCode::Success)
+        {
+          WARN_LOG(WIIMOTE, "WiiRemote: Failed to disable speaker.");
+          return;
+        }
 
-      m_speaker_configured = true;
+        DEBUG_LOG(WIIMOTE, "WiiRemote: Speaker muted and disabled.");
+
+        m_speaker_configured = true;
+      });
+    });
+#else
+  OutputReportSpeakerEnable spkr = {};
+  spkr.enable = 1;
+  QueueReport(spkr);
+
+  OutputReportSpeakerMute mute = {};
+  mute.enable = 1;
+  QueueReport(mute);
+
+  // TODO: magic number.
+  WriteData(AddressSpace::I2CBus, 0x51, 0x09, {0x01}, [this](ErrorCode response) {
+    if (response != ErrorCode::Success)
+    {
+      WARN_LOG(WIIMOTE, "Bad speaker write @ 0x09.");
+      return;
+    }
+    // TODO: magic number
+    WriteData(AddressSpace::I2CBus, 0x51, 0x01, {0x00}, [this](ErrorCode response) {
+      if (response != ErrorCode::Success)
+      {
+        WARN_LOG(WIIMOTE, "Bad speaker write @ 0x01.");
+        return;
+      }
+
+      constexpr int MAGIC_DIVISOR = 12000000;
+      constexpr int BR1 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE & 0xff;
+      constexpr int BR2 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE >> 8;
+
+      constexpr u8 FMT = SPEAKER_TEST_ADPCM ? 0x00 : 0x40;
+
+      // First byte being 0x80 disables playback. 0x01 works. but kicks in late
+      const std::vector<u8> configuration = {0x00, FMT, BR1, BR2, 0x1f, 0x0c, 0x0e};
+      // const std::vector<u8> configuration = {0x00, 0x40, 0x40, 0x1f, 0x7f, 0x0c, 0x0e};
+
+      // TODO: magic number.
+      WriteData(AddressSpace::I2CBus, 0x51, 0x01, configuration, [this](ErrorCode response) {
+        if (response != ErrorCode::Success)
+        {
+          WARN_LOG(WIIMOTE, "Bad speaker write @ 0x01 (x2).");
+          return;
+        }
+      });
+
+      // This is the "play" trigger, it seems only the first bit is checked.
+      // (e.g. 0xfe does not trigger play but 0x05 does)
+      // TODO: test if a write of 0 will pause after playing is started. (IT DOES!)
+      // TODO: test if you can buffer data then play it afterward :/
+      WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x01}, [this](ErrorCode response) {
+        if (response != ErrorCode::Success)
+        {
+          WARN_LOG(WIIMOTE, "Bad speaker write @ 0x08.");
+          return;
+        }
+
+        m_speaker_configured = true;
+
+        OutputReportSpeakerMute unmute = {};
+        unmute.enable = 0;
+        QueueReport(unmute);
+
+        INFO_LOG(WIIMOTE, "speaker is configured.");
+      });
     });
   });
+
+  // TODO: magic number.
+  // ReadData(AddressSpace::I2CBus, 0x51, 0, 0x10, [](ReadResponse response) {
+  //   if (!response)
+  //   {
+  //     WARN_LOG(WIIMOTE, "Bad speaker read.");
+  //     return;
+  //   }
+
+  //   WARN_LOG(WIIMOTE, "Speaker read: %s",
+  //            ArrayToString(response->data(), response->size()).c_str());
+  // });
+#endif
 }
 
 void Device::TriggerMotionPlusModeChange()

@@ -262,8 +262,8 @@ void Wiimote::HandleWriteData(const OutputReportWriteData& wd)
 
   u16 address = Common::swap16(wd.address);
 
-  DEBUG_LOG(WIIMOTE, "Wiimote::WriteData: 0x%02x @ 0x%02x @ 0x%02x (%d)", wd.space,
-            wd.slave_address, address, wd.size);
+  INFO_LOG(WIIMOTE, "Wiimote::WriteData: 0x%02x @ 0x%02x @ 0x%02x (%d) %s", wd.space,
+           wd.slave_address, address, wd.size, ArrayToString(wd.data, wd.size).c_str());
 
   if (0 == wd.size || wd.size > 16)
   {

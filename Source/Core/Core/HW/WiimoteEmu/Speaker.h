@@ -13,7 +13,8 @@ namespace WiimoteEmu
 {
 struct ADPCMState
 {
-  s32 predictor, step;
+  s32 predictor = 0;
+  s32 step = 0x7f;
 };
 
 class Wiimote;
@@ -29,6 +30,8 @@ public:
 
   void Reset();
   void DoState(PointerWrap& p);
+
+  static u32 Encode(ADPCMState*, s16* input_samples, u32 sample_count, u8* output);
 
 private:
   // Pan is -1.0 to +1.0

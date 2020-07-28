@@ -30,8 +30,10 @@ namespace WiimoteEmu
 static const s32 yamaha_difflookup[] = {1,  3,  5,  7,  9,  11,  13,  15,
                                         -1, -3, -5, -7, -9, -11, -13, -15};
 
-static const s32 yamaha_indexscale[] = {230, 230, 230, 230, 307, 409, 512, 614,
-                                        230, 230, 230, 230, 307, 409, 512, 614};
+constexpr s32 yamaha_indexscale[] = {230, 230, 230, 230, 307, 409, 512, 614};
+
+constexpr double index_scale[8] = {0.8984375,  0.8984375,  0.8984375, 0.8984375,
+                                   1.19921875, 1.59765625, 2.0,       2.3984375};
 
 static s16 av_clip16(s32 a)
 {
@@ -55,9 +57,61 @@ static s16 adpcm_yamaha_expand_nibble(ADPCMState& s, u8 nibble)
 {
   s.predictor += (s.step * yamaha_difflookup[nibble]) / 8;
   s.predictor = av_clip16(s.predictor);
-  s.step = (s.step * yamaha_indexscale[nibble]) >> 8;
+  s.step = (s.step * yamaha_indexscale[nibble & 0xf]) >> 8;
   s.step = av_clip(s.step, 127, 24576);
   return s.predictor;
+}
+
+u32 SpeakerLogic::Encode(ADPCMState* encoder_state, s16* input_samples, u32 sample_count,
+                         u8* output)
+
+{
+  if (sample_count)
+    std::memset(output, 0, (sample_count + 1) / 2);
+
+  s32 predictor = encoder_state->predictor;
+  s32 step = encoder_state->step;
+
+  for (u32 i = 0; i != sample_count; ++i)
+  {
+    const s32 current_sample = input_samples[i];
+    s32 abs_delta = std::abs(current_sample - predictor);
+
+    const bool is_step_lte_val = step <= abs_delta;
+    if (is_step_lte_val)
+      abs_delta -= step;
+
+    const s32 half_step = step / 2;
+    const bool is_half_step_lte_val = half_step <= abs_delta;
+    if (is_half_step_lte_val)
+      abs_delta -= half_step;
+
+    const s32 qtr_step = half_step / 2;
+    const bool is_qtr_step_lte_val = qtr_step <= abs_delta;
+
+    const bool is_less_than_predictor = current_sample < predictor;
+    s32 predictor_delta = (is_less_than_predictor ? -1 : 1) *
+                          (step * is_step_lte_val + half_step * is_half_step_lte_val +
+                           qtr_step * is_qtr_step_lte_val + qtr_step / 2);
+    // TODO: needed?
+    predictor_delta = std::clamp<s32>(predictor_delta, -0x10000, 0xffff);
+
+    predictor = std::clamp<s32>(predictor + predictor_delta, -0x8000, 0x7fff);
+
+    const u8 nibble = is_less_than_predictor * 8 + is_step_lte_val * 4 + is_half_step_lte_val * 2 +
+                      is_qtr_step_lte_val;
+
+    const u32 nibble_shift = (i % 2) ? 0 : 4;
+    output[i / 2] |= nibble << nibble_shift;
+
+    step = s32(step * index_scale[nibble & 0x7]);
+    step = std::clamp<s32>(step, 0x7f, 0x6000);
+  }
+
+  encoder_state->predictor = predictor;
+  encoder_state->step = step;
+
+  return sample_count;
 }
 
 #ifdef WIIMOTE_SPEAKER_DUMP
