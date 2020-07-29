@@ -31,7 +31,7 @@ public:
   void Reset();
   void DoState(PointerWrap& p);
 
-  static u32 Encode(ADPCMState*, s16* input_samples, u32 sample_count, u8* output);
+  static u32 Encode(ADPCMState*, const s16* input_samples, u32 sample_count, u8* output);
 
 private:
   // Pan is -1.0 to +1.0

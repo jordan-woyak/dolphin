@@ -443,6 +443,23 @@ void Device::RunTasks()
     auto restart_time = Clock::now();
     auto encoder_start_time = restart_time;
 
+    // Fuck shit up... Get decoder's predictor maxed out.
+    {
+      std::array<s16, 20 * (1 + SPEAKER_TEST_ADPCM)> samples;
+      samples.fill(0x7fff);
+      OutputReportSpeakerData rpt = {};
+      rpt.length = 20;
+      while (encoder_state.predictor < 0x7fff)
+      {
+        WiimoteEmu::SpeakerLogic::Encode(&encoder_state, samples.data(), samples.size(), rpt.data);
+        QueueReport(rpt);
+        std::this_thread::sleep_for(std::chrono::microseconds(20 * (1 + SPEAKER_TEST_ADPCM) * 1000 *
+                                                              1000 / SPEAKER_TEST_BITRATE));
+      }
+
+      encoder_state = {};
+    }
+
     std::array<s16, 20 * (1 + SPEAKER_TEST_ADPCM)> samples;
     while (file.read(reinterpret_cast<char*>(&samples), sizeof(samples)))
     {
@@ -457,10 +474,12 @@ void Device::RunTasks()
       rpt.length = 20;
       if constexpr (SPEAKER_TEST_ADPCM)
       {
+        // ADPCM
         WiimoteEmu::SpeakerLogic::Encode(&encoder_state, samples.data(), samples.size(), rpt.data);
       }
       else
       {
+        // "PCM"
         std::transform(samples.begin(), samples.end(), rpt.data,
                        [](s16 sample) { return s8(sample / 0x100); });
       }
@@ -470,7 +489,7 @@ void Device::RunTasks()
                                                             1000 / SPEAKER_TEST_BITRATE));
       // INFO_LOG(WIIMOTE, "wrote speaker data: %s", ArrayToString(rpt.data, rpt.length).c_str());
 
-      if (now - encoder_start_time > std::chrono::seconds(2))
+      if (now - encoder_start_time > std::chrono::seconds(5))
       {
         encoder_start_time = now;
         encoder_state = {};
@@ -487,7 +506,7 @@ void Device::RunTasks()
         // while (m_wiimote->GetNextReport(&report))
         //   ProcessInputReport(report);
 
-        INFO_LOG(WIIMOTE, "encoder reset.");
+        INFO_LOG(WIIMOTE, "adjustment time.");
 
         // WriteData(AddressSpace::I2CBus, 0x51, 0x01, {0x80}, [this](ErrorCode) {});
         // std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -498,10 +517,13 @@ void Device::RunTasks()
 
         if constexpr (SPEAKER_TEST_ADPCM)
         {
-          encoder_state.predictor = 0x7fff / 2;
+          // encoder_state.predictor = 0x7fff / 2;
 
-          WriteData(AddressSpace::I2CBus, 0x51, 0x02, {0x00}, [this](ErrorCode) {});
-          WriteData(AddressSpace::I2CBus, 0x51, 0x06, {0x00, 0x00}, [this](ErrorCode) {});
+          // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          // WriteData(AddressSpace::I2CBus, 0x51, 0x02, {0x00}, [this](ErrorCode) {});
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          WriteData(AddressSpace::I2CBus, 0x51, 0x06, {0xff}, [this](ErrorCode) {});
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
           // WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x00}, [this](ErrorCode) {});
         }
         // OutputReportSpeakerEnable spkr = {};

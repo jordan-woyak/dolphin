@@ -62,7 +62,7 @@ static s16 adpcm_yamaha_expand_nibble(ADPCMState& s, u8 nibble)
   return s.predictor;
 }
 
-u32 SpeakerLogic::Encode(ADPCMState* encoder_state, s16* input_samples, u32 sample_count,
+u32 SpeakerLogic::Encode(ADPCMState* encoder_state, const s16* input_samples, u32 sample_count,
                          u8* output)
 
 {
