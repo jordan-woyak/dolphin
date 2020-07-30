@@ -18,12 +18,16 @@ public:
   std::string GetId() const override
   {
     char bdaddr_str[18] = {};
-    ba2str(&m_bdaddr, bdaddr_str);
+    ba2str(&m_bluetooth_address, bdaddr_str);
     return bdaddr_str;
   }
 
-protected:
+  bool Is200HzModeEstablished() const override;
+  void Set200HzModeEstablished(bool);
+
   bool ConnectInternal() override;
+
+protected:
   void DisconnectInternal() override;
   bool IsConnected() const override;
   void IOWakeup() override;
@@ -31,11 +35,12 @@ protected:
   int IOWrite(u8 const* buf, size_t len) override;
 
 private:
-  bdaddr_t m_bdaddr;  // Bluetooth address
-  int m_cmd_sock;     // Command socket
-  int m_int_sock;     // Interrupt socket
-  int m_wakeup_pipe_w;
-  int m_wakeup_pipe_r;
+  const bdaddr_t m_bluetooth_address;
+  int m_cmd_sock = -1;
+  int m_int_sock = -1;
+  int m_wakeup_pipe_w = -1;
+  int m_wakeup_pipe_r = -1;
+  bool m_is_200hz_established = false;
 };
 
 class WiimoteScannerLinux final : public WiimoteScannerBackend

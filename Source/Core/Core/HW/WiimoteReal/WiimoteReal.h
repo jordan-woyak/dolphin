@@ -83,6 +83,9 @@ public:
 
   virtual bool IsConnected() const = 0;
 
+  // Whether or not "sniff mode" could be enabled.
+  virtual bool Is200HzModeEstablished() const;
+
   void QueueReport(WiimoteCommon::OutputReportID rpt_id, const void* data, unsigned int size);
 
   template <typename T>

@@ -21,6 +21,90 @@ namespace WiimoteReal
 constexpr u16 L2CAP_PSM_HID_CNTL = 0x0011;
 constexpr u16 L2CAP_PSM_HID_INTR = 0x0013;
 
+constexpr u64 DEFAULT_EVENT_MASK = 0x0000'1fff'ffff'ffff;
+
+static bool SetEventMask(int hci_device, u64 mask)
+{
+  hci_send_cmd(hci_device, OGF_HOST_CTL, OCF_SET_EVENT_MASK, sizeof(mask), &mask);
+  if (const int result =
+          hci_send_cmd(hci_device, OGF_HOST_CTL, OCF_SET_EVENT_MASK, sizeof(mask), &mask);
+      result < 0)
+  {
+    WARN_LOG_FMT(WIIMOTE, "hci_send_cmd SET_EVENT_MASK result: {} errno: {}", result, errno);
+    return false;
+  }
+  return true;
+}
+
+static std::optional<uint16_t> EstablishACLConnection(int hci_device, bdaddr_t bdaddr)
+{
+  uint16_t handle{};
+
+  // This is the value that Wii games send.
+  constexpr uint16_t ptype = HCI_DM1 | HCI_DH1;
+  if (const int result = hci_create_connection(hci_device, &bdaddr, ptype, 0, 0, &handle, 0);
+      result < 0)
+  {
+    WARN_LOG_FMT(WIIMOTE, "hci_create_connection: result: {} errno: {}", result, errno);
+    return std::nullopt;
+  }
+
+  return handle;
+}
+
+// Note that sending HCI commands to establish sniff mode require elevated permissions.
+// setcap 'cap_net_raw+eip' /path/to/dolphin
+
+static bool EnableSniffMode(int hci_device, u16 handle)
+{
+  // If BlueZ sees our sniff mode change it fights us and turns it back off.
+  // Thankfully it doesn't care if we set an event filter to hide the event.
+  // Don't tell the BlueZ team that this works. ;)
+  if (!SetEventMask(hci_device, DEFAULT_EVENT_MASK & ~(1u << 19u)))
+    return false;
+
+  // 8 slots == 5ms
+  // FYI, adjusting this affects the Wii remote reporting frequency.
+  constexpr int interval = 8;
+
+  // These are the values that Wii games send.
+  sniff_mode_cp sniff_mode_params{
+      .handle = handle,
+      .max_interval = interval,
+      .min_interval = interval,
+      .attempt = 1,
+      .timeout = 0,
+  };
+
+  if (const int result = hci_send_cmd(hci_device, OGF_LINK_POLICY, OCF_SNIFF_MODE,
+                                      sizeof(sniff_mode_params), &sniff_mode_params);
+      result < 0)
+  {
+    WARN_LOG_FMT(WIIMOTE, "hci_send_cmd SNIFF_MODE result: {} errno: {}", result, errno);
+    return false;
+  }
+
+  // Some adapters frequently drop reports without setting SERVICE_TYPE_GUARANTEED.
+  qos_setup_cp qos_mode{.handle = handle,
+                        .qos = {
+                            .service_type = 0x02,  // TODO: use a constant.
+                            .token_rate = 0xffffffff,
+                            .peak_bandwidth = 0xffffffff,
+                            .latency = 10000,
+                            .delay_variation = 0xffffffff,
+                        }};
+
+  if (const int result =
+          hci_send_cmd(hci_device, OGF_LINK_POLICY, OCF_QOS_SETUP, sizeof(qos_mode), &qos_mode);
+      result < 0)
+  {
+    WARN_LOG_FMT(WIIMOTE, "hci_send_cmd QOS_SETUP result: {} errno: {}", result, errno);
+    return false;
+  }
+
+  return true;
+}
+
 WiimoteScannerLinux::WiimoteScannerLinux() : m_device_id(-1), m_device_sock(-1)
 {
   // Get the id of the first Bluetooth device.
@@ -42,8 +126,11 @@ WiimoteScannerLinux::WiimoteScannerLinux() : m_device_id(-1), m_device_sock(-1)
 
 WiimoteScannerLinux::~WiimoteScannerLinux()
 {
-  if (IsReady())
-    close(m_device_sock);
+  if (!IsReady())
+    return;
+
+  SetEventMask(m_device_sock, DEFAULT_EVENT_MASK);
+  close(m_device_sock);
 }
 
 bool WiimoteScannerLinux::IsReady() const
@@ -100,7 +187,24 @@ void WiimoteScannerLinux::FindWiimotes(std::vector<Wiimote*>& found_wiimotes, Wi
       continue;
 
     // Found a new device
-    Wiimote* wm = new WiimoteLinux(scan_info.bdaddr);
+
+    // Attempt to manually establish the ACL connection so we have a handle to enable sniff mode.
+    const auto handle = EstablishACLConnection(m_device_sock, scan_info.bdaddr);
+
+    auto* const wm = new WiimoteLinux(scan_info.bdaddr);
+    if (!wm->ConnectInternal())
+      continue;
+
+    if (handle.has_value() && EnableSniffMode(m_device_sock, *handle))
+    {
+      wm->Set200HzModeEstablished(true);
+      INFO_LOG_FMT(WIIMOTE, "Sniff mode enabled for 200Hz communication.");
+    }
+    else
+    {
+      INFO_LOG_FMT(WIIMOTE, "Sniff mode could not be enabled.");
+    }
+
     if (IsBalanceBoardName(name))
     {
       found_board = wm;
@@ -135,12 +239,9 @@ void WiimoteScannerLinux::AddAutoConnectAddresses(std::vector<Wiimote*>& found_w
   }
 }
 
-WiimoteLinux::WiimoteLinux(bdaddr_t bdaddr) : m_bdaddr(bdaddr)
+WiimoteLinux::WiimoteLinux(bdaddr_t bdaddr) : m_bluetooth_address(bdaddr)
 {
   m_really_disconnect = true;
-
-  m_cmd_sock = -1;
-  m_int_sock = -1;
 
   int fds[2];
   if (pipe(fds))
@@ -159,12 +260,25 @@ WiimoteLinux::~WiimoteLinux()
   close(m_wakeup_pipe_r);
 }
 
+bool WiimoteLinux::Is200HzModeEstablished() const
+{
+  return m_is_200hz_established;
+}
+
+void WiimoteLinux::Set200HzModeEstablished(bool value)
+{
+  m_is_200hz_established = value;
+}
+
 // Connect to a Wiimote with a known address.
 bool WiimoteLinux::ConnectInternal()
 {
+  if (m_cmd_sock != -1)
+    return true;
+
   sockaddr_l2 addr = {};
   addr.l2_family = AF_BLUETOOTH;
-  addr.l2_bdaddr = m_bdaddr;
+  addr.l2_bdaddr = m_bluetooth_address;
   addr.l2_cid = 0;
 
   // Control channel

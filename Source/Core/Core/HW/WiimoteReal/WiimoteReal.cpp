@@ -172,6 +172,11 @@ void Wiimote::Shutdown()
   NOTICE_LOG_FMT(WIIMOTE, "Disconnected real wiimote.");
 }
 
+bool Wiimote::Is200HzModeEstablished() const
+{
+  return false;
+}
+
 // to be called from CPU thread
 void Wiimote::WriteReport(Report rpt)
 {
@@ -312,6 +317,19 @@ bool Wiimote::Read()
       (void)Socket.send(rpt.data(), rpt.size(), sf::IpAddress::LocalHost,
                         m_balance_board_dump_port);
     }
+
+    // Some sloppy logging to observe sniff mode is actually working.
+    // TODO: remove this.
+    static int counter = 0;
+    const auto now = Clock::now();
+    static auto old_time = now;
+    if (now - old_time > std::chrono::seconds{1})
+    {
+      old_time += std::chrono::seconds{1};
+      INFO_LOG_FMT(WIIMOTE, "{} reports in 1 second", counter);
+      counter = 0;
+    }
+    ++counter;
 
     // Add it to queue
     rpt.resize(result);
@@ -474,7 +492,7 @@ void Wiimote::Update(const WiimoteEmu::DesiredWiimoteState& target_state)
   // Unfortunately this breaks detection of motion gestures in some games.
   // e.g. Sonic and the Secret Rings, Jett Rocket
   const bool repeat_reports_to_maintain_200hz =
-      Config::Get(Config::MAIN_REAL_WII_REMOTE_REPEAT_REPORTS);
+      Config::Get(Config::MAIN_REAL_WII_REMOTE_REPEAT_REPORTS) && !Is200HzModeEstablished();
 
   const Report& rpt = ProcessReadQueue(repeat_reports_to_maintain_200hz);
 
