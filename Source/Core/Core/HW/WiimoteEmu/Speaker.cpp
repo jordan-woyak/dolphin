@@ -62,6 +62,13 @@ static s16 adpcm_yamaha_expand_nibble(ADPCMState& s, u8 nibble)
   return s.predictor;
 }
 
+// TODO: better names? CAPS?
+constexpr s32 predictor_scale[16] = {1, 3, 5, 7, 9, 11, 13, 15, -1, -3, -5, -7, -9, -11, -13, -15};
+
+constexpr s32 step_scale[8] = {230, 230, 230, 230, 307, 409, 512, 614};
+
+// Break this into a create nibble function.
+
 u32 SpeakerLogic::Encode(ADPCMState* encoder_state, const s16* input_samples, u32 sample_count,
                          u8* output)
 
@@ -69,49 +76,75 @@ u32 SpeakerLogic::Encode(ADPCMState* encoder_state, const s16* input_samples, u3
   if (sample_count)
     std::memset(output, 0, (sample_count + 1) / 2);
 
-  s32 predictor = encoder_state->predictor;
-  s32 step = encoder_state->step;
+  auto state = *encoder_state;
 
   for (u32 i = 0; i != sample_count; ++i)
   {
     const s32 current_sample = input_samples[i];
-    s32 abs_delta = std::abs(current_sample - predictor);
+    s32 abs_val = std::abs(current_sample - state.predictor);
 
-    const bool is_step_lte_val = step <= abs_delta;
-    if (is_step_lte_val)
-      abs_delta -= step;
+    const bool is_step_lte = state.step <= abs_val;
+    if (is_step_lte)
+      abs_val -= state.step;
 
-    const s32 half_step = step / 2;
-    const bool is_half_step_lte_val = half_step <= abs_delta;
-    if (is_half_step_lte_val)
-      abs_delta -= half_step;
+    const s32 step_2 = state.step / 2;
+    const bool is_step_2_lte = step_2 <= abs_val;
+    if (is_step_2_lte)
+      abs_val -= step_2;
 
-    const s32 qtr_step = half_step / 2;
-    const bool is_qtr_step_lte_val = qtr_step <= abs_delta;
+    const s32 step_4 = state.step / 4;
+    const bool is_step_4_lte = step_4 <= abs_val;
 
-    const bool is_less_than_predictor = current_sample < predictor;
-    s32 predictor_delta = (is_less_than_predictor ? -1 : 1) *
-                          (step * is_step_lte_val + half_step * is_half_step_lte_val +
-                           qtr_step * is_qtr_step_lte_val + qtr_step / 2);
-    // TODO: needed?
-    predictor_delta = std::clamp<s32>(predictor_delta, -0x10000, 0xffff);
-
-    predictor = std::clamp<s32>(predictor + predictor_delta, -0x8000, 0x7fff);
-
-    const u8 nibble = is_less_than_predictor * 8 + is_step_lte_val * 4 + is_half_step_lte_val * 2 +
-                      is_qtr_step_lte_val;
+    const bool is_delta_negative = current_sample < state.predictor;
+    const u8 nibble =
+        is_delta_negative * 0x8 + is_step_lte * 0x4 + is_step_2_lte * 0x2 + is_step_4_lte * 0x1;
 
     const u32 nibble_shift = (i % 2) ? 0 : 4;
     output[i / 2] |= nibble << nibble_shift;
 
-    step = s32(step * index_scale[nibble & 0x7]);
-    step = std::clamp<s32>(step, 0x7f, 0x6000);
+#if 0
+    // Nintendo Logic. (slightly off from decoder)
+    const s32 predictor_delta =
+        (is_delta_negative ? -1 : 1) *
+        (state.step * is_step_lte + step_2 * is_step_2_lte +
+         step_4 * is_step_4_lte + state.step / 8);
+#else
+    // s32 predictor_delta = state.step * ((nibble & 0x7) * 2 + 1) / 8;
+    // if (nibble & 0x8)
+    //   predictor_delta *= -1;
+    const s32 predictor_delta = state.step * predictor_scale[nibble] / 8;
+#endif
+
+    // TODO: needed?
+    // predictor_delta = std::clamp<s32>(predictor_delta, -0x10000, 0xffff);
+
+    state.predictor =
+        std::clamp<s32>(state.predictor + predictor_delta, std::numeric_limits<s16>::min(),
+                        std::numeric_limits<s16>::max());
+
+    state.step = state.step * step_scale[nibble & 0x7] / 256;
+    state.step = std::clamp<s32>(state.step, 0x7f, 0x6000);
   }
 
-  encoder_state->predictor = predictor;
-  encoder_state->step = step;
+  *encoder_state = state;
 
   return sample_count;
+}
+
+s16 ExpandNibble(ADPCMState* state, u8 nibble)
+{
+  // s32 predictor_delta = state->step * ((nibble & 0x7) * 2 + 1) / 8;
+  // if (nibble & 0x8)
+  //   predictor_delta *= -1;
+
+  const s32 predictor_delta = state->step * predictor_scale[nibble] / 8;
+  state->predictor =
+      std::clamp<s32>(state->predictor + predictor_delta, std::numeric_limits<s16>::min(),
+                      std::numeric_limits<s16>::max());
+
+  state->step = std::clamp<s32>(state->step * step_scale[nibble & 7] / 256, 0x7f, 0x6000);
+
+  return state->predictor;
 }
 
 #ifdef WIIMOTE_SPEAKER_DUMP
@@ -258,7 +291,11 @@ int SpeakerLogic::BusWrite(u8 slave_addr, u8 addr, int count, const u8* data_in)
   {
     // TODO: Does writing immediately change the decoder config even when active
     // or does a write to 0x08 activate the new configuration or something?
-    return RawWrite(&reg_data, addr, count, data_in);
+    const auto result = RawWrite(&reg_data, addr, count, data_in);
+
+    INFO_LOG(WIIMOTE, "speaker config: %s", ArrayToString(&reg_data.unk_1, 7).c_str());
+
+    return result;
   }
 }
 

@@ -443,6 +443,7 @@ void Device::RunTasks()
     auto restart_time = Clock::now();
     auto encoder_start_time = restart_time;
 
+#if 0
     // Fuck shit up... Get decoder's predictor maxed out.
     {
       std::array<s16, 20 * (1 + SPEAKER_TEST_ADPCM)> samples;
@@ -459,10 +460,14 @@ void Device::RunTasks()
 
       encoder_state = {};
     }
-
+#endif
     std::array<s16, 20 * (1 + SPEAKER_TEST_ADPCM)> samples;
     while (file.read(reinterpret_cast<char*>(&samples), sizeof(samples)))
     {
+      WiimoteReal::Report report;
+      while (m_wiimote->GetNextReport(&report))
+        ProcessInputReport(report);
+
       const auto now = Clock::now();
       if (now - restart_time > std::chrono::seconds(15))
       {
@@ -489,7 +494,7 @@ void Device::RunTasks()
                                                             1000 / SPEAKER_TEST_BITRATE));
       // INFO_LOG(WIIMOTE, "wrote speaker data: %s", ArrayToString(rpt.data, rpt.length).c_str());
 
-      if (now - encoder_start_time > std::chrono::seconds(5))
+      if (now - encoder_start_time > std::chrono::seconds(10))
       {
         encoder_start_time = now;
         encoder_state = {};
@@ -501,10 +506,6 @@ void Device::RunTasks()
         //   INFO_LOG(WIIMOTE, "Read config back: %s", ArrayToString(rr->data(),
         //   rr->size()).c_str());
         // });
-
-        // WiimoteReal::Report report;
-        // while (m_wiimote->GetNextReport(&report))
-        //   ProcessInputReport(report);
 
         INFO_LOG(WIIMOTE, "adjustment time.");
 
@@ -521,9 +522,9 @@ void Device::RunTasks()
 
           // std::this_thread::sleep_for(std::chrono::milliseconds(50));
           // WriteData(AddressSpace::I2CBus, 0x51, 0x02, {0x00}, [this](ErrorCode) {});
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
-          WriteData(AddressSpace::I2CBus, 0x51, 0x06, {0xff}, [this](ErrorCode) {});
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          WriteData(AddressSpace::I2CBus, 0x51, 0x06, {0x0c, 0x0e}, [this](ErrorCode) {});
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
           // WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x00}, [this](ErrorCode) {});
         }
         // OutputReportSpeakerEnable spkr = {};
@@ -1144,13 +1145,19 @@ void Device::ConfigureSpeaker()
       }
 
       constexpr int MAGIC_DIVISOR = 12000000;
-      constexpr int BR1 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE & 0xff;
-      constexpr int BR2 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE >> 8;
-
+#if 0
+      constexpr int SR1 = 0;
+      constexpr int SR2 = 0;
+#else
+      constexpr int SR1 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE & 0xff;
+      constexpr int SR2 = MAGIC_DIVISOR / SPEAKER_TEST_BITRATE >> 8;
+#endif
       constexpr u8 FMT = SPEAKER_TEST_ADPCM ? 0x00 : 0x40;
 
+      constexpr u8 VOL = 0x3f;
+
       // First byte being 0x80 disables playback. 0x01 works. but kicks in late
-      const std::vector<u8> configuration = {0x00, FMT, BR1, BR2, 0x1f, 0x0c, 0x0e};
+      const std::vector<u8> configuration = {0x00, FMT, SR1, SR2, VOL, 0x0c, 0x0e};
       // const std::vector<u8> configuration = {0x00, 0x40, 0x40, 0x1f, 0x7f, 0x0c, 0x0e};
 
       // TODO: magic number.
@@ -1160,26 +1167,26 @@ void Device::ConfigureSpeaker()
           WARN_LOG(WIIMOTE, "Bad speaker write @ 0x01 (x2).");
           return;
         }
-      });
 
-      // This is the "play" trigger, it seems only the first bit is checked.
-      // (e.g. 0xfe does not trigger play but 0x05 does)
-      // TODO: test if a write of 0 will pause after playing is started. (IT DOES!)
-      // TODO: test if you can buffer data then play it afterward :/
-      WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x01}, [this](ErrorCode response) {
-        if (response != ErrorCode::Success)
-        {
-          WARN_LOG(WIIMOTE, "Bad speaker write @ 0x08.");
-          return;
-        }
+        // This is the "play" trigger, it seems only the first bit is checked.
+        // (e.g. 0xfe does not trigger play but 0x05 does)
+        // TODO: test if a write of 0 will pause after playing is started. (IT DOES!)
+        // TODO: test if you can buffer data then play it afterward :/
+        WriteData(AddressSpace::I2CBus, 0x51, 0x08, {0x01}, [this](ErrorCode response) {
+          if (response != ErrorCode::Success)
+          {
+            WARN_LOG(WIIMOTE, "Bad speaker write @ 0x08.");
+            return;
+          }
 
-        m_speaker_configured = true;
+          m_speaker_configured = true;
 
-        OutputReportSpeakerMute unmute = {};
-        unmute.enable = 0;
-        QueueReport(unmute);
+          OutputReportSpeakerMute unmute = {};
+          unmute.enable = 0;
+          QueueReport(unmute);
 
-        INFO_LOG(WIIMOTE, "speaker is configured.");
+          INFO_LOG(WIIMOTE, "speaker is configured.");
+        });
       });
     });
   });
