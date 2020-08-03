@@ -111,7 +111,7 @@ void CameraLogic::Update(const Common::Matrix44& transform, Common::Vec2 field_o
 
       const auto point_size = std::lround(MAX_POINT_SIZE / point.w / 2);
 
-      if (x >= 0 && y >= 0 && x < CAMERA_RES_X && y < CAMERA_RES_Y)
+      if (point_size && x >= 0 && y >= 0 && x < CAMERA_RES_X && y < CAMERA_RES_Y)
         return CameraPoint{{u16(x), u16(y)}, u8(point_size)};
     }
 

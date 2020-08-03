@@ -145,30 +145,20 @@ private:
   // This is the region exposed over bluetooth:
   static constexpr int EEPROM_FREE_SIZE = 0x1700;
 
+  struct DynamicsData
+  {
+    Common::Matrix44 camera_transform;
+    Common::Vec3 acceleration;
+    Common::Vec3 angular_velocity;
+  };
+
   void RefreshConfig();
 
-  void StepDynamics();
+  DynamicsData StepDynamics();
   void UpdateButtonsStatus();
-
-  // Returns simulated accelerometer data in m/s^2.
-  Common::Vec3 GetAcceleration(
-      Common::Vec3 extra_acceleration = Common::Vec3(0, 0, float(GRAVITY_ACCELERATION))) const;
-
-  // Returns simulated gyroscope data in radians/s.
-  Common::Vec3 GetAngularVelocity(Common::Vec3 extra_angular_velocity = {}) const;
-
-  // Returns the transformation of the world around the wiimote.
-  // Used for simulating camera data and for rotating acceleration data.
-  // Does not include orientation transformations.
-  Common::Matrix44
-  GetTransformation(const Common::Matrix33& extra_rotation = Common::Matrix33::Identity()) const;
 
   // Returns the world rotation from the effects of sideways/upright settings.
   Common::Quaternion GetOrientation() const;
-
-  Common::Vec3 GetTotalAcceleration() const;
-  Common::Vec3 GetTotalAngularVelocity() const;
-  Common::Matrix44 GetTotalTransformation() const;
 
   void HandleReportRumble(const WiimoteCommon::OutputReportRumble&);
   void HandleReportLeds(const WiimoteCommon::OutputReportLeds&);
@@ -187,7 +177,7 @@ private:
 
   void HandleExtensionSwap();
   bool ProcessExtensionPortEvent();
-  void SendDataReport();
+  void SendDataReport(const DynamicsData&);
   bool ProcessReadDataRequest();
 
   void SetRumble(bool on);
@@ -298,9 +288,12 @@ private:
   RotationalState m_tilt_state;
   MotionState m_point_state;
   PositionalState m_shake_state;
-
   IMUCursorState m_imu_cursor_state;
 
   size_t m_config_changed_callback_id;
+
+  Common::Quaternion m_rotation;
+  Common::Vec3 m_position;
+  Common::Vec3 m_velocity;
 };
 }  // namespace WiimoteEmu

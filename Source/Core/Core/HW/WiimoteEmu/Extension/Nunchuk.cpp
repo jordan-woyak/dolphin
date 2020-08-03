@@ -91,24 +91,33 @@ void Nunchuk::Update()
   nc_data.SetButtons(buttons);
 
   // Acceleration data:
-  EmulateSwing(&m_swing_state, m_swing, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateTilt(&m_tilt_state, m_tilt, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateShake(&m_shake_state, m_shake, 1.f / ::Wiimote::UPDATE_FREQ);
+  constexpr auto step = 1.f / ::Wiimote::UPDATE_FREQ;
 
-  const auto transformation =
-      GetRotationalMatrix(-m_tilt_state.angle) * GetRotationalMatrix(-m_swing_state.angle);
+  EmulateSwing(&m_swing_state, m_swing, step);
+  EmulateTilt(&m_tilt_state, m_tilt, step);
+  EmulateShake(&m_shake_state, m_shake, step);
 
-  Common::Vec3 accel =
-      transformation *
-      (m_swing_state.acceleration +
-       m_imu_accelerometer->GetState().value_or(Common::Vec3(0, 0, float(GRAVITY_ACCELERATION))));
+  using Common::Quaternion;
 
-  // shake
-  accel += m_shake_state.acceleration;
+  const auto swing_rotation = Quaternion::RotateY(-m_swing_state.angle.y) *
+                              Quaternion::RotateX(-m_swing_state.angle.x) *
+                              Quaternion::RotateZ(-m_swing_state.angle.z);
+
+  const auto tilt_rotation =
+      Quaternion::RotateY(-m_tilt_state.angle.y) * Quaternion::RotateX(-m_tilt_state.angle.x);
+
+  const auto rotation = (tilt_rotation * swing_rotation).Normalized();
+
+  // Update displacement and derivatives.
+  const auto new_position = m_swing_state.position + rotation.Conjugate() * m_shake_state.position;
+  const auto new_velocity = (new_position - m_position) / step;
+  const auto acceleration = (new_velocity - m_velocity) / step;
+  m_velocity = new_velocity;
+  m_position = new_position;
 
   // Calibration values are 8-bit but we want 10-bit precision, so << 2.
-  const auto acc = ConvertAccelData(accel, ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
-  nc_data.SetAccel(acc.value);
+  nc_data.SetAccel(
+      ConvertAccelData(rotation * acceleration, ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2).value);
 
   Common::BitCastPtr<DataFormat>(&m_reg.controller_data) = nc_data;
 }
@@ -121,6 +130,9 @@ void Nunchuk::Reset()
 
   m_swing_state = {};
   m_tilt_state = {};
+
+  m_position = {};
+  m_velocity = {};
 
   // Build calibration data:
   m_reg.calibration = {{
@@ -178,9 +190,9 @@ void Nunchuk::DoState(PointerWrap& p)
 {
   EncryptedExtension::DoState(p);
 
-  p.Do(m_swing_state);
-  p.Do(m_tilt_state);
-  p.Do(m_shake_state);
+  // p.Do(m_swing_state);
+  // p.Do(m_tilt_state);
+  // p.Do(m_shake_state);
 }
 
 void Nunchuk::LoadDefaults(const ControllerInterface& ciface)

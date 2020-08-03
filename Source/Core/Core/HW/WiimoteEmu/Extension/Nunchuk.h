@@ -180,5 +180,8 @@ private:
   MotionState m_swing_state;
   RotationalState m_tilt_state;
   PositionalState m_shake_state;
+
+  Common::Vec3 m_position;
+  Common::Vec3 m_velocity;
 };
 }  // namespace WiimoteEmu

@@ -99,7 +99,7 @@ private:
   void Draw() override;
 
   ControllerEmu::Tilt& m_group;
-  WiimoteEmu::MotionState m_motion_state{};
+  WiimoteEmu::RotationalState m_motion_state{};
 };
 
 class CursorIndicator : public ReshapableInputIndicator
@@ -147,7 +147,7 @@ private:
   void Draw() override;
 
   ControllerEmu::Shake& m_shake_group;
-  WiimoteEmu::MotionState m_motion_state{};
+  WiimoteEmu::PositionalState m_motion_state{};
   std::deque<ControllerEmu::Shake::StateData> m_position_samples;
   int m_grid_line_position = 0;
 };
