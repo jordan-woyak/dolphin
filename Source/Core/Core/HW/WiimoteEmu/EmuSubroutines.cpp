@@ -576,14 +576,8 @@ void Wiimote::DoState(PointerWrap& p)
   if (m_active_extension != ExtensionNumber::NONE)
     GetActiveExtension()->DoState(p);
 
-  // Dynamics
-  p.Do(m_swing_state);
-  p.Do(m_tilt_state);
-  p.Do(m_point_state);
-  p.Do(m_shake_state);
-
-  // We'll consider the IMU state part of the user's physical controller state and not sync it.
-  // (m_imu_cursor_state)
+  // FYI: Motion state can be considered part of user input or the physical controller state.
+  // We need not sync it.
 
   p.DoMarker("Wiimote");
 }

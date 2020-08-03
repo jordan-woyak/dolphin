@@ -14,13 +14,7 @@ namespace ControllerEmu
 class Cursor : public ReshapableInput
 {
 public:
-  struct StateData
-  {
-    ControlState x{};
-    ControlState y{};
-
-    bool IsVisible() const;
-  };
+  using StateData = Common::TVec2<ControlState>;
 
   Cursor(std::string name, std::string ui_name);
 
@@ -39,6 +33,8 @@ public:
   // Vertical offset in meters.
   ControlState GetVerticalOffset() const;
 
+  bool IsVisible() const;
+
 private:
   // This is used to reduce the cursor speed for relative input
   // to something that makes sense with the default range.
@@ -47,11 +43,8 @@ private:
   static constexpr int AUTO_HIDE_MS = 2500;
   static constexpr double AUTO_HIDE_DEADZONE = 0.001;
 
-  // Not adjusted by width/height/center:
-  StateData m_state;
-
-  // Adjusted:
-  StateData m_prev_result;
+  StateData m_state = {};
+  StateData m_prev_result = {};
 
   int m_auto_hide_timer = AUTO_HIDE_MS;
 

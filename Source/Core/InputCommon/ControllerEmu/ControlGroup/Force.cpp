@@ -44,7 +44,7 @@ Force::Force(const std::string& name_) : ReshapableInput(name_, name_, GroupType
               _trans("m/s"),
               // i18n: Refering to emulated wii remote swing movement.
               _trans("Peak velocity of outward swing movements.")},
-             16, 1, 40);
+             16, 0.01, 40);
 
   // "Return Speed" allows for a "slow return" that won't trigger additional actions.
   AddSetting(&m_return_speed_setting,
@@ -53,7 +53,7 @@ Force::Force(const std::string& name_) : ReshapableInput(name_, name_, GroupType
               _trans("m/s"),
               // i18n: Refering to emulated wii remote swing movement.
               _trans("Peak velocity of movements to neutral position.")},
-             2, 1, 40);
+             2, 0.01, 40);
 
   AddSetting(&m_angle_setting,
              {_trans("Angle"),

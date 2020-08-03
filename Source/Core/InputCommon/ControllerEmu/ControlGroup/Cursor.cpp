@@ -139,17 +139,6 @@ Cursor::StateData Cursor::GetState(const bool adjusted)
   }
 
   m_prev_result = result;
-
-  // If auto-hide time is up, the hide button is held, or the input gate is disabled, hide the
-  // cursor.  We need to check the input gate explicitly as the hide button check always returns
-  // false if the input gate is disabled (e.g. the window is not focused with background input
-  // disabled)
-  if (!m_auto_hide_timer || !ControlReference::GetInputGate() || controls[4]->GetState<bool>())
-  {
-    result.x = std::numeric_limits<ControlState>::quiet_NaN();
-    result.y = 0;
-  }
-
   return result;
 }
 
@@ -168,9 +157,9 @@ ControlState Cursor::GetVerticalOffset() const
   return m_vertical_offset_setting.GetValue() / 100;
 }
 
-bool Cursor::StateData::IsVisible() const
+bool Cursor::IsVisible() const
 {
-  return !std::isnan(x);
+  return m_auto_hide_timer && !controls[4]->GetState<bool>();
 }
 
 }  // namespace ControllerEmu

@@ -189,6 +189,10 @@ void Wiimote::Reset()
   m_point_state = {};
   m_shake_state = {};
 
+  m_rotation = Common::Quaternion::Identity();
+  m_position = {};
+  m_velocity = {};
+
   m_imu_cursor_state = {};
 }
 
@@ -437,7 +441,7 @@ void Wiimote::Update()
   m_hotkeys->UpdateState();
 
   // Update our motion simulations.
-  StepDynamics();
+  const auto dynamics = StepDynamics();
 
   // Update buttons in the status struct which is sent in 99% of input reports.
   // FYI: Movies only sync button updates in data reports.
@@ -476,10 +480,10 @@ void Wiimote::Update()
     return;
   }
 
-  SendDataReport();
+  SendDataReport(dynamics);
 }
 
-void Wiimote::SendDataReport()
+void Wiimote::SendDataReport(const DynamicsData& dynamics)
 {
   Movie::SetPolledDevice();
 
@@ -523,7 +527,7 @@ void Wiimote::SendDataReport()
     {
       // Calibration values are 8-bit but we want 10-bit precision, so << 2.
       AccelData accel =
-          ConvertAccelData(GetTotalAcceleration(), ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
+          ConvertAccelData(dynamics.acceleration, ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
       rpt_builder.SetAccelData(accel);
     }
 
@@ -532,7 +536,7 @@ void Wiimote::SendDataReport()
     {
       // Note: Camera logic currently contains no changing state so we can just update it here.
       // If that changes this should be moved to Wiimote::Update();
-      m_camera_logic.Update(GetTotalTransformation(),
+      m_camera_logic.Update(dynamics.camera_transform,
                             Common::Vec2(m_fov_x_setting.GetValue(), m_fov_y_setting.GetValue()) /
                                 360 * float(MathUtil::TAU));
 
@@ -562,7 +566,7 @@ void Wiimote::SendDataReport()
       if (m_is_motion_plus_attached)
       {
         // TODO: Make input preparation triggered by bus read.
-        m_motion_plus.PrepareInput(GetTotalAngularVelocity());
+        m_motion_plus.PrepareInput(dynamics.angular_velocity);
       }
 
       u8* ext_data = rpt_builder.GetExtDataPtr();
@@ -738,73 +742,84 @@ void Wiimote::RefreshConfig()
   m_speaker_logic.SetSpeakerEnabled(Config::Get(Config::MAIN_WIIMOTE_ENABLE_SPEAKER));
 }
 
-void Wiimote::StepDynamics()
+Wiimote::DynamicsData Wiimote::StepDynamics()
 {
-  EmulateSwing(&m_swing_state, m_swing, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateTilt(&m_tilt_state, m_tilt, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulatePoint(&m_point_state, m_ir, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateShake(&m_shake_state, m_shake, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope,
-                   1.f / ::Wiimote::UPDATE_FREQ);
-}
+  constexpr auto step = 1.f / ::Wiimote::UPDATE_FREQ;
 
-Common::Vec3 Wiimote::GetAcceleration(Common::Vec3 extra_acceleration) const
-{
-  Common::Vec3 accel = GetOrientation() * GetTransformation().Transform(
-                                              m_swing_state.acceleration + extra_acceleration, 0);
+  EmulateSwing(&m_swing_state, m_swing, step);
+  EmulateTilt(&m_tilt_state, m_tilt, step);
+  EmulatePoint(&m_point_state, m_ir, step);
+  EmulateShake(&m_shake_state, m_shake, step);
+  EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope, step);
 
-  // Our shake effects have never been affected by orientation. Should they be?
-  accel += m_shake_state.acceleration;
+  using Common::Quaternion;
 
-  return accel;
-}
+  // Update rotation and angular velocity.
+  const auto swing_rotation = Quaternion::RotateY(-m_swing_state.angle.y) *
+                              Quaternion::RotateX(-m_swing_state.angle.x) *
+                              Quaternion::RotateZ(-m_swing_state.angle.z);
 
-Common::Vec3 Wiimote::GetAngularVelocity(Common::Vec3 extra_angular_velocity) const
-{
-  return GetOrientation() * (m_tilt_state.angular_velocity + m_swing_state.angular_velocity +
-                             m_point_state.angular_velocity + extra_angular_velocity);
-}
+  const auto point_rotation =
+      Quaternion::RotateX(-m_point_state.angle.x) * Quaternion::RotateZ(-m_point_state.angle.z);
 
-Common::Matrix44 Wiimote::GetTransformation(const Common::Matrix33& extra_rotation) const
-{
-  // Includes positional and rotational effects of:
-  // Point, Swing, Tilt, Shake
+  const auto tilt_rotation =
+      Quaternion::RotateY(-m_tilt_state.angle.y) * Quaternion::RotateX(-m_tilt_state.angle.x);
 
-  // TODO: Think about and clean up matrix order + make nunchuk match.
-  return Common::Matrix44::Translate(-m_shake_state.position) *
-         Common::Matrix44::FromMatrix33(extra_rotation * GetRotationalMatrix(-m_tilt_state.angle) *
-                                        GetRotationalMatrix(-m_point_state.angle) *
-                                        GetRotationalMatrix(-m_swing_state.angle)) *
-         Common::Matrix44::Translate(-m_swing_state.position - m_point_state.position);
+  // TODO: think about point/swing order.
+  const auto new_rotation = (tilt_rotation * point_rotation * swing_rotation).Normalized();
+
+  DynamicsData result;
+
+  // Calculate angular velocity from change in rotation.
+  const auto rotation_diff = m_rotation * new_rotation.Conjugate();
+  m_rotation = new_rotation;
+
+  const auto orientation = GetOrientation();
+  const auto oriented_rotation = orientation * m_rotation;
+  const auto recentered_pitch = Quaternion::RotateX(m_imu_cursor_state.recentered_pitch);
+
+  const auto imu_angular_velocity = m_imu_gyroscope->GetState().value_or(Common::Vec3());
+
+  // TODO: combine the angular velocities properly.
+  // Adding them is close but not actually correct.
+  // TODO: scale these values down to prevent wrap around.
+  // TODO: redundant calculations here..
+  // return orientation *
+  //        GetGyroscopeFromRotation(GetRotationFromGyroscope(imu_angular_velocity) *
+  //                                 GetRotationFromGyroscope(m_angular_velocity));
+
+  result.angular_velocity = orientation * (GetGyroscopeFromRotation(rotation_diff) / step +
+                                           recentered_pitch * imu_angular_velocity);
+
+  // Update displacement and derivatives.
+  // Shake has rotation un-applied to be in remote space rather than world space.
+  // Point is not included here to prevent acceleration on hide/unhide.
+  const auto new_position =
+      m_swing_state.position + oriented_rotation.Conjugate() * m_shake_state.position;
+  const auto new_velocity = (new_position - m_position) / step;
+  const auto acceleration = (new_velocity - m_velocity) / step;
+  m_velocity = new_velocity;
+  m_position = new_position;
+
+  constexpr auto gravity_acceleration = Common::Vec3(0, 0, float(GRAVITY_ACCELERATION));
+
+  const auto imu_acceleration = m_imu_accelerometer->GetState().value_or(gravity_acceleration);
+  result.acceleration = oriented_rotation * (acceleration + recentered_pitch * imu_acceleration);
+
+  // Update camera view.
+  const auto imu_cursor_rotation = m_imu_cursor_state.rotation * recentered_pitch;
+  result.camera_transform = Common::Matrix44::FromMatrix33(Common::Matrix33::FromQuaternion(
+                                imu_cursor_rotation * m_rotation)) *
+                            Common::Matrix44::Translate(-m_position - m_point_state.position);
+
+  return result;
 }
 
 Common::Quaternion Wiimote::GetOrientation() const
 {
-  return Common::Quaternion::RotateZ(float(MathUtil::TAU / -4 * IsSideways())) *
-         Common::Quaternion::RotateX(float(MathUtil::TAU / 4 * IsUpright()));
-}
-
-Common::Vec3 Wiimote::GetTotalAcceleration() const
-{
-  if (const auto accel = m_imu_accelerometer->GetState())
-    return GetAcceleration(*accel);
-
-  return GetAcceleration();
-}
-
-Common::Vec3 Wiimote::GetTotalAngularVelocity() const
-{
-  if (const auto ang_vel = m_imu_gyroscope->GetState())
-    return GetAngularVelocity(*ang_vel);
-
-  return GetAngularVelocity();
-}
-
-Common::Matrix44 Wiimote::GetTotalTransformation() const
-{
-  return GetTransformation(Common::Matrix33::FromQuaternion(
-      m_imu_cursor_state.rotation *
-      Common::Quaternion::RotateX(m_imu_cursor_state.recentered_pitch)));
+  constexpr auto quarter_turn = float(MathUtil::TAU / 4);
+  return Common::Quaternion::RotateZ(IsSideways() * -quarter_turn) *
+         Common::Quaternion::RotateX(IsUpright() * quarter_turn);
 }
 
 }  // namespace WiimoteEmu

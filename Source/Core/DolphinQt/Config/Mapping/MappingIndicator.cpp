@@ -295,7 +295,7 @@ void CursorIndicator::Draw()
   const auto adj_coord = m_cursor_group.GetState(true);
 
   DrawReshapableInput(m_cursor_group, CURSOR_TV_COLOR,
-                      adj_coord.IsVisible() ?
+                      m_cursor_group.IsVisible() ?
                           std::make_optional(Common::DVec2(adj_coord.x, adj_coord.y)) :
                           std::nullopt);
 }
