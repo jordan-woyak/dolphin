@@ -105,7 +105,7 @@ bool ForceFeedbackDevice::InitForceFeedback(const LPDIRECTINPUTDEVICE8 device, i
   diPE.dwMagnitude = 0;
   diPE.lOffset = 0;
   diPE.dwPhase = 0;
-  diPE.dwPeriod = DI_SECONDS / 1000 * RUMBLE_PERIOD_MS;
+  diPE.dwPeriod = DI_SECONDS / 1000 * DEFAULT_RUMBLE_PERIOD_MS;
 
   for (auto& f : force_type_names)
   {

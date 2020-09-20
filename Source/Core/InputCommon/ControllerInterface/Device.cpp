@@ -78,6 +78,16 @@ bool Device::Control::IsMatchingName(std::string_view name) const
   return GetName() == name;
 }
 
+void Device::Output::SetParameter(Parameter parameter, ControlState value)
+{
+}
+
+void Device::PeriodicOutput::SetParameter(Parameter parameter, ControlState value)
+{
+  if (parameter == Parameter::Period)
+    SetPeriod(u32(std::lround(value)));
+}
+
 ControlState Device::FullAnalogSurface::GetState() const
 {
   return (1 + std::max(0.0, m_high.GetState()) - std::max(0.0, m_low.GetState())) / 2;

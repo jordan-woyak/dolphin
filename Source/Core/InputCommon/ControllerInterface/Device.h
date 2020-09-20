@@ -20,8 +20,7 @@ namespace ciface
 {
 // 100Hz which homebrew docs very roughly imply is within WiiMote normal
 // range, used for periodic haptic effects though often ignored by devices
-// TODO: Make this configurable.
-constexpr int RUMBLE_PERIOD_MS = 10;
+constexpr int DEFAULT_RUMBLE_PERIOD_MS = 10;
 
 // This needs to be at least as long as the longest rumble that might ever be played.
 // Too short and it's going to stop in the middle of a long effect.
@@ -98,6 +97,20 @@ public:
     virtual ~Output() = default;
     virtual void SetState(ControlState state) = 0;
     Output* ToOutput() override { return this; }
+
+    enum class Parameter
+    {
+      // TODO: period or frequency?
+      Period,
+    };
+
+    virtual void SetParameter(Parameter parameter, ControlState value);
+  };
+
+  class PeriodicOutput : public Output
+  {
+    void SetParameter(Parameter parameter, ControlState value) override;
+    virtual void SetPeriod(u32 period) = 0;
   };
 
   virtual ~Device();

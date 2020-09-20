@@ -118,6 +118,8 @@ Token Lexer::NextToken()
     return Token(TOK_OR);
   case '!':
     return Token(TOK_NOT);
+  case '.':
+    return Token(TOK_PERIOD);
   case '+':
     return Token(TOK_ADD);
   case '-':
@@ -192,10 +194,20 @@ ParseStatus Lexer::Tokenize(std::vector<Token>& tokens)
 class ControlExpression : public Expression
 {
 public:
+  struct ParameterExpression
+  {
+    Device::Output::Parameter parameter;
+    std::unique_ptr<Expression> expression;
+  };
+
   // Keep a shared_ptr to the device so the control pointer doesn't become invalid.
   std::shared_ptr<Device> m_device;
 
-  explicit ControlExpression(ControlQualifier qualifier_) : qualifier(qualifier_) {}
+  explicit ControlExpression(ControlQualifier qualifier_,
+                             std::vector<ParameterExpression> parameters_ = {})
+      : qualifier(std::move(qualifier_)), parameters(std::move(parameters_))
+  {
+  }
   ControlState GetValue() const override
   {
     if (!input)
@@ -212,7 +224,12 @@ public:
   void SetValue(ControlState value) override
   {
     if (output)
+    {
+      for (auto& parameter : parameters)
+        output->SetParameter(parameter.parameter, parameter.expression->GetValue());
+
       output->SetState(value);
+    }
   }
   int CountNumControls() const override { return (input || output) ? 1 : 0; }
   void UpdateReferences(ControlEnvironment& env) override
@@ -223,6 +240,8 @@ public:
   }
 
 private:
+  std::vector<ParameterExpression> parameters;
+
   ControlQualifier qualifier;
   Device::Input* input = nullptr;
   Device::Output* output = nullptr;
@@ -560,6 +579,30 @@ private:
     return ParseResult::MakeSuccessfulResult(std::move(func));
   }
 
+  std::vector<ControlExpression::ParameterExpression> ParseControlParameters()
+  {
+    // TODO: error handling!
+
+    std::vector<ControlExpression::ParameterExpression> result;
+
+    while (Peek().type == TOK_PERIOD)
+    {
+      Chew();
+      auto tok = Chew();
+
+      Expects(TOK_LPAREN);
+      auto value = ParseParens();
+
+      if (tok.data == "period")
+      {
+        result.emplace_back(ControlExpression::ParameterExpression{
+            Core::Device::Output::Parameter::Period, std::move(value.expr)});
+      }
+    }
+
+    return result;
+  }
+
   ParseResult ParseAtom(const Token& tok)
   {
     switch (tok.type)
@@ -582,7 +625,8 @@ private:
     {
       ControlQualifier cq;
       cq.FromString(tok.data);
-      return ParseResult::MakeSuccessfulResult(std::make_unique<ControlExpression>(cq));
+      return ParseResult::MakeSuccessfulResult(
+          std::make_unique<ControlExpression>(cq, ParseControlParameters()));
     }
     case TOK_NOT:
     {
@@ -719,6 +763,7 @@ static std::unique_ptr<Expression> ParseBarewordExpression(const std::string& st
   qualifier.control_name = str;
   qualifier.has_device = false;
 
+  // TODO: allow for parameters here too!
   return std::make_unique<ControlExpression>(qualifier);
 }
 

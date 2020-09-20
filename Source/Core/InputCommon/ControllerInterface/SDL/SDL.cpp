@@ -335,7 +335,7 @@ Joystick::PeriodicEffect::PeriodicEffect(SDL_Haptic* haptic, u16 waveform)
   m_effect.periodic = {};
   SetDirection(&m_effect.periodic.direction);
   m_effect.periodic.length = RUMBLE_LENGTH_MS;
-  m_effect.periodic.period = RUMBLE_PERIOD_MS;
+  m_effect.periodic.period = DEFAULT_RUMBLE_PERIOD_MS;
   m_effect.periodic.offset = 0;
   m_effect.periodic.phase = 0;
 }

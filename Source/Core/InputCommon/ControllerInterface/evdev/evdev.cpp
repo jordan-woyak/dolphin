@@ -25,6 +25,187 @@
 
 namespace ciface::evdev
 {
+template <typename Base = Core::Device::Output>
+class Effect : public Base
+{
+public:
+  Effect(int fd) : m_fd(fd)
+  {
+    m_effect.id = -1;
+    // Left (for wheels):
+    m_effect.direction = 0x4000;
+    m_effect.replay.length = RUMBLE_LENGTH_MS;
+
+    // FYI: type is set within UpdateParameters.
+    m_effect.type = DISABLED_EFFECT_TYPE;
+  }
+
+  ~Effect()
+  {
+    m_effect.type = DISABLED_EFFECT_TYPE;
+    UpdateEffect();
+  }
+
+  void SetState(ControlState state) override
+  {
+    // TODO: just make UpdateParameters call UpdateEffect..
+    if (UpdateParameters(state))
+    {
+      // Update effect if parameters changed.
+      UpdateEffect();
+    }
+  }
+
+protected:
+  virtual bool UpdateParameters(ControlState state) = 0;
+
+  ff_effect m_effect = {};
+
+  static constexpr int DISABLED_EFFECT_TYPE = 0;
+
+  void UpdateEffect()
+  {
+    // libevdev doesn't have nice helpers for forcefeedback
+    // we will use the file descriptors directly.
+
+    // Note: m_effect.type is set within UpdateParameters
+    // to determine if effect should be playing or not.
+    if (m_effect.type != DISABLED_EFFECT_TYPE)
+    {
+      if (-1 == m_effect.id)
+      {
+        // If effect was not uploaded (previously stopped)
+        // we upload it and start playback
+
+        ioctl(m_fd, EVIOCSFF, &m_effect);
+
+        input_event play = {};
+        play.type = EV_FF;
+        play.code = m_effect.id;
+        play.value = 1;
+
+        static_cast<void>(write(m_fd, &play, sizeof(play)));
+      }
+      else
+      {
+        // Effect is already playing. Just update parameters.
+        ioctl(m_fd, EVIOCSFF, &m_effect);
+      }
+    }
+    else if (m_effect.id != -1)
+    {
+      // Stop and remove effect.
+      ioctl(m_fd, EVIOCRMFF, m_effect.id);
+      m_effect.id = -1;
+    }
+  }
+
+  int const m_fd;
+};
+
+class ConstantEffect : public Effect<>
+{
+public:
+  ConstantEffect(int fd) : Effect(fd) { m_effect.u.constant = {}; }
+  bool UpdateParameters(ControlState state) override
+  {
+    s16& value = m_effect.u.constant.level;
+    const s16 old_value = value;
+
+    constexpr s16 MAX_VALUE = 0x7fff;
+    value = s16(state * MAX_VALUE);
+
+    m_effect.type = value ? FF_CONSTANT : DISABLED_EFFECT_TYPE;
+    return value != old_value;
+  }
+  std::string GetName() const override { return "Constant"; }
+};
+
+class PeriodicEffect : public Effect<Core::Device::PeriodicOutput>
+{
+public:
+  PeriodicEffect(int fd, u16 waveform) : Effect(fd)
+  {
+    m_effect.u.periodic = {};
+    m_effect.u.periodic.waveform = waveform;
+    m_effect.u.periodic.period = DEFAULT_RUMBLE_PERIOD_MS;
+    m_effect.u.periodic.offset = 0;
+    m_effect.u.periodic.phase = 0;
+  }
+
+private:
+  void SetPeriod(u32 period) override
+  {
+    INFO_LOG(SERIALINTERFACE, "setting period");
+
+    u16& value = m_effect.u.periodic.period;
+    const u16 old_value = value;
+
+    value = period;
+
+    if (value != old_value)
+      UpdateEffect();
+  }
+
+  bool UpdateParameters(ControlState state) override
+  {
+    s16& value = m_effect.u.periodic.magnitude;
+    const s16 old_value = value;
+
+    constexpr s16 MAX_VALUE = 0x7fff;
+    value = s16(state * MAX_VALUE);
+
+    m_effect.type = value ? FF_PERIODIC : DISABLED_EFFECT_TYPE;
+    return value != old_value;
+  }
+  std::string GetName() const override
+  {
+    switch (m_effect.u.periodic.waveform)
+    {
+    case FF_SQUARE:
+      return "Square";
+    case FF_TRIANGLE:
+      return "Triangle";
+    case FF_SINE:
+      return "Sine";
+    case FF_SAW_UP:
+      return "Sawtooth Up";
+    case FF_SAW_DOWN:
+      return "Sawtooth Down";
+    default:
+      return "Unknown";
+    }
+  }
+};
+
+class RumbleEffect : public Effect<>
+{
+public:
+  enum class Motor : u8
+  {
+    Weak,
+    Strong,
+  };
+
+  RumbleEffect(int fd, Motor motor) : Effect(fd), m_motor(motor) { m_effect.u.rumble = {}; }
+  bool UpdateParameters(ControlState state) override
+  {
+    u16& value = (Motor::Strong == m_motor) ? m_effect.u.rumble.strong_magnitude :
+                                              m_effect.u.rumble.weak_magnitude;
+    const u16 old_value = value;
+
+    constexpr u16 MAX_VALUE = 0xffff;
+    value = u16(state * MAX_VALUE);
+
+    m_effect.type = value ? FF_RUMBLE : DISABLED_EFFECT_TYPE;
+    return value != old_value;
+  }
+  std::string GetName() const override { return (Motor::Strong == m_motor) ? "Strong" : "Weak"; }
+
+private:
+  const Motor m_motor;
+};
+
 class Input : public Core::Device::Input
 {
 public:
@@ -640,151 +821,4 @@ bool evdevDevice::IsValid() const
   return true;
 }
 
-evdevDevice::Effect::Effect(int fd) : m_fd(fd)
-{
-  m_effect.id = -1;
-  // Left (for wheels):
-  m_effect.direction = 0x4000;
-  m_effect.replay.length = RUMBLE_LENGTH_MS;
-
-  // FYI: type is set within UpdateParameters.
-  m_effect.type = DISABLED_EFFECT_TYPE;
-}
-
-std::string evdevDevice::ConstantEffect::GetName() const
-{
-  return "Constant";
-}
-
-std::string evdevDevice::PeriodicEffect::GetName() const
-{
-  switch (m_effect.u.periodic.waveform)
-  {
-  case FF_SQUARE:
-    return "Square";
-  case FF_TRIANGLE:
-    return "Triangle";
-  case FF_SINE:
-    return "Sine";
-  case FF_SAW_UP:
-    return "Sawtooth Up";
-  case FF_SAW_DOWN:
-    return "Sawtooth Down";
-  default:
-    return "Unknown";
-  }
-}
-
-std::string evdevDevice::RumbleEffect::GetName() const
-{
-  return (Motor::Strong == m_motor) ? "Strong" : "Weak";
-}
-
-void evdevDevice::Effect::SetState(ControlState state)
-{
-  if (UpdateParameters(state))
-  {
-    // Update effect if parameters changed.
-    UpdateEffect();
-  }
-}
-
-void evdevDevice::Effect::UpdateEffect()
-{
-  // libevdev doesn't have nice helpers for forcefeedback
-  // we will use the file descriptors directly.
-
-  // Note: m_effect.type is set within UpdateParameters
-  // to determine if effect should be playing or not.
-  if (m_effect.type != DISABLED_EFFECT_TYPE)
-  {
-    if (-1 == m_effect.id)
-    {
-      // If effect was not uploaded (previously stopped)
-      // we upload it and start playback
-
-      ioctl(m_fd, EVIOCSFF, &m_effect);
-
-      input_event play = {};
-      play.type = EV_FF;
-      play.code = m_effect.id;
-      play.value = 1;
-
-      static_cast<void>(write(m_fd, &play, sizeof(play)));
-    }
-    else
-    {
-      // Effect is already playing. Just update parameters.
-      ioctl(m_fd, EVIOCSFF, &m_effect);
-    }
-  }
-  else
-  {
-    // Stop and remove effect.
-    ioctl(m_fd, EVIOCRMFF, m_effect.id);
-    m_effect.id = -1;
-  }
-}
-
-evdevDevice::ConstantEffect::ConstantEffect(int fd) : Effect(fd)
-{
-  m_effect.u.constant = {};
-}
-
-evdevDevice::PeriodicEffect::PeriodicEffect(int fd, u16 waveform) : Effect(fd)
-{
-  m_effect.u.periodic = {};
-  m_effect.u.periodic.waveform = waveform;
-  m_effect.u.periodic.period = RUMBLE_PERIOD_MS;
-  m_effect.u.periodic.offset = 0;
-  m_effect.u.periodic.phase = 0;
-}
-
-evdevDevice::RumbleEffect::RumbleEffect(int fd, Motor motor) : Effect(fd), m_motor(motor)
-{
-  m_effect.u.rumble = {};
-}
-
-bool evdevDevice::ConstantEffect::UpdateParameters(ControlState state)
-{
-  s16& value = m_effect.u.constant.level;
-  const s16 old_value = value;
-
-  constexpr s16 MAX_VALUE = 0x7fff;
-  value = s16(state * MAX_VALUE);
-
-  m_effect.type = value ? FF_CONSTANT : DISABLED_EFFECT_TYPE;
-  return value != old_value;
-}
-
-bool evdevDevice::PeriodicEffect::UpdateParameters(ControlState state)
-{
-  s16& value = m_effect.u.periodic.magnitude;
-  const s16 old_value = value;
-
-  constexpr s16 MAX_VALUE = 0x7fff;
-  value = s16(state * MAX_VALUE);
-
-  m_effect.type = value ? FF_PERIODIC : DISABLED_EFFECT_TYPE;
-  return value != old_value;
-}
-
-bool evdevDevice::RumbleEffect::UpdateParameters(ControlState state)
-{
-  u16& value = (Motor::Strong == m_motor) ? m_effect.u.rumble.strong_magnitude :
-                                            m_effect.u.rumble.weak_magnitude;
-  const u16 old_value = value;
-
-  constexpr u16 MAX_VALUE = 0xffff;
-  value = u16(state * MAX_VALUE);
-
-  m_effect.type = value ? FF_RUMBLE : DISABLED_EFFECT_TYPE;
-  return value != old_value;
-}
-
-evdevDevice::Effect::~Effect()
-{
-  m_effect.type = DISABLED_EFFECT_TYPE;
-  UpdateEffect();
-}
 }  // namespace ciface::evdev
