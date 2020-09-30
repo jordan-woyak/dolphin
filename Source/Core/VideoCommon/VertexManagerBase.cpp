@@ -478,6 +478,16 @@ void VertexManagerBase::Flush()
     PixelShaderManager::SetConstants();
     UploadUniforms();
 
+    const bool is_ortho = xfmem.projection.type == GX_ORTHOGRAPHIC;
+    if (is_ortho && m_index_generator.GetNumVerts() == 4)
+    {
+      float data[12];
+      if (GetLastTriangleInScreenSpace(VertexLoaderManager::GetCurrentVertexFormat(), data))
+      {
+        INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
+      }
+    }
+
     // Update the pipeline, or compile one if needed.
     UpdatePipelineConfig();
     UpdatePipelineObject();
@@ -523,16 +533,15 @@ void VertexManagerBase::DoState(PointerWrap& p)
   p.Do(m_zslope);
 }
 
-void VertexManagerBase::CalculateZSlope(NativeVertexFormat* format)
+bool VertexManagerBase::GetLastTriangleInScreenSpace(NativeVertexFormat* format, float out[12])
 {
-  float out[12];
   float viewOffset[2] = {xfmem.viewport.xOrig - bpmem.scissorOffset.x * 2,
                          xfmem.viewport.yOrig - bpmem.scissorOffset.y * 2};
 
   if (m_current_primitive_type != PrimitiveType::Triangles &&
       m_current_primitive_type != PrimitiveType::TriangleStrip)
   {
-    return;
+    return false;
   }
 
   // Global matrix ID.
@@ -541,7 +550,7 @@ void VertexManagerBase::CalculateZSlope(NativeVertexFormat* format)
 
   // Make sure the buffer contains at least 3 vertices.
   if ((m_cur_buffer_pointer - m_base_buffer_pointer) < (vert_decl.stride * 3))
-    return;
+    return false;
 
   // Lookup vertices of the last rendered triangle and software-transform them
   // This allows us to determine the depth slope, which will be used if z-freeze
@@ -565,6 +574,16 @@ void VertexManagerBase::CalculateZSlope(NativeVertexFormat* format)
     out[1 + i * 4] = out[1 + i * 4] * inv_w * xfmem.viewport.ht + viewOffset[1];
     out[2 + i * 4] = out[2 + i * 4] * inv_w * xfmem.viewport.zRange + xfmem.viewport.farZ;
   }
+
+  return true;
+}
+
+void VertexManagerBase::CalculateZSlope(NativeVertexFormat* format)
+{
+  float out[12];
+
+  if (!GetLastTriangleInScreenSpace(format, out))
+    return;
 
   float dx31 = out[8] - out[0];
   float dx12 = out[0] - out[4];

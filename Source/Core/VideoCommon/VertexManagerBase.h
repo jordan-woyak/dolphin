@@ -166,6 +166,7 @@ protected:
   u32 GetRemainingSize() const;
   u32 GetRemainingIndices(int primitive) const;
 
+  bool GetLastTriangleInScreenSpace(NativeVertexFormat* format, float out[12]);
   void CalculateZSlope(NativeVertexFormat* format);
   void LoadTextures();
 
