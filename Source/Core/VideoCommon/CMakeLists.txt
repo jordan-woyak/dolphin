@@ -73,6 +73,8 @@ add_library(videocommon
   RenderState.cpp
   RenderState.h
   SamplerCommon.h
+  ScreenObjectTracker.cpp
+  ScreenObjectTracker.h
   ShaderCache.cpp
   ShaderCache.h
   ShaderGenCommon.cpp

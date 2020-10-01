@@ -484,7 +484,8 @@ void VertexManagerBase::Flush()
       float data[12];
       if (GetLastTriangleInScreenSpace(VertexLoaderManager::GetCurrentVertexFormat(), data))
       {
-        INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
+        // INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
+        m_screen_object_tracker.AddObject({data[0], data[1], data[2]});
       }
     }
 
@@ -789,6 +790,8 @@ void VertexManagerBase::OnEndFrame()
   m_draw_counter = 0;
   m_last_efb_copy_draw_counter = 0;
   m_scheduled_command_buffer_kicks.clear();
+
+  m_screen_object_tracker.OnFrameAdvance();
 
   // If we have no CPU access at all, leave everything in the one command buffer for maximum
   // parallelism between CPU/GPU, at the cost of slightly higher latency.
