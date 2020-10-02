@@ -342,8 +342,15 @@ void VertexManagerBase::LoadTextures()
       if (bpmem.tevind[i].IsActive() && bpmem.tevind[i].bt < bpmem.genMode.numindstages)
         usedtextures[bpmem.tevindref.getTexMap(bpmem.tevind[i].bt)] = true;
 
+  u64 hash_of_active_textures = 0;
+
   for (unsigned int i : usedtextures)
-    g_texture_cache->Load(i);
+  {
+    const auto texture_cache_entry = g_texture_cache->Load(i);
+    hash_of_active_textures ^= texture_cache_entry->hash;
+  }
+
+  m_screen_object_tracker.SetCurrentHash(hash_of_active_textures);
 
   g_texture_cache->BindTextures();
 }
@@ -478,14 +485,24 @@ void VertexManagerBase::Flush()
     PixelShaderManager::SetConstants();
     UploadUniforms();
 
+    // TODO: only do this logic in wii mode with auto pointer calibration enabled:
     const bool is_ortho = xfmem.projection.type == GX_ORTHOGRAPHIC;
     if (is_ortho && m_index_generator.GetNumVerts() == 4)
     {
+      // TODO: huge (screen covering) quads can be ignored.
+
       float data[12];
       if (GetLastTriangleInScreenSpace(VertexLoaderManager::GetCurrentVertexFormat(), data))
       {
-        // INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
-        m_screen_object_tracker.AddObject({data[0], data[1], data[2]});
+        const auto position = Common::Vec3(data[0], data[1], data[2]);
+
+        if (std::abs(data[0] - data[4]) < EFB_WIDTH / 10)
+          if (position.x < EFB_WIDTH && position.x > -0 && position.y < EFB_HEIGHT &&
+              position.y >= 0)
+          {
+            // INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
+            m_screen_object_tracker.AddObject(position);
+          }
       }
     }
 

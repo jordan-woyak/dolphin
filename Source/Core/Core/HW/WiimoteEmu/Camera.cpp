@@ -88,9 +88,17 @@ void CameraLogic::Update(const Common::Matrix44& transform)
       Vec3{SENSOR_BAR_LED_SEPARATION / 2, 0, 0},
   };
 
-  const auto camera_view = Matrix44::Perspective(CAMERA_FOV_Y, CAMERA_AR, 0.001f, 1000) *
-                           Matrix44::FromMatrix33(Matrix33::RotateX(float(MathUtil::TAU / 4))) *
-                           transform;
+  static int step = 0;
+  if (++step == 200)
+    step = 0;
+
+  constexpr auto rot_amt = 1 * MathUtil::TAU / 360;
+
+  const auto camera_view =
+      Matrix44::Perspective(CAMERA_FOV_Y, CAMERA_AR, 0.001f, 1000) *
+      Matrix44::FromMatrix33(Matrix33::RotateY(std::sin(MathUtil::TAU * step * 7 / 200) * rot_amt) *
+                             Matrix33::RotateX(float(MathUtil::TAU / 4))) *
+      transform;
 
   struct CameraPoint
   {
