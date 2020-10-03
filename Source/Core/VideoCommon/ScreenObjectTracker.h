@@ -84,8 +84,8 @@ private:
     GoertzelFilter<float> filter1;
     GoertzelFilter<float> filter2;
 
-    std::optional<Common::Vec3> starting_position;
-    Common::Vec3 position = {};
+    Common::Vec3 base_position;
+    Common::Vec3 position;
     float stored_power = {};
     Hash hash;
   };

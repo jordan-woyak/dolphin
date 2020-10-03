@@ -12,7 +12,10 @@
 #include "Common/MathUtil.h"
 #include "Common/Matrix.h"
 
+#include "Core/CoreTiming.h"
+#include "Core/HW/SystemTimers.h"
 #include "Core/HW/WII_IPC.h"
+#include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
 
 namespace WiimoteEmu
@@ -88,15 +91,18 @@ void CameraLogic::Update(const Common::Matrix44& transform)
       Vec3{SENSOR_BAR_LED_SEPARATION / 2, 0, 0},
   };
 
-  static int step = 0;
-  if (++step == 200)
-    step = 0;
+  const auto freq1 = 5;
+  const auto freq2 = 7;
 
-  constexpr auto rot_amt = 1 * MathUtil::TAU / 360;
+  const auto time = float(CoreTiming::GetTicks()) / SystemTimers::GetTicksPerSecond();
+
+  constexpr auto rot_amt = 0.25 * MathUtil::TAU / 360;
 
   const auto camera_view =
       Matrix44::Perspective(CAMERA_FOV_Y, CAMERA_AR, 0.001f, 1000) *
-      Matrix44::FromMatrix33(Matrix33::RotateY(std::sin(MathUtil::TAU * step * 7 / 200) * rot_amt) *
+      Matrix44::FromMatrix33(Matrix33::RotateY((std::sin(MathUtil::TAU * time * freq1) +
+                                                std::sin(MathUtil::TAU * time * freq2)) *
+                                               rot_amt) *
                              Matrix33::RotateX(float(MathUtil::TAU / 4))) *
       transform;
 

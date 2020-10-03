@@ -489,19 +489,22 @@ void VertexManagerBase::Flush()
     const bool is_ortho = xfmem.projection.type == GX_ORTHOGRAPHIC;
     if (is_ortho && m_index_generator.GetNumVerts() == 4)
     {
-      // TODO: huge (screen covering) quads can be ignored.
-
       float data[12];
       if (GetLastTriangleInScreenSpace(VertexLoaderManager::GetCurrentVertexFormat(), data))
       {
-        const auto position = Common::Vec3(data[0], data[1], data[2]);
+        const auto p1 = Common::Vec3(data[4], data[5], data[6]);
+        const auto p2 = Common::Vec3(data[8], data[9], data[10]);
 
-        if (std::abs(data[0] - data[4]) < EFB_WIDTH / 10)
+        // Quad center.
+        const auto position = (p1 + p2) / 2;
+
+        // Large quads can be ignored.
+        if (std::abs((p1 - p2).x) < EFB_WIDTH / 10)
           if (position.x < EFB_WIDTH && position.x > -0 && position.y < EFB_HEIGHT &&
               position.y >= 0)
           {
             // INFO_LOG(WIIMOTE, "ortho flush! verts: %f %f", data[0], data[1]);
-            m_screen_object_tracker.AddObject(position);
+            m_screen_object_tracker.AddObject(position / Common::Vec3(EFB_WIDTH, EFB_HEIGHT, 1));
           }
       }
     }
@@ -551,6 +554,7 @@ void VertexManagerBase::DoState(PointerWrap& p)
   p.Do(m_zslope);
 }
 
+// TODO: type the "out" parameter as Vec4
 bool VertexManagerBase::GetLastTriangleInScreenSpace(NativeVertexFormat* format, float out[12])
 {
   float viewOffset[2] = {xfmem.viewport.xOrig - bpmem.scissorOffset.x * 2,
