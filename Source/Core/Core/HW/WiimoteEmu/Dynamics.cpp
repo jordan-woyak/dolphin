@@ -165,6 +165,7 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
 
   state->motion_processor.AddTarget(target_angle, angular_velocity);
   state->motion_processor.Step(&state->angle, time_elapsed);
+  state->angle.y = state->angle.z;
 
   Common::Vec3 new_position;
   new_position.x = std::sin(state->angle.z) * max_distance;
