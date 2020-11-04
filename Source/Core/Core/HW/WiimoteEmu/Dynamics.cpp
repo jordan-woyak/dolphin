@@ -105,16 +105,16 @@ void EmulateShake(PositionalState* state, ControllerEmu::Shake* const shake_grou
 {
   const auto intensity = float(shake_group->GetIntensity());
   const auto speed = intensity * shake_group->GetFrequency();
-  const auto extent = shake_group->GetState() * intensity / 2;
 
-  // for (std::size_t c = 0; c != extent.data.size(); ++c)
-  // {
-  //   if (state->position.data[c] == -extent.data[])
-  // }
+  auto extent = shake_group->GetState() * intensity / 2;
 
-  // TODO: fix individual axis speed.
-  // state->motion_processor.AddTarget(target_position, speed);
+  for (std::size_t c = 0; c != extent.data.size(); ++c)
+  {
+    if (state->position.data[c] == -extent.data[c])
+      extent.data[c] *= -1;
+  }
 
+  state->motion_processor.AddTarget(extent, speed);
   state->motion_processor.Step(&state->position, time_elapsed);
 }
 
@@ -136,8 +136,7 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
       angle -= std::copysign(MathUtil::TAU, angle);
   }
 
-  state->motion_processor.AddTarget(Common::Vec3(pitch, roll, 0),
-                                    tilt_group->GetMaxRotationalVelocity());
+  state->motion_processor.AddTarget(target_angle, tilt_group->GetMaxRotationalVelocity());
   state->motion_processor.Step(&state->angle, time_elapsed);
 }
 
