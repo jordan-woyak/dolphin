@@ -25,7 +25,9 @@ constexpr T SmoothTransition(T x)
   // return 1 / (1 + std::exp(1 / (-1 + x) + 1 / x));
   // return x - std::sin(MathUtil::TAU * x) / MathUtil::TAU;
   // return (1 - std::cos(MathUtil::PI * x)) / 2;
+
   return (1 - std::cos(T(MathUtil::PI) * x)) / 4 + x / 2;
+  // return 0.5 * (x - 1 * x * std::cos(MathUtil::PI * x));
 }
 }  // namespace
 
@@ -127,6 +129,8 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
   const ControlState pitch = target.y * MathUtil::PI;
 
   const auto target_angle = Common::Vec3(pitch, -roll, 0);
+
+  // TODO: FIX this with the new smooth motion!!
 
   // For each axis, wrap around current angle if target is farther than 180 degrees.
   for (std::size_t i = 0; i != target_angle.data.size(); ++i)
