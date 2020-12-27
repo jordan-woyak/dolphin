@@ -2,6 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include "InputCommon/ControllerInterface/Xlib/XInput2.h"
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wregister"
 #include <X11/XKBlib.h>
@@ -11,8 +13,6 @@
 #include <cstring>
 
 #include <fmt/format.h>
-
-#include "InputCommon/ControllerInterface/Xlib/XInput2.h"
 
 #include "Common/StringUtil.h"
 
@@ -50,6 +50,27 @@
 
 namespace ciface::XInput2
 {
+class RelativeMouseAxis final : public Core::Device::RelativeInput
+{
+public:
+  std::string GetName() const override
+  {
+    return fmt::format("Relative {}{}", char('X' + m_index), (m_scale > 0) ? '+' : '-');
+  }
+
+  RelativeMouseAxis(u8 index, bool positive, const RelativeMouseState* state)
+      : m_state(*state), m_index(index), m_scale(positive * 2 - 1)
+  {
+  }
+
+  ControlState GetState() const override { return m_state.GetValue().data[m_index] * m_scale; }
+
+private:
+  const RelativeMouseState& m_state;
+  const u8 m_index;
+  const s8 m_scale;
+};
+
 // This function will add zero or more KeyboardMouse objects to devices.
 void PopulateDevices(void* const hwnd)
 {
@@ -197,6 +218,9 @@ KeyboardMouse::KeyboardMouse(Window window, int opcode, int pointer, int keyboar
   // Mouse Axis, X-/+ and Y-/+
   for (int i = 0; i != 4; ++i)
     AddInput(new Axis(!!(i & 2), !!(i & 1), (i & 2) ? &m_state.axis.y : &m_state.axis.x));
+
+  for (int i = 0; i != 4; ++i)
+    AddInput(new RelativeMouseAxis(!!(i & 2), !!(i & 1), &m_state.relative_mouse));
 }
 
 KeyboardMouse::~KeyboardMouse()
@@ -236,8 +260,7 @@ void KeyboardMouse::UpdateInput()
   XFlush(m_display);
 
   // for the axis controls
-  float delta_x = 0.0f, delta_y = 0.0f;
-  double delta_delta;
+  Common::Vec2 mouse_delta = {};
   bool mouse_moved = false;
 
   // Iterate through the event queue - update the axis controls, mouse
@@ -280,17 +303,13 @@ void KeyboardMouse::UpdateInput()
       // then the value in raw_values is also available.
       if (XIMaskIsSet(raw_event->valuators.mask, 0))
       {
-        delta_delta = raw_event->raw_values[0];
-        // test for inf and nan
-        if (delta_delta == delta_delta && 1 + delta_delta != delta_delta)
-          delta_x += delta_delta;
+        if (const auto delta = raw_event->raw_values[0]; std::isfinite(delta))
+          mouse_delta.x += delta;
       }
       if (XIMaskIsSet(raw_event->valuators.mask, 1))
       {
-        delta_delta = raw_event->raw_values[1];
-        // test for inf and nan
-        if (delta_delta == delta_delta && 1 + delta_delta != delta_delta)
-          delta_y += delta_delta;
+        if (const auto delta = raw_event->raw_values[1]; std::isfinite(delta))
+          mouse_delta.y += delta;
       }
       break;
     case XI_FocusOut:
@@ -302,13 +321,13 @@ void KeyboardMouse::UpdateInput()
     XFreeEventData(m_display, &event.xcookie);
   }
 
+  m_state.relative_mouse.Move(mouse_delta);
+  m_state.relative_mouse.Update();
+
   // apply axis smoothing
-  m_state.axis.x *= MOUSE_AXIS_SMOOTHING;
-  m_state.axis.x += delta_x;
-  m_state.axis.x /= MOUSE_AXIS_SMOOTHING + 1.0f;
-  m_state.axis.y *= MOUSE_AXIS_SMOOTHING;
-  m_state.axis.y += delta_y;
-  m_state.axis.y /= MOUSE_AXIS_SMOOTHING + 1.0f;
+  m_state.axis *= MOUSE_AXIS_SMOOTHING;
+  m_state.axis += mouse_delta;
+  m_state.axis /= MOUSE_AXIS_SMOOTHING + 1.0f;
 
   // Get the absolute position of the mouse pointer
   if (mouse_moved)

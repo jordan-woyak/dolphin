@@ -21,6 +21,8 @@ namespace ciface::XInput2
 {
 void PopulateDevices(void* const hwnd);
 
+using RelativeMouseState = RelativeInputState<Common::Vec2>;
+
 class KeyboardMouse : public Core::Device
 {
 private:
@@ -28,8 +30,15 @@ private:
   {
     std::array<char, 32> keyboard;
     unsigned int buttons;
+
+    // Window adjusted normalized mouse cursor.
     Common::Vec2 cursor;
+
+    // Smoothed relative mouse movement.
     Common::Vec2 axis;
+
+    // Raw relative mouse movement.
+    RelativeMouseState relative_mouse;
   };
 
   class Key : public Input
