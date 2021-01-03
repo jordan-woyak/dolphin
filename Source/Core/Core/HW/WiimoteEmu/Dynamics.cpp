@@ -4,7 +4,10 @@
 #include "Core/HW/WiimoteEmu/Dynamics.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <initializer_list>
+#include <type_traits>
 
 #include "Common/MathUtil.h"
 #include "Core/Config/SYSCONFSettings.h"
@@ -19,12 +22,53 @@
 
 namespace
 {
+template <typename T, size_t N>
+struct BezierCurve
+{
+  template <typename... Args>
+  constexpr BezierCurve(Args&&... args) : data{std::forward<Args>(args)...}
+  {
+  }
+
+  constexpr T operator()(T x) const
+  {
+    std::array<T, N> tmp = data;
+
+    for (size_t i = 0; i != N - 1; ++i)
+    {
+      for (size_t k = 0; k != N - 1 - i; ++k)
+        tmp[k] += x * (tmp[k + 1] - tmp[k]);
+    }
+    return tmp[0];
+  }
+
+  // TODO: rename
+  std::array<T, N> data;
+};
+
+template <typename... Args>
+BezierCurve(Args&&... args) -> BezierCurve<std::common_type_t<Args...>, sizeof...(Args)>;
+
+template <typename T>
+T easeOutBack(T x)
+{
+  constexpr T c1 = 1.70158;
+  constexpr T c3 = c1 + 1;
+
+  // constexpr auto val = BezierCurve(0.34, 1.56, 0.64, 1.0)(0.000);
+  // constexpr auto val2 = BezierCurve(0.0, 1.0, 1.0)(0.0);
+
+  return 1 + c3 * std::pow(x - 1, 3) + c1 * std::pow(x - 1, 2);
+}
+
 template <typename T>
 constexpr T SmoothTransition(T x)
 {
   // return 1 / (1 + std::exp(1 / (-1 + x) + 1 / x));
   // return x - std::sin(MathUtil::TAU * x) / MathUtil::TAU;
   // return (1 - std::cos(MathUtil::PI * x)) / 2;
+
+  return easeOutBack(x);
 
   return (1 - std::cos(T(MathUtil::PI) * x)) / 4 + x / 2;
   // return 0.5 * (x - 1 * x * std::cos(MathUtil::PI * x));
