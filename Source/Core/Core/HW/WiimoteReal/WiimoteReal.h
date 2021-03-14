@@ -1,4 +1,4 @@
-﻿// Copyright 2008 Dolphin Emulator Project
+// Copyright 2008 Dolphin Emulator Project
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
@@ -145,6 +145,9 @@ private:
 
   Common::SPSCQueue<Report> m_read_reports;
   Common::SPSCQueue<Report> m_write_reports;
+
+  std::optional<WiimoteCommon::AccelData> m_prev_accel;
+  std::optional<Common::TVec3<s32>> m_accel_delta;
 };
 
 class WiimoteScannerBackend

@@ -173,6 +173,14 @@ void Wiimote::WriteReport(Report rpt)
       m_speaker_mute = (rpt[2] & 0x4) != 0;
       break;
 
+    case OutputReportID::ReportMode:
+      // Games send this report to change reporting modes or to re-enable reporting after an
+      // extension event.
+      // Previous accelerometer data may become stale so we invalidate it.
+      m_prev_accel = std::nullopt;
+      m_accel_delta = std::nullopt;
+      break;
+
     default:
       break;
     }
@@ -415,12 +423,57 @@ Report& Wiimote::ProcessReadQueue(bool repeat_last_data_report)
   if (!repeat_last_data_report || !IsDataReport(m_last_input_report))
     m_last_input_report.clear();
 
+  bool extrapolate_accel_data = true;
+
   // Step through the read queue.
   while (GetNextReport(&m_last_input_report))
   {
     // Stop on a non-data report.
     if (!IsDataReport(m_last_input_report))
       break;
+
+    // If we are processing a new data report we don't need to extrapolate from old data.
+    extrapolate_accel_data = false;
+
+    const auto mode = InputReportID(m_last_input_report[1]);
+    if (DataReportBuilder::IsValidMode(mode))
+    {
+      auto builder = MakeDataReportManipulator(mode, m_last_input_report.data() + 2);
+      if (builder->HasAccel())
+      {
+        const auto old_prev_accel = m_prev_accel;
+        builder->GetAccelData(&m_prev_accel.emplace());
+
+        if (old_prev_accel.has_value())
+          m_accel_delta = m_prev_accel->value - old_prev_accel->value;
+      }
+      else
+      {
+        // The remote is now in a mode without accel data.
+        // Previous values will be stale.
+        m_prev_accel = std::nullopt;
+        m_accel_delta = std::nullopt;
+      }
+    }
+  }
+
+  if (!m_last_input_report.empty())
+  {
+    const auto mode = InputReportID(m_last_input_report[1]);
+    if (extrapolate_accel_data && m_accel_delta.has_value() && DataReportBuilder::IsValidMode(mode))
+    {
+      constexpr auto MAX_ACCEL_VALUE = (1 << WiimoteCommon::AccelData::BITS_OF_PRECISION) - 1;
+
+      // TODO: This will affect future calculations of accel_delta.
+      // Is that wanted? Probably not.
+      auto& val = m_prev_accel->value;
+      val.x = std::clamp(val.x + m_accel_delta->x, 0, MAX_ACCEL_VALUE);
+      val.y = std::clamp(val.y + m_accel_delta->y, 0, MAX_ACCEL_VALUE);
+      val.z = std::clamp(val.z + m_accel_delta->z, 0, MAX_ACCEL_VALUE);
+
+      auto builder = MakeDataReportManipulator(mode, m_last_input_report.data() + 2);
+      builder->SetAccelData(*m_prev_accel);
+    }
   }
 
   return m_last_input_report;
