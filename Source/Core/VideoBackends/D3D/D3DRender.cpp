@@ -333,8 +333,18 @@ std::unique_ptr<OpenXR::Session> Renderer::CreateOpenXRSession()
     graphics_binding.device = D3D::device.Get();
 
     XrGraphicsRequirementsD3D11KHR requirements{XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR};
-    const XrResult result = xrGetD3D11GraphicsRequirementsKHR(OpenXR::GetInstance(),
-                                                              OpenXR::GetSystemId(), &requirements);
+
+    PFN_xrGetD3D11GraphicsRequirementsKHR xrGetD3D11GraphicsRequirementsKHR {nullptr};
+
+    XrResult result =
+          xrGetInstanceProcAddr(OpenXR::GetInstance(), "xrGetD3D11GraphicsRequirementsKHR",
+                                (PFN_xrVoidFunction*)&xrGetD3D11GraphicsRequirementsKHR);
+    if (XR_FAILED(result))
+        ERROR_LOG(VIDEO, "OpenXR: xrGetD3D11GraphicsRequirementsKHR: %d", result);
+
+    result = xrGetD3D11GraphicsRequirementsKHR(
+          OpenXR::GetInstance(), OpenXR::GetSystemId(), &requirements);
+
     if (XR_FAILED(result))
       ERROR_LOG(VIDEO, "OpenXR: xrGetD3D11GraphicsRequirementsKHR: %d", result);
 
@@ -352,7 +362,7 @@ std::unique_ptr<OpenXR::Session> Renderer::CreateOpenXRSession()
     }
 
     return OpenXR::CreateSession({"XR_KHR_D3D11_enable"}, &graphics_binding,
-                                 {DXGI_FORMAT_R8G8B8A8_UNORM});
+                                 {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB});
   }
 
   return nullptr;

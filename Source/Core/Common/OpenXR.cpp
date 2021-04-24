@@ -617,7 +617,7 @@ Common::Matrix44 Session::GetEyeViewMatrix(int eye_index, float z_near, float z_
   const auto& rot = view.pose.orientation;
 
   const auto view_matrix =
-      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w)).Inverted() *
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(Common::Quaternion(rot.x, rot.y, rot.z, rot.w))).Inverted() *
       Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter);
 
   const auto& fov = view.fov;

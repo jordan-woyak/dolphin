@@ -92,6 +92,8 @@ add_library(common
   NandPaths.h
   Network.cpp
   Network.h
+  OpenXR.cpp
+  OpenXR.h
   PcapFile.cpp
   PcapFile.h
   PerformanceCounter.cpp

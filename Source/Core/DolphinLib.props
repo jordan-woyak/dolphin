@@ -131,6 +131,7 @@
     <ClInclude Include="Common\MsgHandler.h" />
     <ClInclude Include="Common\NandPaths.h" />
     <ClInclude Include="Common\Network.h" />
+    <ClInclude Include="Common\OpenXR.h" />
     <ClInclude Include="Common\PcapFile.h" />
     <ClInclude Include="Common\PerformanceCounter.h" />
     <ClInclude Include="Common\Profiler.h" />
@@ -714,6 +715,7 @@
     <ClCompile Include="Common\MsgHandler.cpp" />
     <ClCompile Include="Common\NandPaths.cpp" />
     <ClCompile Include="Common\Network.cpp" />
+    <ClCompile Include="Common\OpenXR.cpp" />
     <ClCompile Include="Common\PcapFile.cpp" />
     <ClCompile Include="Common\PerformanceCounter.cpp" />
     <ClCompile Include="Common\Profiler.cpp" />

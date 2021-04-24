@@ -49,7 +49,16 @@ std::vector<D3D_FEATURE_LEVEL> GetSupportedFeatureLevels()
     if (OpenXR::Init())
     {
       XrGraphicsRequirementsD3D11KHR requirements{XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR};
-      const XrResult result = xrGetD3D11GraphicsRequirementsKHR(
+      
+      PFN_xrGetD3D11GraphicsRequirementsKHR xrGetD3D11GraphicsRequirementsKHR {nullptr};
+
+      XrResult result =
+          xrGetInstanceProcAddr(OpenXR::GetInstance(), "xrGetD3D11GraphicsRequirementsKHR",
+                                (PFN_xrVoidFunction*)&xrGetD3D11GraphicsRequirementsKHR);
+      if (XR_FAILED(result))
+        ERROR_LOG(VIDEO, "OpenXR: xrGetD3D11GraphicsRequirementsKHR: %d", result);
+
+      result = xrGetD3D11GraphicsRequirementsKHR(
           OpenXR::GetInstance(), OpenXR::GetSystemId(), &requirements);
 
       if (XR_FAILED(result))
