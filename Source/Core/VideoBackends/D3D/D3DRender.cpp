@@ -362,7 +362,7 @@ std::unique_ptr<OpenXR::Session> Renderer::CreateOpenXRSession()
     }
 
     return OpenXR::CreateSession({"XR_KHR_D3D11_enable"}, &graphics_binding,
-                                 {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB});
+                                 {DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB});
   }
 
   return nullptr;
