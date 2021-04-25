@@ -636,6 +636,31 @@ private:
   mutable Clock::time_point m_release_time = Clock::now();
 };
 
+// Note that SetValue is overridden to call GetValue.
+// This is useful to allow normal evaluation of arguments within an output expression.
+// usage: eval(expression, [expression, ...])
+class EvalExpression : public FunctionExpression
+{
+  ArgumentValidation
+  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
+  {
+    if (args.size() != 0)
+      return ArgumentsAreValid{};
+    else
+      return ExpectedArguments{"expression, [expression, ...]"};
+  }
+
+  ControlState GetValue() const override
+  {
+    ControlState result = 0;
+    for (u32 i = 0; i != GetArgCount(); ++i)
+      result = GetArg(i).GetValue();
+    return result;
+  }
+
+  void SetValue(ControlState) override { GetValue(); }
+};
+
 std::unique_ptr<FunctionExpression> MakeFunctionExpression(std::string_view name)
 {
   if (name == "not")
@@ -684,6 +709,8 @@ std::unique_ptr<FunctionExpression> MakeFunctionExpression(std::string_view name
     return std::make_unique<RelativeExpression>();
   if (name == "pulse")
     return std::make_unique<PulseExpression>();
+  if (name == "eval")
+    return std::make_unique<EvalExpression>();
 
   return nullptr;
 }

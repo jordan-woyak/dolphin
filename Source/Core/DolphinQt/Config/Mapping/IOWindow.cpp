@@ -304,6 +304,7 @@ void IOWindow::CreateMainLayout()
   m_functions_combo->addItem(QStringLiteral("min"));
   m_functions_combo->addItem(QStringLiteral("max"));
   m_functions_combo->addItem(QStringLiteral("clamp"));
+  m_functions_combo->addItem(QStringLiteral("eval"));
 
   // Devices
   m_main_layout->addWidget(m_devices_combo);
