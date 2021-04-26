@@ -617,17 +617,26 @@ Common::Matrix44 Session::GetEyeViewMatrix(int eye_index, float z_near, float z_
   const auto& rot = view.pose.orientation;
 
   const auto view_matrix =
-      Matrix44::FromMatrix33(Matrix33::FromQuaternion(Common::Quaternion(rot.x, rot.y, rot.z, rot.w))).Inverted() *
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(Common::Quaternion(rot.w, rot.x, rot.y, rot.z))).Inverted() *
       Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter);
 
   const auto& fov = view.fov;
 
-  float left = std::tan(fov.angleLeft) * z_near;
-  float right = std::tan(fov.angleRight) * z_near;
-  float bottom = std::tan(fov.angleDown) * z_near;
-  float top = std::tan(fov.angleUp) * z_near;
+  if (z_near != 0 and z_far != 0)
+  {
+    float left = std::tan(fov.angleLeft) * z_near;
+    float right = std::tan(fov.angleRight) * z_near;
+    float bottom = std::tan(fov.angleDown) * z_near;
+    float top = std::tan(fov.angleUp) * z_near;
 
-  return Matrix44::Frustum(left, right, bottom, top, z_near, z_far) * view_matrix;
+    return Matrix44::Frustum(left, right, bottom, top, z_near, z_far) * view_matrix;
+  }
+  else
+  {
+    return view_matrix;
+  }
+
+
 }
 
 bool Session::AreValuesDirty() const
