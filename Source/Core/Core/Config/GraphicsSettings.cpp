@@ -157,4 +157,6 @@ const Info<bool> GFX_HACK_FAST_TEXTURE_SAMPLING{{System::GFX, "Hacks", "FastText
 // Graphics.GameSpecific
 
 const Info<bool> GFX_PERF_QUERIES_ENABLE{{System::GFX, "GameSpecific", "PerfQueriesEnable"}, false};
+const Info<float> GFX_PROJECTION_VIEWPORT_RATIO{
+    {System::GFX, "GameSpecific", "ProjectionViewportRatio"}, 1.f};
 }  // namespace Config

@@ -14,6 +14,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 
+#include "Core/Config/GraphicsSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/DolphinAnalytics.h"
 
@@ -35,7 +36,6 @@
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoCommon.h"
 #include "VideoCommon/VideoConfig.h"
-#include "VideoCommon/XFMemory.h"
 
 std::unique_ptr<VertexManagerBase> g_vertex_manager;
 
@@ -72,7 +72,8 @@ constexpr Common::EnumMap<PrimitiveType, Primitive::GX_DRAW_POINTS> primitive_fr
 // tests with a large amount of slop.
 static constexpr float ASPECT_RATIO_SLOP = 0.11f;
 
-static bool IsAnamorphicProjection(const Projection::Raw& projection, const Viewport& viewport)
+bool VertexManagerBase::IsAnamorphicProjection(const Projection::Raw& projection,
+                                               const Viewport& viewport)
 {
   // If ratio between our projection and viewport aspect ratios is similar to 16:9 / 4:3
   // we have an anamorphic projection.
@@ -81,19 +82,24 @@ static bool IsAnamorphicProjection(const Projection::Raw& projection, const View
   const float projection_ar = projection[2] / projection[0];
   const float viewport_ar = viewport.wd / viewport.ht;
 
-  return std::abs(std::abs(projection_ar / viewport_ar) - IDEAL_RATIO) <
-         IDEAL_RATIO * ASPECT_RATIO_SLOP;
+  return std::abs(std::abs(projection_ar / viewport_ar) /
+                      (IDEAL_RATIO * m_game_specific_projection_viewport_ratio) -
+                  1) < ASPECT_RATIO_SLOP;
 }
 
-static bool IsNormalProjection(const Projection::Raw& projection, const Viewport& viewport)
+bool VertexManagerBase::IsNormalProjection(const Projection::Raw& projection,
+                                           const Viewport& viewport)
 {
   const float projection_ar = projection[2] / projection[0];
   const float viewport_ar = viewport.wd / viewport.ht;
-  return std::abs(std::abs(projection_ar / viewport_ar) - 1) < ASPECT_RATIO_SLOP;
+  return std::abs(std::abs(projection_ar / viewport_ar) /
+                      m_game_specific_projection_viewport_ratio -
+                  1) < ASPECT_RATIO_SLOP;
 }
 
 VertexManagerBase::VertexManagerBase()
-    : m_cpu_vertex_buffer(MAXVBUFFERSIZE), m_cpu_index_buffer(MAXIBUFFERSIZE)
+    : m_cpu_vertex_buffer(MAXVBUFFERSIZE), m_cpu_index_buffer(MAXIBUFFERSIZE),
+      m_game_specific_projection_viewport_ratio(Config::Get(Config::GFX_PROJECTION_VIEWPORT_RATIO))
 {
 }
 

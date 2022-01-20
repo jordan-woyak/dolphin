@@ -129,5 +129,6 @@ extern const Info<bool> GFX_HACK_FAST_TEXTURE_SAMPLING;
 // Graphics.GameSpecific
 
 extern const Info<bool> GFX_PERF_QUERIES_ENABLE;
+extern const Info<float> GFX_PROJECTION_VIEWPORT_RATIO;
 
 }  // namespace Config

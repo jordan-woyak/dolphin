@@ -11,6 +11,7 @@
 #include "VideoCommon/IndexGenerator.h"
 #include "VideoCommon/RenderState.h"
 #include "VideoCommon/ShaderCache.h"
+#include "VideoCommon/XFMemory.h"
 
 class DataReader;
 class NativeVertexFormat;
@@ -203,8 +204,12 @@ private:
   void UpdatePipelineConfig();
   void UpdatePipelineObject();
 
+  bool IsAnamorphicProjection(const Projection::Raw& projection, const Viewport& viewport);
+  bool IsNormalProjection(const Projection::Raw& projection, const Viewport& viewport);
+
   bool m_is_flushed = true;
   FlushStatistics m_flush_statistics = {};
+  float m_game_specific_projection_viewport_ratio = 1.f;
 
   // CPU access tracking
   u32 m_draw_counter = 0;
