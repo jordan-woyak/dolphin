@@ -73,20 +73,72 @@ void InitKeyboardMouse(IDirectInput8* const idi8, HWND hwnd)
   LPDIRECTINPUTDEVICE8 kb_device = nullptr;
   LPDIRECTINPUTDEVICE8 mo_device = nullptr;
 
+  bool is_kb_good = false;
+  bool is_mo_good = false;
+
   // These are "virtual" system devices, so they are always there even if we have no physical
   // mouse and keyboard plugged into the computer
-  if (SUCCEEDED(idi8->CreateDevice(GUID_SysKeyboard, &kb_device, nullptr)) &&
-      SUCCEEDED(kb_device->SetDataFormat(&c_dfDIKeyboard)) &&
-      SUCCEEDED(kb_device->SetCooperativeLevel(nullptr, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)) &&
-      SUCCEEDED(idi8->CreateDevice(GUID_SysMouse, &mo_device, nullptr)) &&
-      SUCCEEDED(mo_device->SetDataFormat(&c_dfDIMouse2)) &&
-      SUCCEEDED(mo_device->SetCooperativeLevel(nullptr, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
+  if (FAILED(idi8->CreateDevice(GUID_SysKeyboard, &kb_device, nullptr)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: CreateDevice(GUID_SysKeyboard)");
+  }
+  else if (FAILED(kb_device->SetDataFormat(&c_dfDIKeyboard)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: kb_device->SetDataFormat()");
+  }
+  else if (FAILED(kb_device->SetCooperativeLevel(nullptr, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: kb_device->SetCooperativeLevel(DISCL_BACKGROUND)");
+
+    if (FAILED(kb_device->SetCooperativeLevel(nullptr, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
+    {
+      ERROR_LOG_FMT(CONTROLLERINTERFACE,
+                    "DInput: kb_device->SetCooperativeLevel(DISCL_FOREGROUND)");
+    }
+    else
+    {
+      is_kb_good = true;
+    }
+  }
+  else
+  {
+    is_kb_good = true;
+  }
+
+  if (FAILED(idi8->CreateDevice(GUID_SysMouse, &mo_device, nullptr)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: CreateDevice(GUID_SysMouse)");
+  }
+  else if (FAILED(mo_device->SetDataFormat(&c_dfDIMouse2)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: mo_device->SetDataFormat()");
+  }
+  else if (FAILED(mo_device->SetCooperativeLevel(nullptr, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: mo_device->SetCooperativeLevel(DISCL_BACKGROUND)");
+
+    if (FAILED(mo_device->SetCooperativeLevel(nullptr, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE)))
+    {
+      ERROR_LOG_FMT(CONTROLLERINTERFACE,
+                    "DInput: mo_device->SetCooperativeLevel(DISCL_FOREGROUND)");
+    }
+    else
+    {
+      is_mo_good = true;
+    }
+  }
+  else
+  {
+    is_mo_good = true;
+  }
+
+  if (is_kb_good && is_mo_good)
   {
     g_controller_interface.AddDevice(std::make_shared<KeyboardMouse>(kb_device, mo_device));
     return;
   }
 
-  ERROR_LOG_FMT(CONTROLLERINTERFACE, "KeyboardMouse device failed to be created");
+  ERROR_LOG_FMT(CONTROLLERINTERFACE, "DInput: KeyboardMouse device failed to be created");
 
   if (kb_device)
     kb_device->Release();
