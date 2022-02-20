@@ -1403,7 +1403,8 @@ void Renderer::RenderXFBToScreen(const MathUtil::Rectangle<int>& target_rc,
                                  const MathUtil::Rectangle<int>& source_rc)
 {
   if (g_ActiveConfig.stereo_mode == StereoMode::SBS ||
-      g_ActiveConfig.stereo_mode == StereoMode::TAB)
+      g_ActiveConfig.stereo_mode == StereoMode::TAB ||
+      g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
   {
     const auto [left_rc, right_rc] = ConvertStereoRectangle(target_rc);
 

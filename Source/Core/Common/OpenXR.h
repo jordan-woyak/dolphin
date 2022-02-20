@@ -83,7 +83,26 @@ public:
   // 0:Left, 1:Right
   Common::Matrix44 GetEyeViewMatrix(int eye_index, float near, float far);
 
+  Common::Matrix44 GetHeadMatrix();
+
+  Common::Matrix44 GetEyeViewMatrixMove2DObjects(int eye_index, float z_near, float z_far);
+
+  Common::Matrix44 GetEyeViewOnlyMatrix(int eye_index);
+
+  Common::Matrix44 GetProjectionOnlyMatrix(int eye_index, float z_near, float z_far);
+
+  void GetProjectionBounds(int eye_index, float* angleLeft, float* angleRight, float* angleUp,
+                           float* angleDown);
+
+  void ModifyProjectionMatrix(u32 projtype, Common::Matrix44* proj, int eye_index);
+
+  Common::Matrix44 GetTextureShiftMatrix(int eye_index);
+
   XrSessionState GetState() const;
+
+  void Set3DScreenSize(float width, float height);
+
+  void Set3DScreenZ(float z);
 
 private:
   // Updates predicted display time and eye matrices.
@@ -109,6 +128,7 @@ private:
   XrExtent2Di m_swapchain_size;
 
   XrSpace m_local_space = XR_NULL_HANDLE;
+  XrSpace m_view_space = XR_NULL_HANDLE;
   bool m_is_headless_session = false;
 
   std::atomic<bool> m_run_wait_frame_thread;
@@ -125,6 +145,11 @@ private:
   static constexpr uint32_t VIEW_COUNT = 2;
 
   std::array<XrView, VIEW_COUNT> m_eye_views = {};
+  XrSpaceLocation m_view_location = {XR_TYPE_SPACE_LOCATION};
+
+  float m_3d_screen_width;
+  float m_3d_screen_height;
+  float m_3d_screen_z;
 };
 
 std::unique_ptr<Session> CreateSession(const std::vector<std::string_view>& required_extensions,

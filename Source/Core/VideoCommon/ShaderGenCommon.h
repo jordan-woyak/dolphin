@@ -182,7 +182,8 @@ union ShaderHostConfig
     u32 backend_shader_framebuffer_fetch : 1;
     u32 backend_logic_op : 1;
     u32 backend_palette_conversion : 1;
-    u32 pad : 9;
+    u32 instanced_stereo : 1;
+    u32 pad : 8;
   };
 
   static ShaderHostConfig GetCurrent();
@@ -226,6 +227,7 @@ const char* GetInterpolationQualifier(bool msaa, bool ssaa, bool in_glsl_interfa
 
 #define I_POSNORMALMATRIX "cpnmtx"
 #define I_PROJECTION "cproj"
+#define I_PROJECTION_RIGHT "cprojright"
 #define I_MATERIALS "cmtrl"
 #define I_LIGHTS "clights"
 #define I_TEXMATRICES "ctexmtx"
@@ -245,6 +247,7 @@ static const char s_shader_uniforms[] = "\tuint    components;\n"
                                         "\tuint    xfmem_numColorChans;\n"
                                         "\tfloat4 " I_POSNORMALMATRIX "[6];\n"
                                         "\tfloat4 " I_PROJECTION "[4];\n"
+                                        "\tfloat4 " I_PROJECTION_RIGHT "[4];\n"
                                         "\tint4 " I_MATERIALS "[4];\n"
                                         "\tLight " I_LIGHTS "[8];\n"
                                         "\tfloat4 " I_TEXMATRICES "[24];\n"

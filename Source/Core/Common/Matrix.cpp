@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "common/xr_linear.h"
+
 namespace
 {
 // Multiply a NxM matrix by a NxP matrix.
@@ -200,6 +202,16 @@ Matrix44 Matrix44::FromArray(const std::array<float, 16>& arr)
   return mtx;
 }
 
+Matrix44 Matrix44::Scale(const Vec3& vec)
+{
+  Matrix44 mtx = {};
+  mtx.data[0] = vec.x;
+  mtx.data[5] = vec.y;
+  mtx.data[10] = vec.z;
+  mtx.data[15] = 1.0f;
+  return mtx;
+}
+
 Matrix44 Matrix44::Translate(const Vec3& vec)
 {
   Matrix44 mtx = Matrix44::Identity();
@@ -207,6 +219,37 @@ Matrix44 Matrix44::Translate(const Vec3& vec)
   mtx.data[7] = vec.y;
   mtx.data[11] = vec.z;
   return mtx;
+}
+
+Matrix44 Matrix44::ForceZ(const float z)
+{
+  Matrix44 mtx = Matrix44::Identity();
+  mtx.data[10] = 0.0f;
+  mtx.data[11] = z;
+  return mtx;
+}
+
+void Matrix44::UseFixedZ(const float z)
+{
+  // Instead of using the incoming z in the matrix,
+  // use the argument.
+  // We accomplish this by moving some z column values into the w column and multiplying.
+  this->data[3] = z * this->data[2];
+  this->data[2] = 0.0f;
+  this->data[7] = z * this->data[6];
+  this->data[6] = 0.0f;
+  //this->data[11] = z * this->data[10];
+  //this->data[10] = 0.0f;
+  this->data[15] = z * this->data[14];
+  this->data[14] = 0.0f;
+  //this->data[15] = -this->data[14]; // Use z=-1 to avoid shrinking
+  //this->data[14] = 0.0f;
+}
+
+void Matrix44::ForceW(const float w)
+{
+  this->data[14] = 0.0f;
+  this->data[15] = w;
 }
 
 Matrix44 Matrix44::Shear(const float a, const float b)
@@ -237,11 +280,44 @@ Matrix44 Matrix44::Frustum(float left, float right, float bottom, float top, flo
   mtx.data[2] = (right + left) / (right - left);
   mtx.data[5] = 2 * z_near / (top - bottom);
   mtx.data[6] = (top + bottom) / (top - bottom);
-  mtx.data[10] = (z_far + z_near) / (z_far - z_near);
-  mtx.data[11] = -(2 * z_far * z_near) / (z_far - z_near);
+  if (z_far != -INFINITY)
+  {
+    mtx.data[10] = -(z_far + z_near) / (z_far - z_near);
+    mtx.data[11] = -(2 * z_far * z_near) / (z_far - z_near);
+  }
+  else
+  {
+    mtx.data[10] = -1.0f;
+    mtx.data[11] = 0.0f;
+  }
+
   mtx.data[14] = -1;
   return mtx;
 }
+
+Matrix44 Matrix44::FrustumD3D(float left, float right, float bottom, float top, float z_near,
+                           float z_far)
+{
+  Matrix44 mtx{};
+  mtx.data[0] = 2 * z_near / (right - left);
+  mtx.data[2] = (right + left) / (right - left);
+  mtx.data[5] = 2 * z_near / (top - bottom);
+  mtx.data[6] = (top + bottom) / (top - bottom);
+  if (z_far != -INFINITY)
+  {
+    mtx.data[10] = -(z_far) / (z_far - z_near);
+    mtx.data[11] = -(z_far * z_near) / (z_far - z_near);
+  }
+  else
+  {
+    mtx.data[10] = -1.0f;
+    mtx.data[11] = 0.0f;
+  }
+
+  mtx.data[14] = -1;
+  return mtx;
+}
+
 
 void Matrix44::Multiply(const Matrix44& a, const Matrix44& b, Matrix44* result)
 {
@@ -262,70 +338,22 @@ void Matrix44::Multiply(const Matrix44& a, const Vec4& vec, Vec4* result)
 // TODO: Perhaps this should return optional<>?
 Matrix44 Matrix44::Inverted() const
 {
-  std::array<float, 16> inv;
-
-  auto& m = data;
-
-  inv[0] = m[5] * m[10] * m[15] - m[5] * m[11] * m[14] - m[9] * m[6] * m[15] + m[9] * m[7] * m[14] +
-           m[13] * m[6] * m[11] - m[13] * m[7] * m[10];
-
-  inv[4] = -m[4] * m[10] * m[15] + m[4] * m[11] * m[14] + m[8] * m[6] * m[15] -
-           m[8] * m[7] * m[14] - m[12] * m[6] * m[11] + m[12] * m[7] * m[10];
-
-  inv[8] = m[4] * m[9] * m[15] - m[4] * m[11] * m[13] - m[8] * m[5] * m[15] + m[8] * m[7] * m[13] +
-           m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
-
-  inv[12] = -m[4] * m[9] * m[14] + m[4] * m[10] * m[13] + m[8] * m[5] * m[14] -
-            m[8] * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
-
-  inv[1] = -m[1] * m[10] * m[15] + m[1] * m[11] * m[14] + m[9] * m[2] * m[15] -
-           m[9] * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
-
-  inv[5] = m[0] * m[10] * m[15] - m[0] * m[11] * m[14] - m[8] * m[2] * m[15] + m[8] * m[3] * m[14] +
-           m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
-
-  inv[9] = -m[0] * m[9] * m[15] + m[0] * m[11] * m[13] + m[8] * m[1] * m[15] - m[8] * m[3] * m[13] -
-           m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
-
-  inv[13] = m[0] * m[9] * m[14] - m[0] * m[10] * m[13] - m[8] * m[1] * m[14] + m[8] * m[2] * m[13] +
-            m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
-
-  inv[2] = m[1] * m[6] * m[15] - m[1] * m[7] * m[14] - m[5] * m[2] * m[15] + m[5] * m[3] * m[14] +
-           m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
-
-  inv[6] = -m[0] * m[6] * m[15] + m[0] * m[7] * m[14] + m[4] * m[2] * m[15] - m[4] * m[3] * m[14] -
-           m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
-
-  inv[10] = m[0] * m[5] * m[15] - m[0] * m[7] * m[13] - m[4] * m[1] * m[15] + m[4] * m[3] * m[13] +
-            m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
-
-  inv[14] = -m[0] * m[5] * m[14] + m[0] * m[6] * m[13] + m[4] * m[1] * m[14] - m[4] * m[2] * m[13] -
-            m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
-
-  inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11] - m[5] * m[3] * m[10] -
-           m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
-
-  inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11] + m[4] * m[3] * m[10] +
-           m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
-
-  inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11] - m[4] * m[3] * m[9] -
-            m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
-
-  inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10] + m[4] * m[2] * m[9] +
-            m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
-
-  float det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
-
-  if (det == 0)
-    return {};
-
-  det = 1.f / det;
-
-  Matrix44 result = {};
-
-  for (int i = 0; i != inv.size(); ++i)
-    result.data[i] = inv[i] * det;
-
+  XrMatrix4x4f input_xr;
+  for (int i = 0; i < 16; i++)
+  {
+    input_xr.m[i] = this->data[i];
+  }
+  XrMatrix4x4f transposed;
+  XrMatrix4x4f_Transpose(&transposed, &input_xr);
+  XrMatrix4x4f inverse_transposed;
+  XrMatrix4x4f_Invert(&inverse_transposed, &transposed);
+  XrMatrix4x4f inverse_xr;
+  XrMatrix4x4f_Transpose(&inverse_xr, &inverse_transposed);
+  Matrix44 result;
+  for (int i = 0; i < 16; i++)
+  {
+    result.data[i] = inverse_xr.m[i];
+  }
   return result;
 }
 

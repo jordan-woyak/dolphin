@@ -538,7 +538,7 @@ ShaderCode GeneratePixelShaderCode(APIType ApiType, const ShaderHostConfig& host
   const bool per_pixel_lighting = g_ActiveConfig.bEnablePixelLighting;
   const bool msaa = host_config.msaa;
   const bool ssaa = host_config.ssaa;
-  const bool stereo = host_config.stereo;
+  const bool stereo = host_config.stereo || host_config.instanced_stereo;
   const u32 numStages = uid_data->genMode_numtevstages + 1;
 
   out.Write("//Pixel Shader for TEV stages\n");

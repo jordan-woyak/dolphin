@@ -63,6 +63,7 @@ struct VertexShaderConstants
 
   std::array<float4, 6> posnormalmatrix;
   std::array<float4, 4> projection;
+  std::array<float4, 4> projection_right;
   std::array<int4, 4> materials;
   struct Light
   {

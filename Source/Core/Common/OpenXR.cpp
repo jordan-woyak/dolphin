@@ -18,6 +18,7 @@
 #include "Common/MathUtil.h"
 #include "Common/Matrix.h"
 #include "Common/Thread.h"
+#include <VideoCommon/XFMemory.h>
 
 namespace OpenXR
 {
@@ -303,11 +304,22 @@ bool Session::Create(const std::vector<std::string_view>& required_extensions,
     s_session_objects.insert({m_session, this});
   }
 
+
   XrReferenceSpaceCreateInfo space_create_info{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
   space_create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
   space_create_info.poseInReferenceSpace = IDENTITY_POSE;
   const XrResult result = xrCreateReferenceSpace(m_session, &space_create_info, &m_local_space);
   if (XR_FAILED(result))
+  {
+    ERROR_LOG(VIDEO, "OpenXR: xrCreateReferenceSpace: %d", result);
+    return false;
+  }
+
+  XrReferenceSpaceCreateInfo space_create_info_view{XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
+  space_create_info_view.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+  space_create_info_view.poseInReferenceSpace = IDENTITY_POSE;
+  const XrResult result_view = xrCreateReferenceSpace(m_session, &space_create_info_view, &m_view_space);
+  if (XR_FAILED(result_view))
   {
     ERROR_LOG(VIDEO, "OpenXR: xrCreateReferenceSpace: %d", result);
     return false;
@@ -450,8 +462,9 @@ bool Session::EndFrame()
     projection_view.pose = m_eye_views[i].pose;
     projection_view.fov = m_eye_views[i].fov;
     projection_view.subImage.swapchain = m_swapchain;
-    projection_view.subImage.imageRect = {{0, 0}, m_swapchain_size};
-    projection_view.subImage.imageArrayIndex = i;
+    projection_view.subImage.imageRect = {{static_cast<int32_t>(i) * m_swapchain_size.width / 2, 0},
+                                          {m_swapchain_size.width / 2, m_swapchain_size.height}};
+    projection_view.subImage.imageArrayIndex = 0;
   }
 
   XrCompositionLayerProjection layer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
@@ -460,7 +473,28 @@ bool Session::EndFrame()
   layer.viewCount = VIEW_COUNT;
   layer.views = projection_views;
 
-  const XrCompositionLayerBaseHeader* const layers[] = {
+  //XrCompositionLayerQuad quad_layer_left{XR_TYPE_COMPOSITION_LAYER_QUAD};
+  //quad_layer_left.space = m_view_space;
+  //quad_layer_left.eyeVisibility = XR_EYE_VISIBILITY_LEFT;
+  //quad_layer_left.subImage = projection_views[0].subImage;
+  //quad_layer_left.pose = XrPosef{XrQuaternionf{0.0f, 0.0f, 0.f, 1.0f}, XrVector3f{0.0f, 0.0f, m_3d_screen_z}};
+  //quad_layer_left.size = XrExtent2Df{m_3d_screen_width, m_3d_screen_height};
+
+  //XrCompositionLayerQuad quad_layer_right{XR_TYPE_COMPOSITION_LAYER_QUAD};
+  //quad_layer_right.space = m_view_space;
+  //quad_layer_right.eyeVisibility = XR_EYE_VISIBILITY_RIGHT;
+  //quad_layer_right.subImage = projection_views[1].subImage;
+  //quad_layer_right.pose =
+  //    XrPosef{XrQuaternionf{0.0f, 0.0f, 0.f, 1.0f}, XrVector3f{0.0f, 0.0f, m_3d_screen_z}};
+  //quad_layer_right.size = XrExtent2Df{m_3d_screen_width, m_3d_screen_height};
+  
+
+  //const XrCompositionLayerBaseHeader* const layers[] = {
+  //    reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer),
+  //    reinterpret_cast<XrCompositionLayerBaseHeader*>(&quad_layer_left),
+  //    reinterpret_cast<XrCompositionLayerBaseHeader*>(&quad_layer_right)};
+
+   const XrCompositionLayerBaseHeader* const layers[] = {
       reinterpret_cast<XrCompositionLayerBaseHeader*>(&layer)};
 
   XrFrameEndInfo frame_end_info{XR_TYPE_FRAME_END_INFO};
@@ -512,7 +546,7 @@ bool Session::CreateSwapchain(const std::vector<s64>& supported_formats)
   }
 
   auto& selected_config_view = config_views[0];
-  m_swapchain_size = {int32_t(selected_config_view.recommendedImageRectWidth),
+  m_swapchain_size = {int32_t(selected_config_view.recommendedImageRectWidth * 2),
                       int32_t(selected_config_view.recommendedImageRectHeight)};
 
   const auto format = std::find_first_of(swapchain_formats.begin(), swapchain_formats.end(),
@@ -536,10 +570,10 @@ bool Session::CreateSwapchain(const std::vector<s64>& supported_formats)
       XR_SWAPCHAIN_USAGE_SAMPLED_BIT | XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
   swapchain_info.format = selected_swapchain_format;
   swapchain_info.sampleCount = selected_config_view.recommendedSwapchainSampleCount;
-  swapchain_info.width = selected_config_view.recommendedImageRectWidth;
+  swapchain_info.width = selected_config_view.recommendedImageRectWidth * 2;
   swapchain_info.height = selected_config_view.recommendedImageRectHeight;
   swapchain_info.faceCount = 1;
-  swapchain_info.arraySize = view_count;
+  swapchain_info.arraySize = 1;
   swapchain_info.mipCount = 1;
 
   result = xrCreateSwapchain(m_session, &swapchain_info, &m_swapchain);
@@ -601,6 +635,17 @@ XrExtent2Di Session::GetSwapchainSize() const
   return m_swapchain_size;
 }
 
+void Session::Set3DScreenSize(float width, float height)
+{
+  m_3d_screen_width = width;
+  m_3d_screen_height = height;
+}
+
+void Session::Set3DScreenZ(float z)
+{
+  m_3d_screen_z = z;
+}
+
 Common::Matrix44 Session::GetEyeViewMatrix(int eye_index, float z_near, float z_far)
 {
   using Common::Matrix33;
@@ -617,8 +662,8 @@ Common::Matrix44 Session::GetEyeViewMatrix(int eye_index, float z_near, float z_
   const auto& rot = view.pose.orientation;
 
   const auto view_matrix =
-      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w)).Inverted() *
-      Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter);
+      Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter) *
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w));
 
   const auto& fov = view.fov;
 
@@ -627,7 +672,188 @@ Common::Matrix44 Session::GetEyeViewMatrix(int eye_index, float z_near, float z_
   float bottom = std::tan(fov.angleDown) * z_near;
   float top = std::tan(fov.angleUp) * z_near;
 
-  return Matrix44::Frustum(left, right, bottom, top, z_near, z_far) * view_matrix;
+  return Matrix44::FrustumD3D(left, right, bottom, top, z_near, z_far) * view_matrix.Inverted();
+  //return view_matrix;
+}
+
+Common::Matrix44 Session::GetHeadMatrix()
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+  // TODO: Make this per-game configurable.
+  if (!(m_view_location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) ||
+      !(m_view_location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT))
+  {
+    return Matrix44::Identity();
+  }
+  // TODO: Make this per-game configurable.
+  const float units_per_meter = 100;
+
+  const auto& pos = m_view_location.pose.position;
+  const auto& rot = m_view_location.pose.orientation;
+
+  const auto view_matrix =
+      Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter) *
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w));
+
+  return view_matrix.Inverted();
+}
+
+Common::Matrix44 Session::GetEyeViewMatrixMove2DObjects(int eye_index, float z_near, float z_far)
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+  // TODO: Make this per-game configurable.
+  const float units_per_meter = 100;
+
+  auto& view = m_eye_views[eye_index];
+
+  const auto& pos = view.pose.position;
+  const auto& rot = view.pose.orientation;
+
+  const auto view_matrix =
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w)) *
+      Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter) *
+      Matrix44::Translate(Common::Vec3{0.0f, 0.0f, -z_far + z_near - 1.0f});
+
+  const auto& fov = view.fov;
+
+  float left = std::tan(fov.angleLeft) * z_near;
+  float right = std::tan(fov.angleRight) * z_near;
+  float bottom = std::tan(fov.angleDown) * z_near;
+  float top = std::tan(fov.angleUp) * z_near;
+
+  return Matrix44::Frustum(left, right, bottom, top, z_near, z_far) * view_matrix.Inverted();
+}
+
+Common::Matrix44 Session::GetEyeViewOnlyMatrix(int eye_index)
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+  // TODO: Make this per-game configurable.
+  const float units_per_meter = 1000.0f;
+
+  auto& view = m_eye_views[eye_index];
+
+  const auto& pos = view.pose.position;
+  const auto& rot = view.pose.orientation;
+
+  const auto view_matrix =
+      Matrix44::Translate(Common::Vec3{pos.x, pos.y, pos.z} * units_per_meter) *
+      Matrix44::FromMatrix33(Matrix33::FromQuaternion(rot.x, rot.y, rot.z, rot.w));
+
+  return  view_matrix.Inverted();
+}
+
+Common::Matrix44 Session::GetProjectionOnlyMatrix(int eye_index, float z_near, float z_far)
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+
+  auto& view = m_eye_views[eye_index];
+
+
+  const auto& fov = view.fov;
+
+  float left = std::tan(fov.angleLeft) * z_near;
+  float right = std::tan(fov.angleRight) * z_near;
+  float bottom = std::tan(fov.angleDown) * z_near;
+  float top = std::tan(fov.angleUp) * z_near;
+
+  return Matrix44::FrustumD3D(left, right, bottom, top, z_near, z_far);
+}
+
+float sign(float x)
+{
+  if (x < 0.0f)
+    return -1.0f;
+  else
+    return 1.0f;
+}
+
+void Session::GetProjectionBounds(int eye_index, float *angleLeft, float *angleRight, float *angleUp,
+                                  float *angleDown)
+{
+  UpdateValuesIfDirty();
+
+  const auto& fov = m_eye_views[eye_index].fov;
+  *angleLeft = fov.angleLeft;
+  *angleRight = fov.angleRight;
+  *angleUp = fov.angleUp;
+  *angleDown = fov.angleDown;
+}
+
+void Session::ModifyProjectionMatrix(u32 projtype, Common::Matrix44 *proj, int eye_index)
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+  auto& view = m_eye_views[eye_index];
+
+  const auto& fov = view.fov;
+
+  float left = std::tan(fov.angleLeft);
+  float right = std::tan(fov.angleRight);
+  float bottom = std::tan(fov.angleDown);
+  float top = std::tan(fov.angleUp);
+  float width = right - left;
+  float height = top - bottom;
+
+  if (projtype == GX_PERSPECTIVE)
+  {
+    proj->data[0] = 2.0f / width;
+    proj->data[2] = (right + left) / width;
+    proj->data[5] =  2.0f / height;
+    proj->data[6] = (top + bottom) / height;
+  }
+  else
+  {
+    *proj = 
+            Matrix44::Translate(Common::Vec3{-(right + left) / (right - left),
+                                             -(top + bottom) / (top - bottom), 0.0}) *
+            Matrix44::Scale(Common::Vec3{2.0f / (right - left), 2.0f / (top - bottom), 1.0f}) *
+            *proj;
+  }
+
+  //Matrix44 shiftmatrix = Matrix44::Identity();
+  //shiftmatrix.data[0] = 0.5f;
+  //shiftmatrix.data[3] = eye_index == 0 ? -0.5f : 0.5f;
+  //*proj = shiftmatrix * *proj;
+}
+
+Common::Matrix44 Session::GetTextureShiftMatrix(int eye_index)
+{
+  using Common::Matrix33;
+  using Common::Matrix44;
+
+  UpdateValuesIfDirty();
+
+  auto& view = m_eye_views[eye_index];
+
+  const auto& fov = view.fov;
+
+  float left = std::tan(fov.angleLeft);
+  float right = std::tan(fov.angleRight);
+  float bottom = std::tan(fov.angleDown);
+  float top = std::tan(fov.angleUp);
+
+  //Matrix44 result = Matrix44::Scale(Common::Vec3{2.0f/(right - left), 2.0f/(top - bottom), 1.0f}) * Matrix44::Translate(Common::Vec3{-(right + left) / (right - left), -(top + bottom)/(top - bottom), 0.0});
+  Matrix44 result = Matrix44::Translate( Common::Vec3{-(right + left) / (right - left), -(top + bottom) / (top - bottom), 0.0});
+  return result;
 }
 
 bool Session::AreValuesDirty() const
@@ -684,6 +910,12 @@ void Session::UpdateValuesIfDirty()
 
       for (auto& view : m_eye_views)
         view.pose.position = IDENTITY_POSITION;
+    }
+
+    result = xrLocateSpace(m_view_space, m_local_space, m_display_time, &m_view_location);
+    if (XR_FAILED(result))
+    {
+      ERROR_LOG(VIDEO, "OpenXR: xrLocateSpace: %d", result);
     }
   }
   else

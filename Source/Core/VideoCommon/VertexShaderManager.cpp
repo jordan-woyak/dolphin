@@ -99,6 +99,7 @@ static void ViewportCorrectionMatrix(Common::Matrix44& result)
   result.data[4 * 1 + 3] = (-intendedHt + 2.f * (Y - intendedY)) / Ht + 1.f;
 }
 
+
 void VertexShaderManager::Init()
 {
   // Initialize state tracking variables
@@ -414,17 +415,34 @@ void VertexShaderManager::SetConstants()
              rawProjection[3], rawProjection[4], rawProjection[5]);
 
     auto corrected_matrix = s_viewportCorrection * Common::Matrix44::FromArray(g_fProjectionMatrix);
+    auto corrected_matrix_right = corrected_matrix;
 
-    if (xfmem.projection.type == GX_PERSPECTIVE)
-    {
       if (auto session = g_renderer->GetOpenXRSession())
-        corrected_matrix *= session->GetEyeViewMatrix(0, 0, 0);
+      {
+        // corrected_matrix *= session->GetEyeViewMatrix(0, 0, 0);
+        //float left = (corrected_matrix * Common::Vec4{-1.0f, 0.0f, -1.0f, 1.0f}).x;
+        //float right = (corrected_matrix * Common::Vec4{1.0f, 0.0f, -1.0f, 1.0f}).x;
+        //float up = (corrected_matrix * Common::Vec4{0.0f, 1.0f, -1.0f, 1.0f}).y;
+        //float down = (corrected_matrix * Common::Vec4{0.0f, -1.0f, -1.0f, 1.0f}).y;
+        //float z = (corrected_matrix * Common::Vec4{0.0f, 0.0f, -1.0f, 1.0f}).z;
+        //session->Set3DScreenSize(5.0f * (right - left), 5.0f *(up - down));
+        //session->Set3DScreenZ(z/5.0f);
+        //corrected_matrix = corrected_matrix * session->GetEyeViewOnlyMatrix(0);
+        //corrected_matrix *= session->GetHeadMatrix();
+        session->ModifyProjectionMatrix(xfmem.projection.type, &corrected_matrix, 0);
+        if(xfmem.projection.type == GX_PERSPECTIVE)
+          corrected_matrix *= session->GetEyeViewOnlyMatrix(0);
+        session->ModifyProjectionMatrix(xfmem.projection.type, &corrected_matrix_right, 1);
+        if (xfmem.projection.type == GX_PERSPECTIVE)
+          corrected_matrix_right *= session->GetEyeViewOnlyMatrix(1);
+      }
+
 
       if (g_ActiveConfig.bFreeLook)
         corrected_matrix *= g_freelook_camera.GetView();
-    }
 
     memcpy(constants.projection.data(), corrected_matrix.data.data(), 4 * sizeof(float4));
+    memcpy(constants.projection_right.data(), corrected_matrix_right.data.data(), 4 * sizeof(float4));
 
     dirty = true;
   }

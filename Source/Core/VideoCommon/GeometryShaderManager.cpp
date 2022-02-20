@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <cstring>
+#include <cmath>
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
@@ -43,13 +44,16 @@ void GeometryShaderManager::Dirty()
 
 void GeometryShaderManager::SetConstants()
 {
-  if (s_projection_changed && g_ActiveConfig.stereo_mode != StereoMode::Off)
+  if (s_projection_changed && g_ActiveConfig.stereo_mode != StereoMode::Off && g_ActiveConfig.stereo_mode != StereoMode::OpenXR)
   {
     s_projection_changed = false;
 
     constants.stereoparams.fill(0);
-
+#if USE_OPENXR
+    if (g_renderer->GetOpenXRSession() || xfmem.projection.type == GX_PERSPECTIVE)
+#else
     if (xfmem.projection.type == GX_PERSPECTIVE)
+#endif
     {
 #if USE_OPENXR
       if (auto* const openxr_session = g_renderer->GetOpenXRSession())
@@ -60,15 +64,44 @@ void GeometryShaderManager::SetConstants()
 
         // We must "undo" the game's projection before applying our eye projections.
         const auto inv_projection = projection.Inverted();
+        
+        //const auto inv_head_matrix = openxr_session->GetHeadMatrix().Inverted();
 
         // Use the game's near and far values.
         const float z_near = projection.data[11] / (projection.data[10] - 1);
-        const float z_far = projection.data[11] / (projection.data[10] + 1);
+        //float z_far = projection.data[11] / (projection.data[10] + 1);
+
+
+        // GX_ORTHOGRAPHIC projection matrices have an infinity far plane.
+
 
         int eye_index = 0;
         for (auto& eye_view : constants.eye_views)
         {
-          eye_view = openxr_session->GetEyeViewMatrix(eye_index, z_near, z_far) * inv_projection;
+          //openxr_session->ModifyProjectionMatrix(xfmem.projection.type, &projection, eye_index);
+          if (xfmem.projection.type == GX_PERSPECTIVE)
+            //eye_view = openxr_session->GetEyeViewMatrix(eye_index, z_near, z_far) * inv_projection;
+            eye_view = projection * inv_projection;
+            //eye_view = Common::Matrix44::Identity();
+            //eye_view = openxr_session->GetTextureShiftMatrix(eye_index);
+          else
+          {
+            // eye_view =  openxr_session->GetEyeViewOnlyMatrix(eye_index);
+            // eye_view = openxr_session->GetEyeViewMatrix(eye_index, 100.0f, -100.0f) *
+            //           inv_projection;
+            // eye_view = Common::Matrix44::Identity();
+            //auto eye_view_matrix = openxr_session->GetTextureShiftMatrix(eye_index);
+            auto eye_view_matrix =
+                openxr_session->GetProjectionOnlyMatrix(eye_index, z_near, -INFINITY);
+            eye_view_matrix.UseFixedZ(-1.0f);
+            eye_view = eye_view_matrix;
+            //eye_view = openxr_session->GetTextureShiftMatrix(eye_index);
+            eye_view = Common::Matrix44::Identity();
+            //constants.stereoparams[2] = -openxr_session->GetTextureShiftMatrix(eye_index).data[3];
+            //eye_view = projection * inv_projection;
+          }
+          //eye_view = Common::Matrix44::Identity();
+
           ++eye_index;
         }
       }

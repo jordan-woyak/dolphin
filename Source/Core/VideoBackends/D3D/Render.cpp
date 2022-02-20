@@ -145,13 +145,27 @@ void Renderer::SetViewport(float x, float y, float width, float height, float ne
 void Renderer::Draw(u32 base_vertex, u32 num_vertices)
 {
   D3D::stateman->Apply();
-  D3D::context->Draw(num_vertices, base_vertex);
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    D3D::context->DrawInstanced(num_vertices, 2, base_vertex, 0);
+  }
+  else
+  {
+    D3D::context->Draw(num_vertices, base_vertex);
+  }
 }
 
 void Renderer::DrawIndexed(u32 base_index, u32 num_indices, u32 base_vertex)
 {
   D3D::stateman->Apply();
-  D3D::context->DrawIndexed(num_indices, base_index, base_vertex);
+  if (g_ActiveConfig.stereo_mode == StereoMode::OpenXR)
+  {
+    D3D::context->DrawIndexedInstanced(num_indices, 2, base_index, base_vertex, 0);
+  }
+  else
+  {
+    D3D::context->DrawIndexed(num_indices, base_index, base_vertex);
+  }
 }
 
 void Renderer::DispatchComputeShader(const AbstractShader* shader, u32 groups_x, u32 groups_y,

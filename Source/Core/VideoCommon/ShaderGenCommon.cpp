@@ -39,6 +39,7 @@ ShaderHostConfig ShaderHostConfig::GetCurrent()
   bits.backend_shader_framebuffer_fetch = g_ActiveConfig.backend_info.bSupportsFramebufferFetch;
   bits.backend_logic_op = g_ActiveConfig.backend_info.bSupportsLogicOp;
   bits.backend_palette_conversion = g_ActiveConfig.backend_info.bSupportsPaletteConversion;
+  bits.instanced_stereo = g_ActiveConfig.stereo_mode == StereoMode::OpenXR;
   return bits;
 }
 
@@ -133,6 +134,11 @@ void GenerateVSOutputMembers(ShaderCode& object, APIType api_type, u32 texgens,
     DefineOutputMember(object, api_type, qualifier, "float", "clipDist", 0, "SV_ClipDistance", 0);
     DefineOutputMember(object, api_type, qualifier, "float", "clipDist", 1, "SV_ClipDistance", 1);
   }
+  if (host_config.instanced_stereo)
+  {
+    DefineOutputMember(object, api_type, qualifier, "uint", "rendertargetarrayindex", -1,
+                       "SV_RenderTargetArrayIndex");
+  }
 }
 
 void AssignVSOutputMembers(ShaderCode& object, std::string_view a, std::string_view b, u32 texgens,
@@ -158,6 +164,10 @@ void AssignVSOutputMembers(ShaderCode& object, std::string_view a, std::string_v
   {
     object.WriteFmt("\t{}.clipDist0 = {}.clipDist0;\n", a, b);
     object.WriteFmt("\t{}.clipDist1 = {}.clipDist1;\n", a, b);
+  }
+  if (host_config.instanced_stereo)
+  {
+    object.WriteFmt("\t{}.rendertargetarrayindex = {}.rendertargetarrayindex;\n");
   }
 }
 

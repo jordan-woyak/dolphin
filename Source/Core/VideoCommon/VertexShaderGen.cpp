@@ -164,6 +164,8 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
     out.Write("VS_OUTPUT main(\n");
 
     // inputs
+    if (host_config.instanced_stereo)
+      out.Write("  uint instanceid : SV_InstanceID,\n");
     if (uid_data->components & VB_HAS_NRM0)
       out.Write("  float3 rawnorm0 : NORMAL0,\n");
     if (uid_data->components & VB_HAS_NRM1)
@@ -232,9 +234,22 @@ ShaderCode GenerateVertexShaderCode(APIType api_type, const ShaderHostConfig& ho
 
   if (!(uid_data->components & VB_HAS_NRM0))
     out.Write("float3 _norm0 = float3(0.0, 0.0, 0.0);\n");
-
+  if (host_config.instanced_stereo)
+    out.Write("if(instanceid == 0) {\n");
   out.Write("o.pos = float4(dot(" I_PROJECTION "[0], pos), dot(" I_PROJECTION
             "[1], pos), dot(" I_PROJECTION "[2], pos), dot(" I_PROJECTION "[3], pos));\n");
+  if (host_config.instanced_stereo)
+  {
+    out.Write("} else {\n");
+    out.Write("o.pos = float4(dot(" I_PROJECTION_RIGHT "[0], pos), dot(" I_PROJECTION_RIGHT
+              "[1], pos), dot(" I_PROJECTION_RIGHT "[2], pos), dot(" I_PROJECTION_RIGHT "[3], pos));\n");
+    out.Write("}\n");
+    out.Write("o.rendertargetarrayindex = instanceid;\n");
+  }
+  //if (host_config.instanced_stereo)
+  //{
+    //out.Write("if(instanceid==0) { o.pos.x = 0.5 * o.pos.x - 0.5 * o.pos.w; } else { o.pos.x = 0.5 * o.pos.x + 0.5 * o.pos.w; }\n");
+  //}
 
   out.Write("int4 lacc;\n"
             "float3 ldir, h, cosAttn, distAttn;\n"
