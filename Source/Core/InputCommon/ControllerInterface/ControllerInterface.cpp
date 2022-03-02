@@ -34,6 +34,9 @@
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
 #include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
 #endif
+#ifdef CIFACE_USE_STEAM_INPUT
+#include "InputCommon/ControllerInterface/Steam/Steam.h"
+#endif
 
 ControllerInterface g_controller_interface;
 
@@ -77,6 +80,9 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 #endif
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
   ciface::DualShockUDPClient::Init();
+#endif
+#ifdef CIFACE_USE_STEAM_INPUT
+  ciface::Steam::Init();
 #endif
 
   // Don't allow backends to add devices before the first RefreshDevices() as they will be cleaned
@@ -196,6 +202,9 @@ void ControllerInterface::RefreshDevices(RefreshReason reason)
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
   ciface::DualShockUDPClient::PopulateDevices();
 #endif
+#ifdef CIFACE_USE_STEAM_INPUT
+  ciface::Steam::PopulateDevices();
+#endif
 
   WiimoteReal::PopulateDevices();
 
@@ -253,6 +262,9 @@ void ControllerInterface::Shutdown()
 #endif
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
   ciface::DualShockUDPClient::DeInit();
+#endif
+#ifdef CIFACE_USE_STEAM_INPUT
+  ciface::Steam::DeInit();
 #endif
 
   // Make sure no devices had been added within Shutdown() in the time

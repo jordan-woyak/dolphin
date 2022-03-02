@@ -31,6 +31,8 @@
 #endif
 #define CIFACE_USE_DUALSHOCKUDPCLIENT
 
+#define CIFACE_USE_STEAM_INPUT
+
 namespace ciface
 {
 // A thread local "input channel" is maintained to handle the state of relative inputs.
