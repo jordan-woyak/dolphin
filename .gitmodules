@@ -8,3 +8,6 @@
 	url = https://github.com/mgba-emu/mgba.git
 	branch = master
 	shallow = true
+[submodule "Externals/SteamworksSDK"]
+	path = Externals/SteamworksSDK
+	url = https://github.com/julianxhokaxhiu/SteamworksSDKCI.git
