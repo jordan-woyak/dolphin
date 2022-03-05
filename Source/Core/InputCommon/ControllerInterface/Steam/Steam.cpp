@@ -3,6 +3,11 @@
 
 #include "InputCommon/ControllerInterface/Steam/Steam.h"
 
+#include <string>
+
+// TODO: hax
+
+#ifdef WIN32
 #pragma warning(push)
 // Disable warnings for illegal characters in source code.
 #pragma warning(disable : 4828)
@@ -10,6 +15,11 @@
 #pragma warning(pop)
 
 #pragma comment(lib, "../../../Externals/SteamworksSDK/redistributable_bin/win64/steam_api64.lib")
+#else
+
+#include "steam_api.h"
+
+#endif
 
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"

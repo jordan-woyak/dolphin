@@ -167,6 +167,38 @@ if(LIBEVDEV_FOUND AND LIBUDEV_FOUND)
   )
 endif()
 
+
+if(ENABLE_STEAMWORKSSDK)
+  target_sources(inputcommon
+  PRIVATE
+    ControllerInterface/Steam/Steam.cpp
+    ControllerInterface/Steam/Steam.h
+  )
+  target_include_directories(inputcommon PRIVATE "${PROJECT_SOURCE_DIR}/Externals/SteamworksSDK/steamworks_sdk/public/steam")
+  # TODO: hax
+  set(STEAMWORKS_LIBRARY "${PROJECT_SOURCE_DIR}/Externals/SteamworksSDK/steamworks_sdk/redistributable_bin/linux64/libsteam_api.so")
+  target_link_libraries(inputcommon PRIVATE ${STEAMWORKS_LIBRARY})
+endif()
+
+
+if(LIBEVDEV_FOUND AND LIBUDEV_FOUND)
+  target_sources(inputcommon
+  PRIVATE
+    ControllerInterface/evdev/evdev.cpp
+    ControllerInterface/evdev/evdev.h
+  )
+  target_include_directories(inputcommon
+  PRIVATE
+    ${LIBEVDEV_INCLUDE_DIR}
+    ${LIBUDEV_INCLUDE_DIR}
+  )
+  target_link_libraries(inputcommon
+  PRIVATE
+    ${LIBEVDEV_LIBRARY}
+    ${LIBUDEV_LIBRARY}
+  )
+endif()
+
 if(UNIX)
   target_sources(inputcommon PRIVATE
     ControllerInterface/Pipes/Pipes.cpp

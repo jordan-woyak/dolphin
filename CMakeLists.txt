@@ -89,6 +89,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
   if(NOT ANDROID)
     option(ENABLE_EVDEV "Enables the evdev controller backend" ON)
+    option(ENABLE_STEAMWORKSSDK "Enables the Steam Input controller backend" ON)
   endif()
 endif()
 
@@ -522,6 +523,11 @@ if(ENABLE_EVDEV)
   else()
     message(FATAL_ERROR "Couldn't find libevdev and/or libudev. Can't build evdev controller backend.\nDisable ENABLE_EVDEV if you wish to build without controller support")
   endif()
+endif()
+
+if(ENABLE_STEAMWORKSSDK)
+  message(STATUS "SteamworksSDK found, enabling Steam Input controller backend")
+  add_definitions(-DHAVE_STEAM_API=1)
 endif()
 
 if(UNIX)
