@@ -62,6 +62,30 @@ Force::Force(const std::string& name_) : ReshapableInput(name_, name_, GroupType
               // i18n: Refering to emulated wii remote swing movement.
               _trans("Rotation applied at extremities of swing.")},
              90, 1, 180);
+
+  AddSetting(&m_p_setting,
+             {_trans("Kp"),
+              // i18n: The symbol/abbreviation for degrees (unit of angular measure).
+              " ",
+              // i18n: Refering to emulated wii remote swing movement.
+              _trans("")},
+             5, 0, 100);
+
+  AddSetting(&m_i_setting,
+             {_trans("Ki"),
+              // i18n: The symbol/abbreviation for degrees (unit of angular measure).
+              " ",
+              // i18n: Refering to emulated wii remote swing movement.
+              _trans("")},
+             5, 0, 100);
+
+  AddSetting(&m_d_setting,
+             {_trans("Kd"),
+              // i18n: The symbol/abbreviation for degrees (unit of angular measure).
+              " ",
+              // i18n: Refering to emulated wii remote swing movement.
+              _trans("")},
+             5, 0, 100);
 }
 
 Force::ReshapeData Force::GetReshapableState(bool adjusted) const

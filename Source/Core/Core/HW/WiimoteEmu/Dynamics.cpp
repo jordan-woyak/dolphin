@@ -198,6 +198,23 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   // X is negated because Wiimote X+ is to the left.
   const auto target_position = Common::Vec3{-input_state.x, -input_state.z, input_state.y};
 
+#if 1
+  const auto [gain_p, gain_i, gain_d] = swing_group->GetPID().data;
+
+  const auto error = target_position - state->position;
+  const auto proportional = error;
+  state->integral += error * time_elapsed;
+  const auto derivative = (error - state->previous_error) / time_elapsed;
+  const auto ouptut =
+      Common::Vec3(proportional * gain_p + state->integral * gain_i + derivative * gain_d);
+  state->previous_error = error;
+  const auto new_position = state->position + ouptut;
+
+  const auto angle = new_position / max_distance * max_angle;
+  state->angle.z = -angle.x;
+  state->angle.x = angle.z;
+#else
+
   const auto xz_target_dist = Common::Vec2{target_position.x, target_position.z}.Length();
   const auto y_target_dist = std::abs(target_position.y);
   const auto target_dist = Common::Vec3{xz_target_dist, y_target_dist, xz_target_dist};
@@ -219,8 +236,11 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   new_position.z = std::sin(state->angle.x) * -max_distance;
   // TODO: fix
   new_position.y = (1 - std::cos(std::abs(state->angle.z))) * max_distance;
-
+#endif
   state->position = new_position;
+
+  for (auto& c : state->position.data)
+    c = std::clamp(c, -1.f, 1.f);
 }
 
 WiimoteCommon::AccelData ConvertAccelData(const Common::Vec3& accel, u16 zero_g, u16 one_g)

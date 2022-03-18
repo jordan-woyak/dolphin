@@ -771,7 +771,8 @@ Wiimote::DynamicsData Wiimote::StepDynamics()
   DynamicsData result;
 
   // Calculate angular velocity from change in rotation.
-  const auto rotation_diff = m_rotation * new_rotation.Conjugate();
+  // Possibly backwards.. or maybe the transform is backwards?
+  const auto rotation_diff = m_rotation.Conjugate() * new_rotation;
   m_rotation = new_rotation;
 
   const auto orientation = GetOrientation();

@@ -35,11 +35,20 @@ public:
   // Return swing distance in meters.
   ControlState GetMaxDistance() const;
 
+  Common::DVec3 GetPID() const
+  {
+    return {m_p_setting.GetValue(), m_i_setting.GetValue(), m_d_setting.GetValue()};
+  }
+
 private:
   SettingValue<double> m_distance_setting;
   SettingValue<double> m_speed_setting;
   SettingValue<double> m_return_speed_setting;
   SettingValue<double> m_angle_setting;
+
+  SettingValue<double> m_p_setting;
+  SettingValue<double> m_i_setting;
+  SettingValue<double> m_d_setting;
 };
 
 class Shake : public ControlGroup

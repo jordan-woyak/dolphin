@@ -73,6 +73,9 @@ struct MotionState
   Common::Vec3 position;
   Common::Vec3 angle;
 
+  Common::Vec3 previous_error;
+  Common::Vec3 integral;
+
   MotionProcessor motion_processor;
 };
 
