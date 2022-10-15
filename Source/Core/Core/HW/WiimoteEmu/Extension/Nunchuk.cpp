@@ -104,6 +104,8 @@ void Nunchuk::BuildDesiredExtensionState(DesiredExtensionState* target_state)
   const auto transformation =
       GetRotationalMatrix(-m_tilt_state.angle) * GetRotationalMatrix(-m_swing_state.angle);
 
+// TODO: implement
+#if 0
   Common::Vec3 accel =
       transformation *
       (m_swing_state.acceleration +
@@ -119,6 +121,7 @@ void Nunchuk::BuildDesiredExtensionState(DesiredExtensionState* target_state)
   nc_data.SetAccel(acc.value);
 
   target_state->data = nc_data;
+#endif
 }
 
 void Nunchuk::Update(const DesiredExtensionState& target_state)
@@ -191,9 +194,8 @@ void Nunchuk::DoState(PointerWrap& p)
 {
   EncryptedExtension::DoState(p);
 
-  p.Do(m_swing_state);
-  p.Do(m_tilt_state);
-  p.Do(m_shake_state);
+  // FYI: Motion state can be considered part of user input or the physical controller state.
+  // We need not sync it.
 }
 
 void Nunchuk::LoadDefaults(const ControllerInterface& ciface)

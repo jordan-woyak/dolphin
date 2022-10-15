@@ -449,7 +449,7 @@ void Wiimote::BuildDesiredWiimoteState(DesiredWiimoteState* target_state)
   m_hotkeys->UpdateState();
 
   // Update our motion simulations.
-  StepDynamics();
+  const auto dynamics = StepDynamics();
 
   // Fetch pressed buttons from user input.
   target_state->buttons.hex = 0;
@@ -461,17 +461,17 @@ void Wiimote::BuildDesiredWiimoteState(DesiredWiimoteState* target_state)
   // Calculate accelerometer state.
   // Calibration values are 8-bit but we want 10-bit precision, so << 2.
   target_state->acceleration =
-      ConvertAccelData(GetTotalAcceleration(), ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
+      ConvertAccelData(dynamics.acceleration, ACCEL_ZERO_G << 2, ACCEL_ONE_G << 2);
 
   // Calculate IR camera state.
   target_state->camera_points = CameraLogic::GetCameraPoints(
-      GetTotalTransformation(),
+      dynamics.camera_transform,
       Common::Vec2(m_fov_x_setting.GetValue(), m_fov_y_setting.GetValue()) / 360 *
           float(MathUtil::TAU));
 
   // Calculate MotionPlus state.
   if (m_motion_plus_setting.GetValue())
-    target_state->motion_plus = MotionPlus::GetGyroscopeData(GetTotalAngularVelocity());
+    target_state->motion_plus = MotionPlus::GetGyroscopeData(dynamics.angular_velocity);
   else
     target_state->motion_plus = std::nullopt;
 
@@ -779,44 +779,19 @@ void Wiimote::RefreshConfig()
   m_speaker_logic.SetSpeakerEnabled(Config::Get(Config::MAIN_WIIMOTE_ENABLE_SPEAKER));
 }
 
-void Wiimote::StepDynamics()
+Wiimote::DynamicsData Wiimote::StepDynamics()
 {
-  EmulateSwing(&m_swing_state, m_swing, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateTilt(&m_tilt_state, m_tilt, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulatePoint(&m_point_state, m_ir, m_input_override_function, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateShake(&m_shake_state, m_shake, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope,
-                   1.f / ::Wiimote::UPDATE_FREQ);
-}
+  constexpr auto step = 1.f / ::Wiimote::UPDATE_FREQ;
 
-Common::Vec3 Wiimote::GetAcceleration(Common::Vec3 extra_acceleration) const
-{
-  Common::Vec3 accel = GetOrientation() * GetTransformation().Transform(
-                                              m_swing_state.acceleration + extra_acceleration, 0);
+  EmulateSwing(&m_swing_state, m_swing, step);
+  EmulateTilt(&m_tilt_state, m_tilt, step);
+  EmulatePoint(&m_point_state, m_ir, m_input_override_function, step);
+  EmulateShake(&m_shake_state, m_shake, step);
+  EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope, step);
 
-  // Our shake effects have never been affected by orientation. Should they be?
-  accel += m_shake_state.acceleration;
-
-  return accel;
-}
-
-Common::Vec3 Wiimote::GetAngularVelocity(Common::Vec3 extra_angular_velocity) const
-{
-  return GetOrientation() * (m_tilt_state.angular_velocity + m_swing_state.angular_velocity +
-                             m_point_state.angular_velocity + extra_angular_velocity);
-}
-
-Common::Matrix44 Wiimote::GetTransformation(const Common::Matrix33& extra_rotation) const
-{
-  // Includes positional and rotational effects of:
-  // Point, Swing, Tilt, Shake
-
-  // TODO: Think about and clean up matrix order + make nunchuk match.
-  return Common::Matrix44::Translate(-m_shake_state.position) *
-         Common::Matrix44::FromMatrix33(extra_rotation * GetRotationalMatrix(-m_tilt_state.angle) *
-                                        GetRotationalMatrix(-m_point_state.angle) *
-                                        GetRotationalMatrix(-m_swing_state.angle)) *
-         Common::Matrix44::Translate(-m_swing_state.position - m_point_state.position);
+  DynamicsData result{};
+  result.camera_transform = Common::Matrix44::Identity();
+  return result;
 }
 
 Common::Quaternion Wiimote::GetOrientation() const
@@ -890,29 +865,6 @@ Wiimote::OverrideVec3(const ControllerEmu::ControlGroup* control_group, Common::
   }
 
   return vec;
-}
-
-Common::Vec3 Wiimote::GetTotalAcceleration() const
-{
-  const Common::Vec3 default_accel = Common::Vec3(0, 0, float(GRAVITY_ACCELERATION));
-  const Common::Vec3 accel = m_imu_accelerometer->GetState().value_or(default_accel);
-
-  return OverrideVec3(m_imu_accelerometer, GetAcceleration(accel));
-}
-
-Common::Vec3 Wiimote::GetTotalAngularVelocity() const
-{
-  const Common::Vec3 default_ang_vel = {};
-  const Common::Vec3 ang_vel = m_imu_gyroscope->GetState().value_or(default_ang_vel);
-
-  return OverrideVec3(m_imu_gyroscope, GetAngularVelocity(ang_vel));
-}
-
-Common::Matrix44 Wiimote::GetTotalTransformation() const
-{
-  return GetTransformation(Common::Matrix33::FromQuaternion(
-      m_imu_cursor_state.rotation *
-      Common::Quaternion::RotateX(m_imu_cursor_state.recentered_pitch)));
 }
 
 }  // namespace WiimoteEmu

@@ -21,22 +21,43 @@ namespace WiimoteEmu
 {
 using MathUtil::GRAVITY_ACCELERATION;
 
-struct PositionalState
+// TODO: naming?
+class MotionProcessor
 {
-  // meters
-  Common::Vec3 position{};
-  // meters/second
-  Common::Vec3 velocity{};
-  // meters/second^2
-  Common::Vec3 acceleration{};
+public:
+  void AddTarget(const Common::Vec3& target, float speed);
+  void Step(Common::Vec3* state, float time_elapsed);
+
+  // TODO: kill
+  bool IsActive() const;
+
+private:
+  struct MotionTarget
+  {
+    Common::Vec3 offset;
+    float current_time;
+    float duration;
+  };
+
+  std::vector<MotionTarget> m_targets;
+  Common::Vec3 m_base;
+  Common::Vec3 m_target;
 };
 
-struct RotationalState
+class PositionalState
 {
-  // radians
-  Common::Vec3 angle{};
-  // radians/second
-  Common::Vec3 angular_velocity{};
+public:
+  Common::Vec3 position;
+
+  MotionProcessor motion_processor;
+};
+
+class RotationalState
+{
+public:
+  Common::Vec3 angle;
+
+  MotionProcessor motion_processor;
 };
 
 struct IMUCursorState
@@ -72,12 +93,6 @@ Common::Matrix33 GetRotationalMatrix(const Common::Vec3& angle);
 float GetPitch(const Common::Quaternion& world_rotation);
 float GetRoll(const Common::Quaternion& world_rotation);
 float GetYaw(const Common::Quaternion& world_rotation);
-
-void ApproachPositionWithJerk(PositionalState* state, const Common::Vec3& target,
-                              const Common::Vec3& max_jerk, float time_elapsed);
-
-void ApproachAngleWithAccel(RotationalState* state, const Common::Vec3& target, float max_accel,
-                            float time_elapsed);
 
 void EmulateShake(PositionalState* state, ControllerEmu::Shake* shake_group, float time_elapsed);
 void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* tilt_group, float time_elapsed);

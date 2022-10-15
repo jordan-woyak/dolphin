@@ -168,6 +168,13 @@ public:
                const ControllerEmu::InputOverrideFunction& input_override_function);
 
 private:
+  struct DynamicsData
+  {
+    Common::Matrix44 camera_transform;
+    Common::Vec3 acceleration;
+    Common::Vec3 angular_velocity;
+  };
+
   // Used only for error generation:
   static constexpr u8 EEPROM_I2C_ADDR = 0x50;
 
@@ -177,21 +184,9 @@ private:
 
   void RefreshConfig();
 
-  void StepDynamics();
+  DynamicsData StepDynamics();
   void UpdateButtonsStatus(const DesiredWiimoteState& target_state);
   void BuildDesiredWiimoteState(DesiredWiimoteState* target_state);
-
-  // Returns simulated accelerometer data in m/s^2.
-  Common::Vec3 GetAcceleration(Common::Vec3 extra_acceleration) const;
-
-  // Returns simulated gyroscope data in radians/s.
-  Common::Vec3 GetAngularVelocity(Common::Vec3 extra_angular_velocity) const;
-
-  // Returns the transformation of the world around the wiimote.
-  // Used for simulating camera data and for rotating acceleration data.
-  // Does not include orientation transformations.
-  Common::Matrix44
-  GetTransformation(const Common::Matrix33& extra_rotation = Common::Matrix33::Identity()) const;
 
   // Returns the world rotation from the effects of sideways/upright settings.
   Common::Quaternion GetOrientation() const;
@@ -200,9 +195,6 @@ private:
                                            std::optional<Common::Vec3> optional_vec) const;
   Common::Vec3 OverrideVec3(const ControllerEmu::ControlGroup* control_group,
                             Common::Vec3 vec) const;
-  Common::Vec3 GetTotalAcceleration() const;
-  Common::Vec3 GetTotalAngularVelocity() const;
-  Common::Matrix44 GetTotalTransformation() const;
 
   void HandleReportRumble(const WiimoteCommon::OutputReportRumble&);
   void HandleReportLeds(const WiimoteCommon::OutputReportLeds&);
