@@ -109,38 +109,25 @@ Common::Quaternion ComplementaryFilter(const Common::Quaternion& gyroscope,
 void EmulateShake(PositionalState* state, ControllerEmu::Shake* const shake_group,
                   float time_elapsed)
 {
-  // TODO: implement
-#if 0
-  auto target_position = shake_group->GetState() * float(shake_group->GetIntensity() / 2);
-  for (std::size_t i = 0; i != target_position.data.size(); ++i)
+  const auto intensity = float(shake_group->GetIntensity());
+  const auto speed = intensity * shake_group->GetFrequency();
+
+  // TODO: broken fix mes
+
+  auto extent = shake_group->GetState() * intensity / 2;
+
+  for (std::size_t c = 0; c != extent.data.size(); ++c)
   {
-    if (state->velocity.data[i] * std::copysign(1.f, target_position.data[i]) < 0 ||
-        state->position.data[i] / target_position.data[i] > 0.5)
-    {
-      target_position.data[i] *= -1;
-    }
+    if (state->position.data[c] == -extent.data[c])
+      extent.data[c] *= -1;
   }
 
-  // Time from "top" to "bottom" of one shake.
-  const auto travel_time = 1 / shake_group->GetFrequency() / 2;
-
-  Common::Vec3 jerk;
-  for (std::size_t i = 0; i != target_position.data.size(); ++i)
-  {
-    const auto half_distance =
-        std::max(std::abs(target_position.data[i]), std::abs(state->position.data[i]));
-
-    jerk.data[i] = half_distance / std::pow(travel_time / 2, 3);
-  }
-
-  ApproachPositionWithJerk(state, target_position, jerk, time_elapsed);
-#endif
+  state->motion_processor.AddTarget(extent, speed);
+  state->motion_processor.Step(&state->position, time_elapsed);
 }
 
 void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, float time_elapsed)
 {
-// TODO: implement
-#if 0
   const auto target = tilt_group->GetState();
 
   // 180 degrees is currently the max tilt value.
@@ -148,6 +135,8 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
   const ControlState pitch = target.y * MathUtil::PI;
 
   const auto target_angle = Common::Vec3(pitch, -roll, 0);
+
+  // TODO: FIX this with the new smooth motion!!
 
   // For each axis, wrap around current angle if target is farther than 180 degrees.
   for (std::size_t i = 0; i != target_angle.data.size(); ++i)
@@ -157,10 +146,8 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
       angle -= std::copysign(MathUtil::TAU, angle);
   }
 
-  const auto max_accel = std::pow(tilt_group->GetMaxRotationalVelocity(), 2) / MathUtil::TAU;
-
-  ApproachAngleWithAccel(state, target_angle, max_accel, time_elapsed);
-#endif
+  state->motion_processor.AddTarget(target_angle, tilt_group->GetMaxRotationalVelocity());
+  state->motion_processor.Step(&state->angle, time_elapsed);
 }
 
 void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float time_elapsed)
@@ -212,53 +199,32 @@ WiimoteCommon::AccelData ConvertAccelData(const Common::Vec3& accel, u16 zero_g,
 void EmulatePoint(MotionState* state, ControllerEmu::Cursor* ir_group,
                   const ControllerEmu::InputOverrideFunction& override_func, float time_elapsed)
 {
-  // TODO: implement
-#if 0
-  const auto cursor = ir_group->GetState(true, override_func);
-
-  if (!cursor.IsVisible())
-  {
-    // Move the wiimote a kilometer forward so the sensor bar is always behind it.
-    *state = {};
-    state->position = {0, -1000, 0};
-    return;
-  }
+  const auto cursor = ir_group->GetState(true);
 
   // Nintendo recommends a distance of 1-3 meters.
   constexpr float NEUTRAL_DISTANCE = 2.f;
 
+  // Move the wiimote a kilometer back. Camera logic will calculate tiny/invisible IR points.
+  state->position.y = cursor.IsVisible() ? NEUTRAL_DISTANCE : 1000.f;
+
   // When the sensor bar position is on bottom, apply the "offset" setting negatively.
   // This is kinda odd but it does seem to maintain consistent cursor behavior.
   const bool sensor_bar_on_top = Config::Get(Config::SYSCONF_SENSOR_BAR_POSITION) != 0;
-
   const float height = ir_group->GetVerticalOffset() * (sensor_bar_on_top ? 1 : -1);
+  state->position.z = -height;
 
   const float yaw_scale = ir_group->GetTotalYaw() / 2;
   const float pitch_scale = ir_group->GetTotalPitch() / 2;
-
-  // Just jump to the target position.
-  state->position = {0, NEUTRAL_DISTANCE, -height};
-  state->velocity = {};
-  state->acceleration = {};
-
   const auto target_angle = Common::Vec3(pitch_scale * -cursor.y, 0, yaw_scale * -cursor.x);
 
-  // If cursor was hidden, jump to the target angle immediately.
-  if (state->position.y < 0)
-  {
-    state->angle = target_angle;
-    state->angular_velocity = {};
-
-    return;
-  }
-
+  // TODO: tweak this value.
   // Higher values will be more responsive but increase rate of M+ "desync".
   // I'd rather not expose this value in the UI if not needed.
   // At this value, sync is very good and responsiveness still appears instant.
-  constexpr auto MAX_ACCEL = float(MathUtil::TAU * 8);
+  constexpr auto angular_velocity = float(MathUtil::TAU / 2);
 
-  ApproachAngleWithAccel(state, target_angle, MAX_ACCEL, time_elapsed);
-#endif
+  state->motion_processor.AddTarget(target_angle, angular_velocity);
+  state->motion_processor.Step(&state->angle, time_elapsed);
 }
 
 void EmulateIMUCursor(IMUCursorState* state, ControllerEmu::IMUCursor* imu_ir_group,

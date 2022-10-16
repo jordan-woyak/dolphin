@@ -785,6 +785,7 @@ void Wiimote::RefreshConfig()
 
 Wiimote::DynamicsData Wiimote::StepDynamics()
 {
+  // TODO: rename this and have the inverse too.
   constexpr auto step = 1.f / ::Wiimote::UPDATE_FREQ;
 
   EmulateSwing(&m_swing_state, m_swing, step);
@@ -824,7 +825,8 @@ Wiimote::DynamicsData Wiimote::StepDynamics()
 
   // TODO: combine the angular velocities properly.
   // Adding them is close but not actually correct.
-  // TODO: scale these values down to prevent wrap around.
+  // TODO: scale these values down to prevent wrap around. or not, because current behavior will
+  // make tilt wrap work.
   // TODO: redundant calculations here..
   // return orientation *
   //        GetGyroscopeFromRotation(GetRotationFromGyroscope(imu_angular_velocity) *
