@@ -328,6 +328,7 @@ private:
   RotationalState m_tilt_state;
   MotionState m_point_state;
   PositionalState m_shake_state;
+
   IMUCursorState m_imu_cursor_state;
 
   // Used to compared to previous "frame" to calculate acceleration/angular-velocity data.

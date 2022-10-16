@@ -18,8 +18,72 @@
 #include "InputCommon/ControllerEmu/ControlGroup/IMUGyroscope.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Tilt.h"
 
+namespace
+{
+template <typename T>
+constexpr T SmoothTransition(T x)
+{
+  return 1 / (1 + std::exp(1 / (-1 + x) + 1 / x));
+  // return x - std::sin(MathUtil::TAU * x) / MathUtil::TAU;
+  // return (1 - std::cos(MathUtil::PI * x)) / 2;
+
+  // return easeOutBack(x);
+
+  // return (1 - std::cos(T(MathUtil::PI) * x)) / 4 + x / 2;
+  //  return 0.5 * (x - 1 * x * std::cos(MathUtil::PI * x));
+}
+}  // namespace
+
 namespace WiimoteEmu
 {
+
+void MotionProcessor::Step(Common::Vec3* state, float time_elapsed)
+{
+  // Advance times, remove if expired.
+  // Combine all the smooth transitions.
+  Common::Vec3 current_transitions{};
+  for (auto it = m_targets.begin(); it != m_targets.end();)
+  {
+    if ((it->current_time += time_elapsed / it->duration) >= 1)
+    {
+      m_base += it->offset;
+      it = m_targets.erase(it);
+    }
+    else
+    {
+      current_transitions += it->offset * SmoothTransition(it->current_time);
+      ++it;
+    }
+  }
+
+  // TODO: adjust m_target.. when no targets exist?
+
+  *state = m_base + current_transitions;
+}
+
+// TODO: support different curves
+void MotionProcessor::AddTarget(const Common::Vec3& target, float speed)
+{
+  const auto offset = target - m_target;
+  m_target = target;
+
+  const auto length = offset.Length();
+  if (!length)
+    return;
+
+  MotionTarget st;
+  st.offset = offset;
+  st.duration = length / speed;
+  st.current_time = 0;
+
+  m_targets.emplace_back(st);
+}
+
+bool MotionProcessor::IsActive() const
+{
+  return !m_targets.empty();
+}
+
 Common::Quaternion ComplementaryFilter(const Common::Quaternion& gyroscope,
                                        const Common::Vec3& accelerometer, float accel_weight,
                                        const Common::Vec3& accelerometer_normal)
@@ -101,8 +165,6 @@ void EmulateTilt(RotationalState* state, ControllerEmu::Tilt* const tilt_group, 
 
 void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float time_elapsed)
 {
-  // TODO: implement
-#if 0
   const auto input_state = swing_group->GetState();
   const float max_distance = swing_group->GetMaxDistance();
   const float max_angle = swing_group->GetTwistAngle();
@@ -111,73 +173,27 @@ void EmulateSwing(MotionState* state, ControllerEmu::Force* swing_group, float t
   // X is negated because Wiimote X+ is to the left.
   const auto target_position = Common::Vec3{-input_state.x, -input_state.z, input_state.y};
 
-  // Jerk is scaled based on input distance from center.
-  // X and Z scale is connected for sane movement about the circle.
   const auto xz_target_dist = Common::Vec2{target_position.x, target_position.z}.Length();
   const auto y_target_dist = std::abs(target_position.y);
   const auto target_dist = Common::Vec3{xz_target_dist, y_target_dist, xz_target_dist};
-  const auto speed = MathUtil::Lerp(Common::Vec3{1, 1, 1} * float(swing_group->GetReturnSpeed()),
-                                    Common::Vec3{1, 1, 1} * float(swing_group->GetSpeed()),
-                                    target_dist / max_distance);
-
-  // Convert our m/s "speed" to the jerk required to reach this speed when traveling 1 meter.
-  const auto max_jerk = speed * speed * speed * 4;
-
-  // Rotational acceleration to approximately match the completion time of our swing.
-  const auto max_accel = max_angle * speed.x * speed.x;
-
-  // Apply rotation based on amount of swing.
   const auto target_angle =
       Common::Vec3{-target_position.z, 0, target_position.x} / max_distance * max_angle;
+  const auto speed = MathUtil::Lerp(float(swing_group->GetReturnSpeed()),
+                                    float(swing_group->GetSpeed()), target_dist.Length());
+  const auto angular_velocity = speed * max_angle / max_distance;
+  state->motion_processor.AddTarget(target_angle, angular_velocity);
+  state->motion_processor.Step(&state->angle, time_elapsed);
+  state->angle.y = state->angle.z;
+  Common::Vec3 new_position;
+  new_position.x = std::sin(state->angle.z) * max_distance;
+  new_position.z = std::sin(state->angle.x) * -max_distance;
+  // TODO: fix
+  new_position.y = (1 - std::cos(std::abs(state->angle.z))) * max_distance;
 
-  // Angular acceleration * 2 seems to reduce "spurious stabs" in ZSS.
-  // TODO: Fix properly.
-  ApproachAngleWithAccel(state, target_angle, max_accel * 2, time_elapsed);
+  state->position = new_position;
 
-  // Clamp X and Z rotation.
-  for (const int c : {0, 2})
-  {
-    if (std::abs(state->angle.data[c] / max_angle) > 1 &&
-        MathUtil::Sign(state->angular_velocity.data[c]) == MathUtil::Sign(state->angle.data[c]))
-    {
-      state->angular_velocity.data[c] = 0;
-    }
-  }
-
-  // Adjust target position backwards based on swing progress and max angle
-  // to simulate a swing with an outstretched arm.
-  const auto backwards_angle = std::max(std::abs(state->angle.x), std::abs(state->angle.z));
-  const auto backwards_movement = (1 - std::cos(backwards_angle)) * max_distance;
-
-  // TODO: Backswing jerk should be based on x/z speed.
-
-  ApproachPositionWithJerk(state, target_position + Common::Vec3{0, backwards_movement, 0},
-                           max_jerk, time_elapsed);
-
-  // Clamp Left/Right/Up/Down movement within the configured circle.
-  const auto xz_progress =
-      Common::Vec2{state->position.x, state->position.z}.Length() / max_distance;
-  if (xz_progress > 1)
-  {
-    state->position.x /= xz_progress;
-    state->position.z /= xz_progress;
-
-    state->acceleration.x = state->acceleration.z = 0;
-    state->velocity.x = state->velocity.z = 0;
-  }
-
-  // Clamp Forward/Backward movement within the configured distance.
-  // We allow additional backwards movement for the back swing.
-  const auto y_progress = state->position.y / max_distance;
-  const auto max_y_progress = 2 - std::cos(max_angle);
-  if (y_progress > max_y_progress || y_progress < -1)
-  {
-    state->position.y =
-        std::clamp(state->position.y, -1.f * max_distance, max_y_progress * max_distance);
-    state->velocity.y = 0;
-    state->acceleration.y = 0;
-  }
-#endif
+  for (auto& c : state->position.data)
+    c = std::clamp(c, -1.f, 1.f);
 }
 
 WiimoteCommon::AccelData ConvertAccelData(const Common::Vec3& accel, u16 zero_g, u16 one_g)

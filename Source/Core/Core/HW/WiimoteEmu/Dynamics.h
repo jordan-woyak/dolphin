@@ -69,9 +69,12 @@ struct IMUCursorState
 };
 
 // Contains both positional and rotational state.
-struct MotionState : PositionalState, RotationalState
+struct MotionState
 {
-  MotionState() = default;
+  Common::Vec3 position;
+  Common::Vec3 angle;
+
+  MotionProcessor motion_processor;
 };
 
 // Note that 'gyroscope' is rotation of world around device.
