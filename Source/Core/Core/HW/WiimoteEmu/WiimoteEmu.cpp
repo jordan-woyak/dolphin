@@ -202,6 +202,10 @@ void Wiimote::Reset()
   m_shake_state = {};
 
   m_imu_cursor_state = {};
+
+  m_rotation = {};
+  m_position = {};
+  m_velocity = {};
 }
 
 Wiimote::Wiimote(const unsigned int index) : m_index(index), m_bt_device_index(index)
@@ -789,8 +793,68 @@ Wiimote::DynamicsData Wiimote::StepDynamics()
   EmulateShake(&m_shake_state, m_shake, step);
   EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope, step);
 
-  DynamicsData result{};
-  result.camera_transform = Common::Matrix44::Identity();
+  using Common::Quaternion;
+
+  // Update rotation and angular velocity.
+  const auto swing_rotation = Quaternion::RotateY(-m_swing_state.angle.y) *
+                              Quaternion::RotateX(-m_swing_state.angle.x) *
+                              Quaternion::RotateZ(-m_swing_state.angle.z);
+
+  const auto point_rotation =
+      Quaternion::RotateX(-m_point_state.angle.x) * Quaternion::RotateZ(-m_point_state.angle.z);
+
+  const auto tilt_rotation =
+      Quaternion::RotateY(-m_tilt_state.angle.y) * Quaternion::RotateX(-m_tilt_state.angle.x);
+
+  // TODO: think about point/swing order.
+  const auto new_rotation = (tilt_rotation * point_rotation * swing_rotation).Normalized();
+
+  DynamicsData result;
+
+  // Calculate angular velocity from change in rotation.
+  // Possibly backwards.. or maybe the transform is backwards?
+  const auto rotation_diff = m_rotation.Conjugate() * new_rotation;
+  m_rotation = new_rotation;
+
+  const auto orientation = GetOrientation();
+  const auto oriented_rotation = orientation * m_rotation;
+  const auto imu_recentered_pitch = Quaternion::RotateX(m_imu_cursor_state.recentered_pitch);
+
+  const auto imu_angular_velocity = m_imu_gyroscope->GetState().value_or(Common::Vec3());
+
+  // TODO: combine the angular velocities properly.
+  // Adding them is close but not actually correct.
+  // TODO: scale these values down to prevent wrap around.
+  // TODO: redundant calculations here..
+  // return orientation *
+  //        GetGyroscopeFromRotation(GetRotationFromGyroscope(imu_angular_velocity) *
+  //                                 GetRotationFromGyroscope(m_angular_velocity));
+
+  result.angular_velocity = orientation * (GetGyroscopeFromRotation(rotation_diff) / step +
+                                           imu_recentered_pitch * imu_angular_velocity);
+
+  // Update displacement and derivatives.
+  // Shake has rotation un-applied to be in remote space rather than world space.
+  // Point is not included here to prevent acceleration on hide/unhide.
+  const auto new_position =
+      m_swing_state.position + oriented_rotation.Conjugate() * m_shake_state.position;
+  const auto new_velocity = (new_position - m_position) / step;
+  const auto acceleration = (new_velocity - m_velocity) / step;
+  m_velocity = new_velocity;
+  m_position = new_position;
+
+  constexpr auto gravity_acceleration = Common::Vec3(0, 0, float(GRAVITY_ACCELERATION));
+
+  const auto imu_acceleration = m_imu_accelerometer->GetState().value_or(gravity_acceleration);
+  result.acceleration =
+      oriented_rotation * (acceleration + imu_recentered_pitch * imu_acceleration);
+
+  // Update camera view.
+  const auto imu_cursor_rotation = m_imu_cursor_state.rotation * imu_recentered_pitch;
+  result.camera_transform = Common::Matrix44::FromMatrix33(Common::Matrix33::FromQuaternion(
+                                imu_cursor_rotation * m_rotation)) *
+                            Common::Matrix44::Translate(-m_position - m_point_state.position);
+
   return result;
 }
 

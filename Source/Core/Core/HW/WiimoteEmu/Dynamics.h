@@ -87,6 +87,9 @@ Common::Quaternion GetRotationFromAcceleration(const Common::Vec3& accel);
 // Get a quaternion from current gyro data.
 Common::Quaternion GetRotationFromGyroscope(const Common::Vec3& gyro);
 
+// Produce gyroscope readings given a quaternion representing angular velocity.
+Common::Vec3 GetGyroscopeFromRotation(const Common::Quaternion& q);
+
 // Build a rotational matrix from euler angles.
 Common::Matrix33 GetRotationalMatrix(const Common::Vec3& angle);
 

@@ -307,6 +307,17 @@ Common::Quaternion GetRotationFromGyroscope(const Common::Vec3& gyro)
                          Common::Quaternion::Identity();
 }
 
+Common::Vec3 GetGyroscopeFromRotation(const Common::Quaternion& q)
+{
+  // Prevent division by zero or nan when angle is zero.
+  if (q.data.w >= 1)
+    return {};
+
+  const auto angle = 2 * std::acos(q.data.w);
+  const auto axis = Common::Vec3(q.data.x, q.data.y, q.data.z) / std::sqrt(1 - q.data.w * q.data.w);
+  return axis * angle;
+}
+
 Common::Matrix33 GetRotationalMatrix(const Common::Vec3& angle)
 {
   return Common::Matrix33::RotateZ(angle.z) * Common::Matrix33::RotateY(angle.y) *
