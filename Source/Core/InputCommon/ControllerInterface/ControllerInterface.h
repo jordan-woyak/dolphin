@@ -34,6 +34,10 @@
 #if defined(HAVE_SDL2)
 #define CIFACE_USE_SDL
 #endif
+// TODO:
+//#if !defined(headless)
+#define CIFACE_USE_QT
+//#endif
 
 namespace ciface
 {

@@ -34,6 +34,12 @@
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
 #include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
 #endif
+#ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
+#include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
+#endif
+#ifdef CIFACE_USE_QT
+#include "InputCommon/ControllerInterface/Qt/QtInput.h"
+#endif
 
 ControllerInterface g_controller_interface;
 
@@ -78,6 +84,9 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
   m_input_backends.emplace_back(ciface::DualShockUDPClient::CreateInputBackend(this));
 #endif
+#ifdef CIFACE_USE_QT
+  m_input_backends.emplace_back(ciface::Qt::CreateInputBackend(this));
+ #endif
 
   // Don't allow backends to add devices before the first RefreshDevices() as they will be cleaned
   // there. Or they'd end up waiting on the devices mutex if populated from another thread.
