@@ -34,10 +34,6 @@
 #if defined(HAVE_SDL2)
 #define CIFACE_USE_SDL
 #endif
-// TODO:
-//#if !defined(headless)
-#define CIFACE_USE_QT
-//#endif
 
 namespace ciface
 {
@@ -84,6 +80,9 @@ public:
   };
 
   ControllerInterface() : m_is_init(false) {}
+
+  // Must be called before initialization.
+  void AddInputBackend(std::unique_ptr<ciface::InputBackend> backend);
   void Initialize(const WindowSystemInfo& wsi);
   // Only call from one thread at a time.
   void ChangeWindow(void* hwnd, WindowChangeReason reason = WindowChangeReason::Other);

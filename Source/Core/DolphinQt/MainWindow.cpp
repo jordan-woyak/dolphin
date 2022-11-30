@@ -116,6 +116,7 @@
 #include "DolphinQt/WiiUpdate.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
+#include "InputCommon/ControllerInterface/Qt/QtInput.h"
 #include "InputCommon/GCAdapter.h"
 
 #include "UICommon/DiscordPresence.h"
@@ -217,6 +218,7 @@ MainWindow::MainWindow(std::unique_ptr<BootParameters> boot_parameters,
   setAcceptDrops(true);
   setAttribute(Qt::WA_NativeWindow);
 
+  g_controller_interface.AddInputBackend(ciface::Qt::CreateInputBackend(&g_controller_interface));
   InitControllers();
 
   CreateComponents();

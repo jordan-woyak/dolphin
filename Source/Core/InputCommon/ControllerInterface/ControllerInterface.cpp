@@ -37,9 +37,6 @@
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
 #include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
 #endif
-#ifdef CIFACE_USE_QT
-#include "InputCommon/ControllerInterface/Qt/QtInput.h"
-#endif
 
 ControllerInterface g_controller_interface;
 
@@ -48,6 +45,14 @@ ControllerInterface g_controller_interface;
 // threads as hotkeys are updated from a worker thread, but UI can read from the main thread. This
 // will never interfere with game threads.
 static thread_local ciface::InputChannel tls_input_channel = ciface::InputChannel::Host;
+
+void ControllerInterface::AddInputBackend(std::unique_ptr<ciface::InputBackend> backend)
+{
+  if (m_is_init)
+    return;
+
+  m_input_backends.emplace_back(std::move(backend));
+}
 
 void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 {
@@ -70,23 +75,20 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 // nothing needed for OSX and Quartz
 #endif
 #ifdef CIFACE_USE_SDL
-  m_input_backends.emplace_back(ciface::SDL::CreateInputBackend(this));
+  AddInputBackend(ciface::SDL::CreateInputBackend(this));
 #endif
 #ifdef CIFACE_USE_ANDROID
 // nothing needed
 #endif
 #ifdef CIFACE_USE_EVDEV
-  m_input_backends.emplace_back(ciface::evdev::CreateInputBackend(this));
+  AddInputBackend(ciface::evdev::CreateInputBackend(this));
 #endif
 #ifdef CIFACE_USE_PIPES
 // nothing needed
 #endif
 #ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
-  m_input_backends.emplace_back(ciface::DualShockUDPClient::CreateInputBackend(this));
+  AddInputBackend(ciface::DualShockUDPClient::CreateInputBackend(this));
 #endif
-#ifdef CIFACE_USE_QT
-  m_input_backends.emplace_back(ciface::Qt::CreateInputBackend(this));
- #endif
 
   // Don't allow backends to add devices before the first RefreshDevices() as they will be cleaned
   // there. Or they'd end up waiting on the devices mutex if populated from another thread.
