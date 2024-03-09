@@ -41,6 +41,8 @@ add_library(inputcommon
   ControllerEmu/ControlGroup/MixedTriggers.h
   ControllerEmu/ControlGroup/ModifySettingsButton.cpp
   ControllerEmu/ControlGroup/ModifySettingsButton.h
+  ControllerEmu/ControlGroup/RawIR.cpp
+  ControllerEmu/ControlGroup/RawIR.h
   ControllerEmu/ControlGroup/Slider.cpp
   ControllerEmu/ControlGroup/Slider.h
   ControllerEmu/ControlGroup/Tilt.cpp

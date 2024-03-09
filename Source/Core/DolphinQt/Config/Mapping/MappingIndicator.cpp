@@ -17,11 +17,14 @@
 
 #include "Common/MathUtil.h"
 
+#include "Core/HW/WiimoteEmu/Camera.h"
+
 #include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerEmu/Control/Control.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Cursor.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Force.h"
 #include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
+#include "InputCommon/ControllerEmu/ControlGroup/RawIR.h"
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 
@@ -821,6 +824,37 @@ void GyroMappingIndicator::Draw()
   // Blue dot target.
   p.setPen(GetCenterColor());
   p.drawEllipse(QPointF{}, INPUT_DOT_RADIUS, INPUT_DOT_RADIUS);
+}
+
+void RawIRMappingIndicator::Draw()
+{
+  QPainter p(this);
+  DrawBoundingBox(p);
+  TransformPainter(p);
+
+  const auto obj_count = m_raw_ir_group.GetObjectCount();
+
+  if (obj_count == 0)
+    return;
+
+  const auto position = QPointF{m_raw_ir_group.GetYaw(), m_raw_ir_group.GetPitch()};
+  const auto rotation = QTransform().rotateRadians(m_raw_ir_group.GetRoll() * MathUtil::PI);
+  const auto distance = m_raw_ir_group.GetDistance();
+  auto dot_offset = rotation.map(QPointF{
+      WiimoteEmu::CameraLogic::SENSOR_BAR_LED_SEPARATION * (obj_count > 1) / distance / 2, 0});
+
+  // const auto dot_scale = QPointF{,
+  //                                std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_Y / 2)};
+
+  dot_offset = QTransform()
+                   .scale(1 / std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_X / 2),
+                          1 / std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_Y / 2))
+                   .map(dot_offset);
+
+  p.setPen(GetInputDotPen(GetAdjustedInputColor()));
+
+  p.drawPoint(position - dot_offset);
+  p.drawPoint(position + dot_offset);
 }
 
 void ReshapableInputIndicator::DrawCalibration(QPainter& p, Common::DVec2 point)

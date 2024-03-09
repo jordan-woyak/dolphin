@@ -18,6 +18,7 @@ class ControlGroup;
 class Cursor;
 class Force;
 class MixedTriggers;
+class RawIR;
 }  // namespace ControllerEmu
 
 class QPainter;
@@ -178,6 +179,17 @@ private:
   Common::Quaternion m_state = Common::Quaternion::Identity();
   Common::Vec3 m_previous_velocity = {};
   u32 m_stable_steps = 0;
+};
+
+class RawIRMappingIndicator : public SquareIndicator
+{
+public:
+  explicit RawIRMappingIndicator(ControllerEmu::RawIR& raw_ir) : m_raw_ir_group(raw_ir) {}
+
+private:
+  void Draw() override;
+
+  ControllerEmu::RawIR& m_raw_ir_group;
 };
 
 class CalibrationWidget : public QToolButton

@@ -52,16 +52,19 @@ int CameraLogic::BusWrite(u8 slave_addr, u8 addr, int count, const u8* data_in)
 }
 
 std::array<CameraPoint, CameraLogic::NUM_POINTS>
-CameraLogic::GetCameraPoints(const Common::Matrix44& transform, Common::Vec2 field_of_view)
+CameraLogic::GetCameraPoints(const Common::Matrix44& transform, Common::Vec2 field_of_view,
+                             int object_count)
 {
   using Common::Matrix33;
   using Common::Matrix44;
   using Common::Vec3;
   using Common::Vec4;
 
+  const auto led_offset = SENSOR_BAR_LED_SEPARATION / 2 * (object_count > 1);
+
   const std::array<Vec3, NUM_POINTS> leds{
-      Vec3{-SENSOR_BAR_LED_SEPARATION / 2, 0, 0},
-      Vec3{SENSOR_BAR_LED_SEPARATION / 2, 0, 0},
+      Vec3{-led_offset, 0, 0},
+      Vec3{led_offset, 0, 0},
   };
 
   const auto camera_view =
@@ -70,7 +73,8 @@ CameraLogic::GetCameraPoints(const Common::Matrix44& transform, Common::Vec2 fie
 
   std::array<CameraPoint, leds.size()> camera_points;
 
-  std::transform(leds.begin(), leds.end(), camera_points.begin(), [&](const Vec3& v) {
+  const auto led_count = std::min<std::size_t>(object_count, camera_points.size());
+  std::transform(leds.begin(), leds.begin() + led_count, camera_points.begin(), [&](const Vec3& v) {
     const auto point = camera_view * Vec4(v, 1.0);
 
     // Check if LED is behind camera.

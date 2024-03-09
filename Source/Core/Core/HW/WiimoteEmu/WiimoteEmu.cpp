@@ -50,6 +50,7 @@
 #include "InputCommon/ControllerEmu/ControlGroup/IMUCursor.h"
 #include "InputCommon/ControllerEmu/ControlGroup/IMUGyroscope.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ModifySettingsButton.h"
+#include "InputCommon/ControllerEmu/ControlGroup/RawIR.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Tilt.h"
 
 namespace WiimoteEmu
@@ -254,6 +255,7 @@ Wiimote::Wiimote(const unsigned int index) : m_index(index), m_bt_device_index(i
                           ACCELEROMETER_GROUP, _trans("Accelerometer")));
   groups.emplace_back(m_imu_gyroscope =
                           new ControllerEmu::IMUGyroscope(GYROSCOPE_GROUP, _trans("Gyroscope")));
+  groups.emplace_back(m_raw_ir = new ControllerEmu::RawIR());
 
   // Hotkeys
   groups.emplace_back(m_hotkeys = new ControllerEmu::ModifySettingsButton(_trans("Hotkeys")));
@@ -360,6 +362,8 @@ ControllerEmu::ControlGroup* Wiimote::GetWiimoteGroup(WiimoteGroup group) const
     return m_imu_gyroscope;
   case WiimoteGroup::IMUPoint:
     return m_imu_ir;
+  case WiimoteGroup::RawIR:
+    return m_raw_ir;
   default:
     ASSERT(false);
     return nullptr;
@@ -475,7 +479,8 @@ void Wiimote::BuildDesiredWiimoteState(DesiredWiimoteState* target_state,
     target_state->camera_points = CameraLogic::GetCameraPoints(
         GetTotalTransformation(),
         Common::Vec2(m_fov_x_setting.GetValue(), m_fov_y_setting.GetValue()) / 360 *
-            float(MathUtil::TAU));
+            float(MathUtil::TAU),
+        m_raw_ir->GetObjectCount());
   }
   else
   {
@@ -705,10 +710,10 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
   // B
   m_buttons->SetControlExpression(1, "`Click 1`");
 #endif
-  m_buttons->SetControlExpression(2, "`1`");     // 1
-  m_buttons->SetControlExpression(3, "`2`");     // 2
-  m_buttons->SetControlExpression(4, "Q");       // -
-  m_buttons->SetControlExpression(5, "E");       // +
+  m_buttons->SetControlExpression(2, "`1`");  // 1
+  m_buttons->SetControlExpression(3, "`2`");  // 2
+  m_buttons->SetControlExpression(4, "Q");    // -
+  m_buttons->SetControlExpression(5, "E");    // +
 
 #ifdef _WIN32
   m_buttons->SetControlExpression(6, "RETURN");  // Home
@@ -817,7 +822,8 @@ void Wiimote::StepDynamics()
 {
   EmulateSwing(&m_swing_state, m_swing, 1.f / ::Wiimote::UPDATE_FREQ);
   EmulateTilt(&m_tilt_state, m_tilt, 1.f / ::Wiimote::UPDATE_FREQ);
-  EmulatePoint(&m_point_state, m_ir, m_input_override_function, 1.f / ::Wiimote::UPDATE_FREQ);
+  EmulatePoint(&m_point_state, m_ir, m_raw_ir, m_input_override_function,
+               1.f / ::Wiimote::UPDATE_FREQ);
   EmulateShake(&m_shake_state, m_shake, 1.f / ::Wiimote::UPDATE_FREQ);
   EmulateIMUCursor(&m_imu_cursor_state, m_imu_ir, m_imu_accelerometer, m_imu_gyroscope,
                    1.f / ::Wiimote::UPDATE_FREQ);
@@ -944,9 +950,16 @@ Common::Vec3 Wiimote::GetTotalAngularVelocity() const
 
 Common::Matrix44 Wiimote::GetTotalTransformation() const
 {
-  return GetTransformation(Common::Matrix33::FromQuaternion(
-      m_imu_cursor_state.rotation *
-      Common::Quaternion::RotateX(m_imu_cursor_state.recentered_pitch)));
+  const auto raw_ir_rotation =
+      Common::Quaternion::RotateZ(m_raw_ir->GetYaw() * CameraLogic::CAMERA_FOV_X * 0.5) *
+      Common::Quaternion::RotateX(m_raw_ir->GetPitch() * CameraLogic::CAMERA_FOV_Y * -0.5) *
+      Common::Quaternion::RotateY(m_raw_ir->GetRoll() * MathUtil::PI);
+
+  const auto motion_input_rotation =
+      m_imu_cursor_state.rotation * raw_ir_rotation *
+      Common::Quaternion::RotateX(m_imu_cursor_state.recentered_pitch);
+
+  return GetTransformation(Common::Matrix33::FromQuaternion(motion_input_rotation));
 }
 
 }  // namespace WiimoteEmu

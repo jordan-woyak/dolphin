@@ -223,6 +223,7 @@ WiimoteCommon::AccelData ConvertAccelData(const Common::Vec3& accel, u16 zero_g,
 }
 
 void EmulatePoint(MotionState* state, ControllerEmu::Cursor* ir_group,
+                  ControllerEmu::RawIR* raw_ir_group,
                   const ControllerEmu::InputOverrideFunction& override_func, float time_elapsed)
 {
   const auto cursor = ir_group->GetState(true, override_func);
@@ -235,8 +236,8 @@ void EmulatePoint(MotionState* state, ControllerEmu::Cursor* ir_group,
     return;
   }
 
-  // Nintendo recommends a distance of 1-3 meters.
-  constexpr float NEUTRAL_DISTANCE = 2.f;
+  // Use distance setting from "Motion Input" section.
+  const float neutral_distance = raw_ir_group->GetDistance();
 
   // When the sensor bar position is on bottom, apply the "offset" setting negatively.
   // This is kinda odd but it does seem to maintain consistent cursor behavior.
@@ -248,7 +249,7 @@ void EmulatePoint(MotionState* state, ControllerEmu::Cursor* ir_group,
   const float pitch_scale = ir_group->GetTotalPitch() / 2;
 
   // Just jump to the target position.
-  state->position = {0, NEUTRAL_DISTANCE, -height};
+  state->position = {0, neutral_distance, -height};
   state->velocity = {};
   state->acceleration = {};
 

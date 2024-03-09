@@ -126,7 +126,7 @@ private:
   {
     static u32 GetDesiredIRSensitivity();
 
-    void ProcessData(const std::array<WiimoteEmu::IRBasic, 2>&);
+    void ProcessData(float roll, const std::array<WiimoteEmu::IRBasic, 2>&);
     bool IsFullyConfigured() const;
 
     u32 current_sensitivity = u32(-1);
@@ -137,8 +137,9 @@ private:
     Common::Vec2 center_position = {};
 
     float distance = 0;
+    float rotation = 0;
 
-    bool is_hidden = true;
+    std::size_t obj_count = 0;
   };
 
   class ReportHandler

@@ -36,6 +36,7 @@ class IMUGyroscope;
 class IMUCursor;
 class ModifySettingsButton;
 class Output;
+class RawIR;
 class Tilt;
 }  // namespace ControllerEmu
 
@@ -55,6 +56,7 @@ enum class WiimoteGroup
   Rumble,
   Attachments,
   Options,
+  RawIR,
   Hotkeys,
   IMUAccelerometer,
   IMUGyroscope,
@@ -300,6 +302,7 @@ private:
   ControllerEmu::IMUAccelerometer* m_imu_accelerometer;
   ControllerEmu::IMUGyroscope* m_imu_gyroscope;
   ControllerEmu::IMUCursor* m_imu_ir;
+  ControllerEmu::RawIR* m_raw_ir;
 
   ControllerEmu::SettingValue<bool> m_sideways_setting;
   ControllerEmu::SettingValue<bool> m_upright_setting;

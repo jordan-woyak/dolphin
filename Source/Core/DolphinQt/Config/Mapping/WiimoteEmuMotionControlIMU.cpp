@@ -52,6 +52,8 @@ void WiimoteEmuMotionControlIMU::CreateMainLayout()
       Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUAccelerometer)));
   groups_layout->addWidget(
       CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUGyroscope)));
+  groups_layout->addWidget(
+      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::RawIR)));
 
   m_main_layout = new QVBoxLayout();
   m_main_layout->addLayout(warning_layout);

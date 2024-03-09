@@ -5,6 +5,7 @@
 
 #include <QCheckBox>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QString>
 
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
@@ -23,6 +24,20 @@ private:
   void Update();
 
   ControllerEmu::NumericSetting<double>& m_setting;
+};
+
+class MappingInt : public QSpinBox
+{
+public:
+  MappingInt(MappingWidget* parent, ControllerEmu::NumericSetting<int>* setting);
+
+private:
+  void fixup(QString& input) const override;
+
+  void ConfigChanged();
+  void Update();
+
+  ControllerEmu::NumericSetting<int>& m_setting;
 };
 
 class MappingBool : public QCheckBox

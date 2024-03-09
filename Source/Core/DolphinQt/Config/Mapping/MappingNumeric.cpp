@@ -70,6 +70,63 @@ void MappingDouble::Update()
   setValue(m_setting.GetValue());
 }
 
+MappingInt::MappingInt(MappingWidget* parent, ControllerEmu::NumericSetting<int>* setting)
+    : QSpinBox(parent), m_setting(*setting)
+{
+  if (const auto ui_description = m_setting.GetUIDescription())
+    setToolTip(tr(ui_description));
+
+  connect(this, &QSpinBox::valueChanged, this, [this, parent](double value) {
+    m_setting.SetValue(value);
+    ConfigChanged();
+    parent->SaveSettings();
+  });
+
+  connect(parent, &MappingWidget::ConfigChanged, this, &MappingInt::ConfigChanged);
+  connect(parent, &MappingWidget::Update, this, &MappingInt::Update);
+}
+
+// Overriding QSpinBox's fixup to set the default value when input is cleared.
+void MappingInt::fixup(QString& input) const
+{
+  input = QString::number(m_setting.GetDefaultValue());
+}
+
+void MappingInt::ConfigChanged()
+{
+  const QSignalBlocker blocker(this);
+
+  QString suffix;
+
+  if (const auto ui_suffix = m_setting.GetUISuffix())
+    suffix += QLatin1Char{' '} + tr(ui_suffix);
+
+  if (m_setting.IsSimpleValue())
+  {
+    setRange(m_setting.GetMinValue(), m_setting.GetMaxValue());
+    setButtonSymbols(ButtonSymbols::UpDownArrows);
+  }
+  else
+  {
+    setRange(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+    setButtonSymbols(ButtonSymbols::NoButtons);
+    suffix += QString::fromUtf8(" 🎮");
+  }
+
+  setSuffix(suffix);
+
+  setValue(m_setting.GetValue());
+}
+
+void MappingInt::Update()
+{
+  if (m_setting.IsSimpleValue() || hasFocus())
+    return;
+
+  const QSignalBlocker blocker(this);
+  setValue(m_setting.GetValue());
+}
+
 MappingBool::MappingBool(MappingWidget* parent, ControllerEmu::NumericSetting<bool>* setting)
     : QCheckBox(parent), m_setting(*setting)
 {

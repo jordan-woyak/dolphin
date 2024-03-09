@@ -197,9 +197,11 @@ Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote) : m_wiimote(std::m
         new UndetectableSignedAnalogInput(&m_ir_state.center_position.data[i], ir_names[i], 1.f));
   }
 
-  AddInput(new UndetectableAnalogInput<bool>(&m_ir_state.is_hidden, "IR Hidden", 1));
+  AddInput(new UndetectableSignedAnalogInput(&m_ir_state.rotation, "IR Roll", -1.f));
+  AddInput(new UndetectableSignedAnalogInput(&m_ir_state.rotation, "IR Roll", 1.f));
 
   AddInput(new UndetectableAnalogInput<float>(&m_ir_state.distance, "IR Distance", 1));
+  AddInput(new UndetectableAnalogInput<std::size_t>(&m_ir_state.obj_count, "IR Object Count", 1));
 
   // Raw gyroscope.
   static constexpr std::array<std::array<const char*, 2>, 3> gyro_names = {{
@@ -1179,6 +1181,7 @@ void Device::ProcessInputReport(WiimoteReal::Report& report)
   if (manipulator->HasIR() && m_ir_state.IsFullyConfigured())
   {
     m_ir_state.ProcessData(
+        m_rotation_inputs.y,
         Common::BitCastPtr<std::array<WiimoteEmu::IRBasic, 2>>(manipulator->GetIRDataPtr()));
   }
 
@@ -1222,7 +1225,7 @@ void Device::UpdateOrientation()
   }
 
   // If IR objects are visible we can perform yaw and pitch correction.
-  if (!m_ir_state.is_hidden)
+  if (m_ir_state.obj_count != 0)
   {
     // FYI: We could do some roll correction from multiple IR objects.
 
@@ -1251,7 +1254,7 @@ void Device::UpdateOrientation()
       float(MathUtil::PI);
 }
 
-void Device::IRState::ProcessData(const std::array<WiimoteEmu::IRBasic, 2>& data)
+void Device::IRState::ProcessData(float roll, const std::array<WiimoteEmu::IRBasic, 2>& data)
 {
   // A better implementation might extrapolate points when they fall out of camera view.
   // But just averaging visible points actually seems to work very well.
@@ -1263,26 +1266,32 @@ void Device::IRState::ProcessData(const std::array<WiimoteEmu::IRBasic, 2>& data
   const auto camera_max = IRObject(WiimoteEmu::CameraLogic::CAMERA_RES_X - 1,
                                    WiimoteEmu::CameraLogic::CAMERA_RES_Y - 1);
 
-  const auto add_point = [&](IRObject point) {
-    // Non-visible points are 0xFF-filled.
-    if (point.y > camera_max.y)
-      return;
+  const auto with_points = [&](auto func) {
+    const auto process_point = [&](IRObject point) {
+      // Non-visible points are 0xFF-filled.
+      if (point.y > camera_max.y)
+        return;
 
-    points.Push(Common::Vec2(point));
+      func(Common::Vec2(point));
+    };
+
+    for (auto& block : data)
+    {
+      process_point(block.GetObject1());
+      process_point(block.GetObject2());
+    }
   };
 
-  for (auto& block : data)
-  {
-    add_point(block.GetObject1());
-    add_point(block.GetObject2());
-  }
+  with_points([&](auto point) { points.Push(point); });
 
-  is_hidden = !points.Count();
+  obj_count = points.Count();
 
   if (points.Count() >= 2)
   {
+    // Update distance and rotation with at least two points visible.
+
     const auto variance = points.PopulationVariance();
-    // Adjusts Y coorinate to match horizontal FOV.
+    // Adjusts Y coordinate to match horizontal FOV.
     const auto separation =
         Common::Vec2(std::sqrt(variance.x), std::sqrt(variance.y)) /
         Common::Vec2(WiimoteEmu::CameraLogic::CAMERA_RES_X,
@@ -1305,22 +1314,11 @@ void Device::IRState::ProcessData(const std::array<WiimoteEmu::IRBasic, 2>& data
     slope.y += !slope.LengthSquared();
 
     rotation = std::atan2(slope.y, slope.x) / MathUtil::PI;
-
-    // TODO: this is a problem. everything breaks with upside wii remote because of the vertical
-    // offset..
-    // IR provides no upside-down indication so values roll over after 90 degrees. Correct
-    // upside-down values with accel/gyro orientation data. This isn't really needed for "raw" IR
-    // passthrough, but it makes the inputs more useful. rotation = std::fmod(rotation + 1 + ((roll
-    // > 0) != (rotation > 0)), 2.f) - 1;
   }
 
   if (points.Count())
   {
     center_position = points.Mean() / Common::Vec2(camera_max) * 2.f - Common::Vec2(1, 1);
-  }
-  else
-  {
-    center_position = {};
   }
 }
 

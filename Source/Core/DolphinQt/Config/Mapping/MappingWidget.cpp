@@ -24,6 +24,7 @@
 #include "InputCommon/ControllerEmu/Control/Control.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
 #include "InputCommon/ControllerEmu/ControlGroup/MixedTriggers.h"
+#include "InputCommon/ControllerEmu/ControlGroup/RawIR.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
 #include "InputCommon/ControllerEmu/StickGate.h"
@@ -89,6 +90,10 @@ QGroupBox* MappingWidget::CreateGroupBox(const QString& name, ControllerEmu::Con
 
   case ControllerEmu::GroupType::IMUGyroscope:
     indicator = new GyroMappingIndicator(*static_cast<ControllerEmu::IMUGyroscope*>(group));
+    break;
+
+  case ControllerEmu::GroupType::RawIR:
+    indicator = new RawIRMappingIndicator(*static_cast<ControllerEmu::RawIR*>(group));
     break;
 
   case ControllerEmu::GroupType::Stick:
@@ -203,13 +208,17 @@ void MappingWidget::AddSettingWidgets(QFormLayout* layout, ControllerEmu::Contro
           this, static_cast<ControllerEmu::NumericSetting<double>*>(setting.get()));
       break;
 
+    case ControllerEmu::SettingType::Int:
+      setting_widget =
+          new MappingInt(this, static_cast<ControllerEmu::NumericSetting<int>*>(setting.get()));
+      break;
+
     case ControllerEmu::SettingType::Bool:
       setting_widget =
           new MappingBool(this, static_cast<ControllerEmu::NumericSetting<bool>*>(setting.get()));
       break;
 
     default:
-      // FYI: Widgets for additional types can be implemented as needed.
       break;
     }
 
