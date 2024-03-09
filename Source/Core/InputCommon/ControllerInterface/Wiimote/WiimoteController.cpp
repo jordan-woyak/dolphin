@@ -1291,6 +1291,27 @@ void Device::IRState::ProcessData(const std::array<WiimoteEmu::IRBasic, 2>& data
 
     distance = WiimoteEmu::CameraLogic::SENSOR_BAR_LED_SEPARATION / separation.Length() / 2 /
                std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_X / 2);
+
+    const auto mean = points.Mean();
+
+    // Calculate IR rotation using linear least squares.
+    Common::Vec2 slope = {};
+    with_points([&](auto point) {
+      const auto x_sub_mean = point.x - mean.x;
+      slope += Common::Vec2(x_sub_mean * x_sub_mean, x_sub_mean * (point.y - mean.y));
+    });
+
+    // Handle hypothetical situation of no discernible slope.
+    slope.y += !slope.LengthSquared();
+
+    rotation = std::atan2(slope.y, slope.x) / MathUtil::PI;
+
+    // TODO: this is a problem. everything breaks with upside wii remote because of the vertical
+    // offset..
+    // IR provides no upside-down indication so values roll over after 90 degrees. Correct
+    // upside-down values with accel/gyro orientation data. This isn't really needed for "raw" IR
+    // passthrough, but it makes the inputs more useful. rotation = std::fmod(rotation + 1 + ((roll
+    // > 0) != (rotation > 0)), 2.f) - 1;
   }
 
   if (points.Count())
