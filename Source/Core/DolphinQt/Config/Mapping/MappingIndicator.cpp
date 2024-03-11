@@ -843,9 +843,6 @@ void RawIRMappingIndicator::Draw()
   auto dot_offset = rotation.map(QPointF{
       WiimoteEmu::CameraLogic::SENSOR_BAR_LED_SEPARATION * (obj_count > 1) / distance / 2, 0});
 
-  // const auto dot_scale = QPointF{,
-  //                                std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_Y / 2)};
-
   dot_offset = QTransform()
                    .scale(1 / std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_X / 2),
                           1 / std::tan(WiimoteEmu::CameraLogic::CAMERA_FOV_Y / 2))
