@@ -1002,4 +1002,15 @@ ParseResult ParseExpression(const std::string& str)
                                                              std::move(complex_result.expr));
   return complex_result;
 }
+
+std::string PrepareForIniFile(std::string expr)
+{
+  return ReplaceAll(std::move(expr), "\n", "/*\\n*/");
+}
+
+std::string AdjustFromIniFile(std::string expr)
+{
+  return ReplaceAll(std::move(expr), "/*\\n*/", "\n");
+}
+
 }  // namespace ciface::ExpressionParser

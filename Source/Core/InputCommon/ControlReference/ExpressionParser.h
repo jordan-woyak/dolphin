@@ -197,4 +197,7 @@ ParseResult ParseExpression(const std::string& expr);
 ParseResult ParseTokens(const std::vector<Token>& tokens);
 void RemoveInertTokens(std::vector<Token>* tokens);
 
+std::string PrepareForIniFile(std::string expr);
+std::string AdjustFromIniFile(std::string expr);
+
 }  // namespace ciface::ExpressionParser

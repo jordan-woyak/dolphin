@@ -68,7 +68,7 @@ void ControlGroup::LoadConfig(Common::IniFile::Section* sec, const std::string& 
       // control expression
       std::string expression;
       sec->Get(group + c->name, &expression, "");
-      c->control_ref->SetExpression(std::move(expression));
+      c->control_ref->SetExpression(ciface::ExpressionParser::AdjustFromIniFile(expression));
     }
 
     // range
@@ -88,7 +88,8 @@ void ControlGroup::LoadConfig(Common::IniFile::Section* sec, const std::string& 
 
     // First assume attachment string is a valid expression.
     // If it instead matches one of the names of our attachments it is overridden below.
-    ext->GetSelectionSetting().GetInputReference().SetExpression(attachment_text);
+    ext->GetSelectionSetting().GetInputReference().SetExpression(
+        ciface::ExpressionParser::AdjustFromIniFile(attachment_text));
 
     for (auto& ai : ext->GetAttachmentList())
     {
@@ -118,9 +119,7 @@ void ControlGroup::SaveConfig(Common::IniFile::Section* sec, const std::string& 
   {
     // control expression
     std::string expression = c->control_ref->GetExpression();
-    // We can't save line breaks in a single line config. Restoring them is too complicated.
-    ReplaceBreaksWithSpaces(expression);
-    sec->Set(group + c->name, expression, "");
+    sec->Set(group + c->name, ciface::ExpressionParser::PrepareForIniFile(expression), "");
 
     // range
     sec->Set(group + c->name + "/Range", c->control_ref->range * 100.0, 100.0);
@@ -138,9 +137,8 @@ void ControlGroup::SaveConfig(Common::IniFile::Section* sec, const std::string& 
     }
     else
     {
-      std::string expression = ext->GetSelectionSetting().GetInputReference().GetExpression();
-      ReplaceBreaksWithSpaces(expression);
-      sec->Set(base + name, expression, "None");
+      const std::string expression = ext->GetSelectionSetting().GetInputReference().GetExpression();
+      sec->Set(base + name, ciface::ExpressionParser::PrepareForIniFile(expression), "None");
     }
 
     for (auto& ai : ext->GetAttachmentList())
