@@ -3,16 +3,13 @@
 
 #include "Core/HW/WiimoteEmu/Extension/BalanceBoard.h"
 
-#include <algorithm>
 #include <array>
 #include <cstring>
 
 #include <zlib.h>
 
-#include "Common/BitUtils.h"
 #include "Common/Common.h"
 #include "Common/CommonTypes.h"
-#include "Common/MathUtil.h"
 #include "Common/Swap.h"
 
 #include "Core/HW/Wiimote.h"
