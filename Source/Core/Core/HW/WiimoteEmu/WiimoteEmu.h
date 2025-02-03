@@ -462,8 +462,8 @@ protected:
   void BuildDesiredWiimoteState(DesiredWiimoteState* target_state,
                                 SensorBarState sensor_bar_state) override;
 
-  Common::Vec3 GetTotalAcceleration() const { return {}; }
-  Common::Vec3 GetTotalAngularVelocity() const { return {}; }
+  Common::Vec3 GetTotalAcceleration() const override { return {}; }
+  Common::Vec3 GetTotalAngularVelocity() const override { return {}; }
 
   void HandleReportRumble(const WiimoteCommon::OutputReportRumble&) override;
   void HandleIRLogicEnable(const WiimoteCommon::OutputReportEnableFeature&) override;
@@ -473,7 +473,7 @@ protected:
   void HandleSpeakerData(const WiimoteCommon::OutputReportSpeakerData&) override;
 
 private:
-  EncryptionKey GetExtensionEncryptionKey() const { return m_ext.ext_key; }
+  EncryptionKey GetExtensionEncryptionKey() const override { return m_ext.ext_key; }
   BalanceBoardExt m_ext{this};
 
   ControllerEmu::Buttons* m_buttons;
