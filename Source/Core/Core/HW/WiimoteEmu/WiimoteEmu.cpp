@@ -1027,7 +1027,7 @@ void BalanceBoard::LoadDefaults(const ControllerInterface& ciface)
   m_balance->SetControlExpression(3, "L");  // right
 
   // Because our defaults use keyboard input, set calibration shape to a square.
-  m_balance->SetCalibrationFromGate(ControllerEmu::SquareStickGate(.5));
+  m_balance->SetCalibrationFromGate(ControllerEmu::SquareStickGate(1.0));
 }
 
 // This is called every ::Wiimote::UPDATE_FREQ (200hz)
