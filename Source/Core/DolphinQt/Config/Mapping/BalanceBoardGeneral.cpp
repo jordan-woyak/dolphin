@@ -32,18 +32,14 @@ void BalanceBoardGeneral::CreateMainLayout()
                                         GetPort(), WiimoteEmu::BalanceBoardGroup::Buttons)),
       0, 0);
   layout->addWidget(
-      CreateGroupBox(tr("Weight"), Wiimote::GetBalanceBoardGroup(
-                                       GetPort(), WiimoteEmu::BalanceBoardGroup::Weight)),
-      0, 1);
-  layout->addWidget(
       CreateGroupBox(tr("Balance"), Wiimote::GetBalanceBoardGroup(
                                         GetPort(), WiimoteEmu::BalanceBoardGroup::Balance)),
-      0, 2);
+      0, 1);
 
   layout->addWidget(
       CreateGroupBox(tr("Options"), Wiimote::GetBalanceBoardGroup(
                                         GetPort(), WiimoteEmu::BalanceBoardGroup::Options)),
-      0, 3);
+      0, 2);
 
   setLayout(layout);
 }

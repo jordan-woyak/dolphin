@@ -31,10 +31,9 @@ BalanceBoardExt::BalanceBoardExt(BalanceBoard* owner)
 void BalanceBoardExt::BuildDesiredExtensionState(DesiredExtensionState* target_state)
 {
   const ControllerEmu::AnalogStick::StateData balance_state = m_owner->m_balance->GetState();
-  const ControllerEmu::Triggers::StateData weight_state = m_owner->m_weight->GetState();
-  const auto weight = weight_state.data[0];
 
-  const double total_weight = DEFAULT_WEIGHT * weight;  // kilograms
+  // kilograms
+  const double total_weight = m_owner->m_weight_setting.GetCachedValue();
 
   auto top_right = total_weight * (1 + balance_state.x + balance_state.y) / 4;
   auto bottom_right = total_weight * (1 + balance_state.x - balance_state.y) / 4;

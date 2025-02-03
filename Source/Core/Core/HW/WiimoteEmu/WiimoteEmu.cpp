@@ -17,7 +17,6 @@
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
-#include "Common/MsgHandler.h"
 
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
@@ -40,8 +39,6 @@
 #include "Core/HW/WiimoteEmu/Extension/Turntable.h"
 #include "Core/HW/WiimoteEmu/Extension/UDrawTablet.h"
 
-#include "InputCommon/ControllerEmu/Control/Input.h"
-#include "InputCommon/ControllerEmu/Control/Output.h"
 #include "InputCommon/ControllerEmu/ControlGroup/AnalogStick.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Attachments.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
@@ -54,7 +51,6 @@
 #include "InputCommon/ControllerEmu/ControlGroup/IRPassthrough.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ModifySettingsButton.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Tilt.h"
-#include "InputCommon/ControllerEmu/ControlGroup/Triggers.h"
 
 namespace WiimoteEmu
 {
@@ -768,10 +764,10 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
   // B
   m_buttons->SetControlExpression(1, "`Click 1`");
 #endif
-  m_buttons->SetControlExpression(2, "`1`");     // 1
-  m_buttons->SetControlExpression(3, "`2`");     // 2
-  m_buttons->SetControlExpression(4, "Q");       // -
-  m_buttons->SetControlExpression(5, "E");       // +
+  m_buttons->SetControlExpression(2, "`1`");  // 1
+  m_buttons->SetControlExpression(3, "`2`");  // 2
+  m_buttons->SetControlExpression(4, "Q");    // -
+  m_buttons->SetControlExpression(5, "E");    // +
 
 #ifdef _WIN32
   m_buttons->SetControlExpression(6, "RETURN");  // Home
@@ -1024,9 +1020,6 @@ void BalanceBoard::LoadDefaults(const ControllerInterface& ciface)
 
   m_buttons->SetControlExpression(0, "`P`");  // Power
 
-  // Weight
-  m_weight->SetControlExpression(0, "SPACE");
-
   // Balance
   m_balance->SetControlExpression(0, "I");  // up
   m_balance->SetControlExpression(1, "K");  // down
@@ -1069,11 +1062,6 @@ BalanceBoard::BalanceBoard(const u8 index) : WiimoteBase(index)
   groups.emplace_back(
       m_balance = new ControllerEmu::AnalogStick(
           _trans("Balance"), std::make_unique<ControllerEmu::SquareStickGate>(1.0)));
-  groups.emplace_back(m_weight = new ControllerEmu::Triggers(_trans("Weight")));
-
-  // Weight
-  m_weight->controls.emplace_back(
-      new ControllerEmu::Input(Translatability::Translate, _trans("Weight")));
 
   // Options
   groups.emplace_back(m_options = new ControllerEmu::ControlGroup(_trans("Options")));
@@ -1083,6 +1071,12 @@ BalanceBoard::BalanceBoard(const u8 index) : WiimoteBase(index)
                          // i18n: The percent symbol.
                          _trans("%")},
                         95, 0, 100);
+
+  m_options->AddSetting(&m_weight_setting,
+                        {_trans("Weight"),
+                         // i18n: The abbreviation for kilograms.
+                         _trans("kg")},
+                        BalanceBoardExt::DEFAULT_WEIGHT, 0, 250);
 
   Reset();
 }
@@ -1097,8 +1091,6 @@ ControllerEmu::ControlGroup* BalanceBoard::GetBalanceBoardGroup(BalanceBoardGrou
     return m_options;
   case BalanceBoardGroup::Balance:
     return m_balance;
-  case BalanceBoardGroup::Weight:
-    return m_weight;
   default:
     ASSERT(false);
     return nullptr;

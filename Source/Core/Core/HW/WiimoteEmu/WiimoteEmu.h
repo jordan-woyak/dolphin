@@ -70,7 +70,6 @@ enum class BalanceBoardGroup
 {
   Buttons,
   Balance,
-  Weight,
   Options,
 };
 
@@ -478,10 +477,10 @@ private:
 
   ControllerEmu::Buttons* m_buttons;
   ControllerEmu::AnalogStick* m_balance;
-  ControllerEmu::Triggers* m_weight;
   ControllerEmu::ControlGroup* m_options;
 
   ControllerEmu::SubscribableSettingValue<bool> m_fake_motion_plus_setting;
   ControllerEmu::SubscribableSettingValue<int> m_fake_attachment_setting;
+  ControllerEmu::SettingValue<double> m_weight_setting;
 };
 }  // namespace WiimoteEmu
