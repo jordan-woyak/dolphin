@@ -116,6 +116,7 @@ public:
 
 protected:
   // Controls/Settings added after this call are located under "Advanced" in the UI.
+  // TODO: better name
   void MarkAdvancedBegin();
 
 private:
