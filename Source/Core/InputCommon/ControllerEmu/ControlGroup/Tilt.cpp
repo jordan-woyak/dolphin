@@ -8,9 +8,7 @@
 #include "Common/Common.h"
 #include "Common/MathUtil.h"
 
-#include "InputCommon/ControlReference/ControlReference.h"
 #include "InputCommon/ControllerEmu/Control/Control.h"
-#include "InputCommon/ControllerEmu/Control/Input.h"
 #include "InputCommon/ControllerEmu/Setting/NumericSetting.h"
 
 namespace ControllerEmu
@@ -23,6 +21,8 @@ Tilt::Tilt(const std::string& name_) : ReshapableInput(name_, name_, GroupType::
   AddInput(Translatability::Translate, _trans("Right"));
 
   AddInput(Translatability::Translate, _trans("Modifier"));
+
+  MarkAdvancedBegin();
 
   AddSetting(&m_max_angle_setting,
              {_trans("Angle"),
