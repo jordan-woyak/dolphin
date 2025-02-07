@@ -28,6 +28,8 @@ Cursor::Cursor(std::string name_, std::string ui_name_)
 
   AddInput(Translatability::Translate, _trans("Hide"));
 
+  MarkAdvancedBegin();
+
   // Default values chosen to reach screen edges in most games including the Wii Menu.
 
   AddSetting(&m_vertical_offset_setting,
@@ -54,8 +56,6 @@ Cursor::Cursor(std::string name_, std::string ui_name_)
               // i18n: Refers to emulated wii remote movements.
               _trans("Total rotation about the pitch axis.")},
              20, 0, 360);
-
-  MarkAdvancedBegin();
 
   AddInput(Translatability::Translate, _trans("Recenter"));
   AddInput(Translatability::Translate, _trans("Relative Input Hold"));
