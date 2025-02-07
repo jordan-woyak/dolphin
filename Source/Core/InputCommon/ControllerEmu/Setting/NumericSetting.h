@@ -25,20 +25,13 @@ enum class SettingType
   Bool,
 };
 
-enum class SettingVisibility
-{
-  Normal,
-  Advanced,
-};
-
 struct NumericSettingDetails
 {
   NumericSettingDetails(const char* const _ini_name, const char* const _ui_suffix = nullptr,
                         const char* const _ui_description = nullptr,
-                        const char* const _ui_name = nullptr,
-                        SettingVisibility _visibility = SettingVisibility::Normal)
+                        const char* const _ui_name = nullptr)
       : ini_name(_ini_name), ui_suffix(_ui_suffix), ui_description(_ui_description),
-        ui_name(_ui_name ? _ui_name : _ini_name), visibility(_visibility)
+        ui_name(_ui_name ? _ui_name : _ini_name)
   {
   }
 
@@ -53,9 +46,6 @@ struct NumericSettingDetails
 
   // The name used in the UI (if different from ini file).
   const char* const ui_name;
-
-  // Advanced settings should be harder to change in the UI. They might confuse users.
-  const SettingVisibility visibility;
 };
 
 class NumericSettingBase
@@ -89,7 +79,6 @@ public:
   const char* GetUIName() const;
   const char* GetUISuffix() const;
   const char* GetUIDescription() const;
-  SettingVisibility GetVisibility() const;
 
 protected:
   NumericSettingDetails m_details;

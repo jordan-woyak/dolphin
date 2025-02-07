@@ -28,11 +28,6 @@ Cursor::Cursor(std::string name_, std::string ui_name_)
 
   AddInput(Translatability::Translate, _trans("Hide"));
 
-  MarkAdvancedControlsBegin();
-
-  AddInput(Translatability::Translate, _trans("Recenter"));
-  AddInput(Translatability::Translate, _trans("Relative Input Hold"));
-
   // Default values chosen to reach screen edges in most games including the Wii Menu.
 
   AddSetting(&m_vertical_offset_setting,
@@ -60,11 +55,13 @@ Cursor::Cursor(std::string name_, std::string ui_name_)
               _trans("Total rotation about the pitch axis.")},
              20, 0, 360);
 
-  AddSetting(&m_relative_setting,
-             {_trans("Relative Input"), nullptr, nullptr, nullptr, SettingVisibility::Advanced},
-             false);
-  AddSetting(&m_autohide_setting,
-             {_trans("Auto-Hide"), nullptr, nullptr, nullptr, SettingVisibility::Advanced}, false);
+  MarkAdvancedBegin();
+
+  AddInput(Translatability::Translate, _trans("Recenter"));
+  AddInput(Translatability::Translate, _trans("Relative Input Hold"));
+
+  AddSetting(&m_relative_setting, {_trans("Relative Input")}, false);
+  AddSetting(&m_autohide_setting, {_trans("Auto-Hide")}, false);
 }
 
 Cursor::ReshapeData Cursor::GetReshapableState(bool adjusted) const

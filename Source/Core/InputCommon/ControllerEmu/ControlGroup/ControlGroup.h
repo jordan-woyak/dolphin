@@ -111,10 +111,15 @@ public:
   size_t GetNormalControlCount() const;
   size_t GetAdvancedControlCount() const;
 
+  size_t GetNormalSettingCount() const;
+  size_t GetAdvancedSettingCount() const;
+
 protected:
-  void MarkAdvancedControlsBegin();
+  // Controls/Settings added after this call are located under "Advanced" in the UI.
+  void MarkAdvancedBegin();
 
 private:
   size_t m_advanced_controls_begin = -1;
+  size_t m_advanced_settings_begin = -1;
 };
 }  // namespace ControllerEmu

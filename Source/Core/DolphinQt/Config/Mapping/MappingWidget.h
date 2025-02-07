@@ -19,7 +19,6 @@ class Control;
 class ControlGroup;
 class EmulatedController;
 class NumericSettingBase;
-enum class SettingVisibility;
 }  // namespace ControllerEmu
 
 class MappingWidget : public QWidget
@@ -41,6 +40,12 @@ signals:
   void ConfigChanged();
 
 protected:
+  enum class SettingVisibility
+  {
+    Normal,
+    Advanced,
+  };
+
   int GetPort() const;
 
   QGroupBox* CreateGroupBox(ControllerEmu::ControlGroup* group);
@@ -48,9 +53,8 @@ protected:
   QGroupBox* CreateControlsBox(const QString& name, ControllerEmu::ControlGroup* group,
                                int columns);
   void CreateControl(const ControllerEmu::Control* control, QFormLayout* layout, bool indicator);
+  void CreateSetting(ControllerEmu::NumericSettingBase* setting, QFormLayout* layout);
   QPushButton* CreateSettingAdvancedMappingButton(ControllerEmu::NumericSettingBase& setting);
-  void AddSettingWidgets(QFormLayout* layout, ControllerEmu::ControlGroup* group,
-                         ControllerEmu::SettingVisibility visibility);
   void ShowAdvancedControlGroupDialog(ControllerEmu::ControlGroup* group);
 
 private:
