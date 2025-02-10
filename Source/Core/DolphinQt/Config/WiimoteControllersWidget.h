@@ -15,6 +15,7 @@ class QGroupBox;
 class QLabel;
 class QPushButton;
 class QRadioButton;
+class QStackedWidget;
 
 namespace Core
 {
@@ -44,11 +45,11 @@ private:
 
   QGroupBox* m_wiimote_box;
   QGridLayout* m_wiimote_layout;
-  std::array<QLabel*, 4> m_wiimote_labels;
+
+  QStackedWidget* m_bt_contents;
+
   std::array<QComboBox*, 4> m_wiimote_boxes;
   std::array<QPushButton*, 4> m_wiimote_buttons;
-  std::array<QHBoxLayout*, 4> m_wiimote_groups;
-  std::array<QLabel*, 2> m_wiimote_pt_labels;
 
   QRadioButton* m_wiimote_emu;
   QRadioButton* m_wiimote_passthrough;
