@@ -827,11 +827,19 @@ void VideoInterfaceManager::BeginField(FieldType field, u64 ticks)
   // Outputting the frame at the beginning of scanout reduces latency. This assumes the game isn't
   // going to change the VI registers while a frame is scanning out.
   if (Config::Get(Config::GFX_HACK_EARLY_XFB_OUTPUT))
+  {
+    // Throttle prior to SWAP for optimal frame pacing.
+    m_system.GetCoreTiming().Throttle(ticks);
     OutputField(field, ticks);
+  }
 }
 
 void VideoInterfaceManager::EndField(FieldType field, u64 ticks)
 {
+  // Note: For presentation we really only need to Throttle prior to sending SWAP_EVENT
+  //  But it is neeeded here if we want accurate "VBlank" statistics.
+  m_system.GetCoreTiming().Throttle(ticks);
+
   // If the game does change VI registers while a frame is scanning out, we can defer output
   // until the end so the last register values are used. This still isn't accurate, but it does
   // produce more acceptable results in some problematic cases.
