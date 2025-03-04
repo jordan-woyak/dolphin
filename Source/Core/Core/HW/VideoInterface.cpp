@@ -822,23 +822,46 @@ void VideoInterfaceManager::OutputField(FieldType field, u64 ticks)
     g_video_backend->Video_OutputXFB(xfbAddr, fbWidth, fbStride, fbHeight, ticks);
 }
 
+template <u32 UID>
+static u64 HaxMyTicks(FieldType field, u64 ticks)
+{
+  static u64 last_odd = 0;
+  static u64 last_odd_diff = 0;
+
+  if (field == FieldType::Odd)
+  {
+    last_odd_diff = ticks - last_odd;
+    last_odd = ticks;
+  }
+  else
+  {
+    ticks = last_odd + last_odd_diff / 2;
+  }
+
+  return ticks;
+}
+
 void VideoInterfaceManager::BeginField(FieldType field, u64 ticks)
 {
+  const u64 hax_ticks = HaxMyTicks<0xb>(field, ticks);
+
   // Outputting the frame at the beginning of scanout reduces latency. This assumes the game isn't
   // going to change the VI registers while a frame is scanning out.
   if (Config::Get(Config::GFX_HACK_EARLY_XFB_OUTPUT))
   {
     // Throttle prior to SWAP for optimal frame pacing.
-    m_system.GetCoreTiming().Throttle(ticks);
+    m_system.GetCoreTiming().Throttle(hax_ticks);
     OutputField(field, ticks);
   }
 }
 
 void VideoInterfaceManager::EndField(FieldType field, u64 ticks)
 {
+  const u64 hax_ticks = HaxMyTicks<0xe>(field, ticks);
+
   // Note: For presentation we really only need to Throttle prior to sending SWAP_EVENT
   //  But it is neeeded here if we want accurate "VBlank" statistics.
-  m_system.GetCoreTiming().Throttle(ticks);
+  m_system.GetCoreTiming().Throttle(hax_ticks);
 
   // If the game does change VI registers while a frame is scanning out, we can defer output
   // until the end so the last register values are used. This still isn't accurate, but it does

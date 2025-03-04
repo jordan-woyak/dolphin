@@ -389,7 +389,10 @@ void CoreTimingManager::Throttle(const s64 target_cycle)
   // Only sleep if we are behind the deadline
   if (time < m_throttle_deadline)
   {
-    std::this_thread::sleep_until(m_throttle_deadline);
+    std::this_thread::sleep_until(m_throttle_deadline - std::chrono::microseconds{50});
+    while (Clock::now() < m_throttle_deadline)
+    {
+    }
 
     // Count amount of time sleeping for analytics
     const TimePoint time_after_sleep = Clock::now();
