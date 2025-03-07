@@ -21,8 +21,11 @@ public:
 
   virtual void ReinterpretPixelData(EFBReinterpretType convtype);
 
-  virtual u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
-  virtual void PokeEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
+  virtual u32 PeekEFBColor(u32 x, u32 y, u32 poke_data);
+  virtual u32 PeekEFBDepth(u32 x, u32 y, u32 poke_data);
+
+  virtual void PokeEFBColor(u32 x, u32 y, u32 poke_data);
+  virtual void PokeEFBDepth(u32 x, u32 y, u32 poke_data);
 };
 
 extern std::unique_ptr<Renderer> g_renderer;

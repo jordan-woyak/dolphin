@@ -3,8 +3,6 @@
 
 #include "VideoBackends/Software/SWRenderer.h"
 
-#include <string>
-
 #include "Common/CommonTypes.h"
 #include "Common/MsgHandler.h"
 
@@ -14,53 +12,40 @@
 #include "VideoBackends/Software/EfbInterface.h"
 
 #include "VideoCommon/PixelEngine.h"
-#include "VideoCommon/VideoBackendBase.h"
 
 namespace SW
 {
-u32 SWRenderer::AccessEFB(EFBAccessType type, u32 x, u32 y, u32 InputData)
+u32 SWRenderer::PeekEFBDepth(u32 x, u32 y, u32 InputData)
 {
-  u32 value = 0;
+  return EfbInterface::GetDepth(x, y);
+}
 
-  switch (type)
+u32 SWRenderer::PeekEFBColor(u32 x, u32 y, u32 InputData)
+{
+  const u32 color = EfbInterface::GetColor(x, y);
+
+  // rgba to argb
+  u32 value = (color >> 8) | (color & 0xff) << 24;
+
+  // check what to do with the alpha channel (GX_PokeAlphaRead)
+  PixelEngine::AlphaReadMode alpha_read_mode =
+      Core::System::GetInstance().GetPixelEngine().GetAlphaReadMode();
+
+  if (alpha_read_mode == PixelEngine::AlphaReadMode::ReadNone)
   {
-  case EFBAccessType::PeekZ:
-  {
-    value = EfbInterface::GetDepth(x, y);
-    break;
+    // value is OK as it is
   }
-  case EFBAccessType::PeekColor:
+  else if (alpha_read_mode == PixelEngine::AlphaReadMode::ReadFF)
   {
-    const u32 color = EfbInterface::GetColor(x, y);
-
-    // rgba to argb
-    value = (color >> 8) | (color & 0xff) << 24;
-
-    // check what to do with the alpha channel (GX_PokeAlphaRead)
-    PixelEngine::AlphaReadMode alpha_read_mode =
-        Core::System::GetInstance().GetPixelEngine().GetAlphaReadMode();
-
-    if (alpha_read_mode == PixelEngine::AlphaReadMode::ReadNone)
-    {
-      // value is OK as it is
-    }
-    else if (alpha_read_mode == PixelEngine::AlphaReadMode::ReadFF)
-    {
-      value |= 0xFF000000;
-    }
-    else
-    {
-      if (alpha_read_mode != PixelEngine::AlphaReadMode::Read00)
-      {
-        PanicAlertFmt("Invalid PE alpha read mode: {}", static_cast<u16>(alpha_read_mode));
-      }
-      value &= 0x00FFFFFF;
-    }
-
-    break;
+    value |= 0xFF000000;
   }
-  default:
-    break;
+  else
+  {
+    if (alpha_read_mode != PixelEngine::AlphaReadMode::Read00)
+    {
+      PanicAlertFmt("Invalid PE alpha read mode: {}", static_cast<u16>(alpha_read_mode));
+    }
+    value &= 0x00FFFFFF;
   }
 
   return value;

@@ -44,8 +44,11 @@ public:
   NullRenderer() {}
   ~NullRenderer() override;
 
-  u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data) override { return 0; }
-  void PokeEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data) override {}
+  u32 PeekEFBColor(u32 x, u32 y, u32 poke_data) override { return 0; }
+  u32 PeekEFBDepth(u32 x, u32 y, u32 poke_data) override { return 0; }
+
+  void PokeEFBColor(u32 x, u32 y, u32 poke_data) override {}
+  void PokeEFBDepth(u32 x, u32 y, u32 poke_data) override {}
 
   void ReinterpretPixelData(EFBReinterpretType convtype) override {}
 };
