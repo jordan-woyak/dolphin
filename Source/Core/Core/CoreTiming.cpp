@@ -373,7 +373,10 @@ void CoreTimingManager::SleepUntil(TimePoint time_point)
 {
   const TimePoint time = Clock::now();
 
-  std::this_thread::sleep_until(time_point);
+  std::this_thread::sleep_until(time_point - std::chrono::milliseconds{2});
+  while (Clock::now() < time_point)
+  {
+  }
 
   if (Core::IsCPUThread())
   {
@@ -419,7 +422,10 @@ void CoreTimingManager::Throttle(const s64 target_cycle)
   // Only sleep if we are behind the deadline
   if (time < m_throttle_deadline)
   {
-    std::this_thread::sleep_until(m_throttle_deadline);
+    std::this_thread::sleep_until(m_throttle_deadline - std::chrono::milliseconds{2});
+    while (Clock::now() < m_throttle_deadline)
+    {
+    }
 
     // Count amount of time sleeping for analytics
     const TimePoint time_after_sleep = Clock::now();
