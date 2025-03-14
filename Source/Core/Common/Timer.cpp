@@ -4,6 +4,7 @@
 #include "Common/Timer.h"
 
 #include <chrono>
+#include <thread>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -89,6 +90,10 @@ u64 Timer::GetLocalTimeSinceJan1970()
   return static_cast<u64>(sysTime + tzDiff + tzDST);
 }
 
+// This is requested by Timer::IncreaseResolution on Windows.
+// On Linux/other we hope/assume we already have 1ms scheduling granularity.
+static constexpr int TIMER_RESOLUTION_MS = 1;
+
 void Timer::IncreaseResolution()
 {
 #ifdef _WIN32
@@ -108,15 +113,27 @@ void Timer::IncreaseResolution()
                         sizeof(PowerThrottling));
 
   // Not actually sure how useful this is these days.. :')
-  timeBeginPeriod(1);
+  timeBeginPeriod(TIMER_RESOLUTION_MS);
 #endif
 }
 
 void Timer::RestoreResolution()
 {
 #ifdef _WIN32
-  timeEndPeriod(1);
+  timeEndPeriod(TIMER_RESOLUTION_MS);
 #endif
+}
+
+void Timer::SleepUntilPrecise(Clock::time_point target)
+{
+  constexpr auto SPIN_TIME =
+      std::chrono::milliseconds{TIMER_RESOLUTION_MS} + std::chrono::microseconds{20};
+
+  std::this_thread::sleep_until(target - SPIN_TIME);
+
+  // Spin for the remaining time.
+  while (Clock::now() < target)
+    std::this_thread::yield();
 }
 
 }  // Namespace Common

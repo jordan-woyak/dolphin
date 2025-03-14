@@ -50,8 +50,6 @@ IPC_HLE_PERIOD: For the Wii Remote this is the call schedule:
 
 #include "AudioCommon/Mixer.h"
 #include "Common/CommonTypes.h"
-#include "Common/Logging/Log.h"
-#include "Common/Thread.h"
 #include "Common/Timer.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
@@ -266,7 +264,6 @@ void SystemTimersManager::Init()
     m_ipc_hle_period = GetTicksPerSecond() / freq;
   }
 
-  Common::Timer::IncreaseResolution();
   // store and convert localtime at boot to timebase ticks
   if (Config::Get(Config::MAIN_CUSTOM_RTC_ENABLE))
   {

@@ -26,6 +26,8 @@ public:
   static void IncreaseResolution();
   static void RestoreResolution();
 
+  static void SleepUntilPrecise(Clock::time_point);
+
 private:
   u64 m_start_ms{0};
   u64 m_end_ms{0};
