@@ -264,6 +264,7 @@ void SystemTimersManager::Init()
     m_ipc_hle_period = GetTicksPerSecond() / freq;
   }
 
+  Common::Timer::IncreaseResolution();
   // store and convert localtime at boot to timebase ticks
   if (Config::Get(Config::MAIN_CUSTOM_RTC_ENABLE))
   {
