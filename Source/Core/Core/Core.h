@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <coroutine>
 #include <functional>
 #include <memory>
 #include <string>
@@ -163,6 +164,25 @@ void OnFrameEnd(Core::System& system);
 // This is only valid to call from the host thread, since it uses PauseAndLock() internally.
 void RunOnCPUThread(Core::System& system, Common::MoveOnlyFunction<void()> function,
                     bool wait_for_completion);
+
+class SwitchToCPUThread
+{
+public:
+  explicit SwitchToCPUThread(Core::System& system) : m_system{system} {}
+
+  static constexpr bool await_ready() { return false; }
+  void await_suspend(std::coroutine_handle<> h)
+  {
+    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // print_thread_info("await_suspend");
+    RunOnCPUThread(
+        m_system, [h]() { h.resume(); }, false);
+  }
+  static constexpr void await_resume() {}
+
+private:
+  Core::System& m_system;
+};
 
 // for calling back into UI code without introducing a dependency on it in core
 using StateChangedCallbackFunc = std::function<void(Core::State)>;
