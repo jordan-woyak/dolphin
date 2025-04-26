@@ -14,7 +14,6 @@
     <ClInclude Include="AudioCommon\WaveFile.h" />
     <ClInclude Include="Common\Align.h" />
     <ClInclude Include="Common\Analytics.h" />
-    <ClInclude Include="Common\Assert.h" />
     <ClInclude Include="Common\Assembler\AssemblerShared.h" />
     <ClInclude Include="Common\Assembler\AssemblerTables.h" />
     <ClInclude Include="Common\Assembler\CaseInsensitiveDict.h" />
@@ -22,6 +21,7 @@
     <ClInclude Include="Common\Assembler\GekkoIRGen.h" />
     <ClInclude Include="Common\Assembler\GekkoLexer.h" />
     <ClInclude Include="Common\Assembler\GekkoParser.h" />
+    <ClInclude Include="Common\Assert.h" />
     <ClInclude Include="Common\BitField.h" />
     <ClInclude Include="Common\BitSet.h" />
     <ClInclude Include="Common\BitUtils.h" />
@@ -36,6 +36,7 @@
     <ClInclude Include="Common\CommonTypes.h" />
     <ClInclude Include="Common\Config\Config.h" />
     <ClInclude Include="Common\Config\ConfigInfo.h" />
+    <ClInclude Include="Common\CoroutineUtil.h" />
     <ClInclude Include="Common\Config\Enums.h" />
     <ClInclude Include="Common\Config\Layer.h" />
     <ClInclude Include="Common\Contains.h" />
