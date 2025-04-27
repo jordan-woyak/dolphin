@@ -70,6 +70,7 @@ add_library(common
   Flag.h
   FloatUtils.cpp
   FloatUtils.h
+  FlushThread.h
   FormatUtil.h
   FPURoundMode.h
   GekkoDisassembler.cpp
