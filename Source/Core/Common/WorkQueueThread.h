@@ -11,6 +11,7 @@
 #include <string_view>
 #include <thread>
 
+#include "Common/CoroutineUtil.h"
 #include "Common/Thread.h"
 
 // A thread that executes the given function for every item placed into its queue.
@@ -168,5 +169,11 @@ private:
   bool m_idle = true;
   bool m_shutdown = false;
 };
+
+template <typename Queue>
+auto SwitchToFunctionWorkQueue(Queue& work_queue)
+{
+  return SwitchToFunctor([&](auto func) { work_queue.EmplaceItem(std::move(func)); });
+}
 
 }  // namespace Common
