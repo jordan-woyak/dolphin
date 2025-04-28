@@ -71,6 +71,7 @@ add_library(common
   FloatUtils.cpp
   FloatUtils.h
   FlushThread.h
+  Functional.h
   FormatUtil.h
   FPURoundMode.h
   GekkoDisassembler.cpp
