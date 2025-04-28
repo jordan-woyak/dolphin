@@ -6,36 +6,29 @@
 #include <coroutine>
 #include <future>
 
-template <typename T>
-class MyPromise;
-
-template <typename T>
-class MyPromiseCommon;
-
-template <typename T>
-class ThreadTask
+struct Task
 {
-  friend MyPromiseCommon<T>;
-
-public:
-  T Get() { return m_future.get(); }
-
-  using promise_type = MyPromise<T>;
-
-private:
-  explicit ThreadTask(std::future<T>&& f) : m_future{std::move(f)} {}
-
-  std::future<T> m_future;
+  struct promise_type
+  {
+    static auto get_return_object() { return Task{}; }
+    static auto initial_suspend() { return std::suspend_never{}; }
+    static auto final_suspend() noexcept { return std::suspend_never{}; }
+    static void return_void() {}
+    static void unhandled_exception() {}
+  };
 };
+
+template <typename T>
+class AsyncTask;
 
 template <typename T>
 class MyPromiseCommon
 {
 public:
-  auto get_return_object() { return ThreadTask<T>{m_promise.get_future()}; }
-  auto initial_suspend() { return std::suspend_never{}; }
-  auto final_suspend() noexcept { return std::suspend_never{}; }
-  void unhandled_exception() {}
+  auto get_return_object() { return AsyncTask<T>{m_promise.get_future()}; }
+  static auto initial_suspend() { return std::suspend_never{}; }
+  static auto final_suspend() noexcept { return std::suspend_never{}; }
+  static void unhandled_exception() {}
 
 protected:
   std::promise<T> m_promise;
@@ -45,10 +38,10 @@ template <typename T>
 class MyPromise : public MyPromiseCommon<T>
 {
 public:
-  template <typename TT>
-  void return_value(TT&& val)
+  template <typename Arg>
+  void return_value(Arg&& val)
   {
-    this->m_promise.set_value(std::forward<TT>(val));
+    this->m_promise.set_value(std::forward<Arg>(val));
   }
 };
 
@@ -57,4 +50,21 @@ class MyPromise<void> : public MyPromiseCommon<void>
 {
 public:
   void return_void() { m_promise.set_value(); }
+};
+
+template <typename T>
+class AsyncTask
+{
+  friend MyPromiseCommon<T>;
+
+public:
+  auto Wait() { return m_future.wait(); }
+  auto Get() { return m_future.get(); }
+
+  using promise_type = MyPromise<T>;
+
+private:
+  explicit AsyncTask(std::future<T>&& f) : m_future{std::move(f)} {}
+
+  std::future<T> m_future;
 };
