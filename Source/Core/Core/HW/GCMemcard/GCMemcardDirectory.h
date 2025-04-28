@@ -8,9 +8,13 @@
 #include <vector>
 
 #include "Common/FlushThread.h"
+#include "Common/HookableEvent.h"
+
+#include "Core/Core.h"
 #include "Core/HW/GCMemcard/GCIFile.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardBase.h"
+
 #include "DiscIO/Enums.h"
 
 // Uncomment this to write the system data of the memorycard from directory to disc
@@ -61,4 +65,8 @@ private:
   std::string m_save_directory;
   std::mutex m_write_mutex;
   Common::FlushThread m_flush_thread;
+
+  Common::EventHook m_flush_data_hook = Core::FlushUnsavedDataEvent::Register(
+      std::bind_front(&Common::FlushThread::WaitForCompletion, &m_flush_thread),
+      "GCMemcardDirectory flush");
 };

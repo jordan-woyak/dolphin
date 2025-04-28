@@ -8,6 +8,9 @@
 #include <string>
 
 #include "Common/FlushThread.h"
+#include "Common/HookableEvent.h"
+
+#include "Core/Core.h"
 #include "Core/HW/GCMemcard/GCMemcard.h"
 #include "Core/HW/GCMemcard/GCMemcardBase.h"
 
@@ -41,4 +44,8 @@ private:
   Common::FlushThread m_flush_thread;
   std::mutex m_flush_mutex;
   u32 m_memory_card_size;
+
+  Common::EventHook m_flush_data_hook = Core::FlushUnsavedDataEvent::Register(
+      std::bind_front(&Common::FlushThread::WaitForCompletion, &m_flush_thread),
+      "MemoryCard flush");
 };
