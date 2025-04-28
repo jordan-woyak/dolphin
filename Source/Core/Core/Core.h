@@ -16,6 +16,7 @@
 #include <string_view>
 
 #include "Common/CommonTypes.h"
+#include "Common/CoroutineUtil.h"
 #include "Common/Functional.h"
 #include "Common/HookableEvent.h"
 
@@ -165,22 +166,10 @@ void OnFrameEnd(Core::System& system);
 void RunOnCPUThread(Core::System& system, Common::MoveOnlyFunction<void()> function,
                     bool wait_for_completion);
 
-class SwitchToCPUThread
+inline auto SwitchToCPUThread(Core::System& system)
 {
-public:
-  explicit SwitchToCPUThread(Core::System& system) : m_system{system} {}
-
-  static constexpr bool await_ready() { return false; }
-  void await_suspend(std::coroutine_handle<> h)
-  {
-    RunOnCPUThread(
-        m_system, [h]() { h.resume(); }, false);
-  }
-  static constexpr void await_resume() {}
-
-private:
-  Core::System& m_system;
-};
+  return SwitchToFunctor([&](auto func) { RunOnCPUThread(system, func, false); });
+}
 
 // for calling back into UI code without introducing a dependency on it in core
 using StateChangedCallbackFunc = std::function<void(Core::State)>;
