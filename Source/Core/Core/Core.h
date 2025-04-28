@@ -173,8 +173,6 @@ public:
   static constexpr bool await_ready() { return false; }
   void await_suspend(std::coroutine_handle<> h)
   {
-    // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // print_thread_info("await_suspend");
     RunOnCPUThread(
         m_system, [h]() { h.resume(); }, false);
   }
