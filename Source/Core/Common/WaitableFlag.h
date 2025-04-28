@@ -66,4 +66,43 @@ private:
   std::mutex m_mutex;
 };
 
+// Has std::mutex interface for use with scope-based locks.
+template <typename T>
+class WaitableCounter
+{
+public:
+  explicit WaitableCounter(T initial_value = {}) : m_counter{initial_value} {}
+
+  void lock()
+  {
+    m_counter.fetch_add(1, std::memory_order_release);
+    m_counter.notify_all();
+  }
+
+  void unlock()
+  {
+    m_counter.fetch_sub(1, std::memory_order_release);
+    m_counter.notify_all();
+  }
+
+  void WaitForValue(const T& desired_value)
+  {
+    while (true)
+    {
+      const auto current_value = m_counter.load(std::memory_order_acquire);
+      if (current_value == desired_value)
+        break;
+      WaitForNotValue(current_value);
+    }
+  }
+
+  void WaitForNotValue(const T& undesired_value)
+  {
+    m_counter.wait(undesired_value, std::memory_order_acquire);
+  }
+
+private:
+  std::atomic<T> m_counter{};
+};
+
 }  // namespace Common
