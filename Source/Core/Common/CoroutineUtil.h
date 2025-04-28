@@ -68,3 +68,22 @@ private:
 
   std::future<T> m_future;
 };
+
+template <typename Func>
+auto SwitchToFunctor(Func&& func)
+{
+  struct Awaiter
+  {
+    Func func;
+
+    void await_suspend(std::coroutine_handle<> h)
+    {
+      func([h]() { h.resume(); });
+    }
+
+    static constexpr bool await_ready() { return false; }
+    static constexpr void await_resume() {}
+  };
+
+  return Awaiter{std::forward<Func>(func)};
+}
