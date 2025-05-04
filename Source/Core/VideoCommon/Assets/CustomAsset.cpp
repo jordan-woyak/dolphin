@@ -18,7 +18,7 @@ bool CustomAsset::Load()
   {
     std::lock_guard lk(m_info_lock);
     m_bytes_loaded = load_information.m_bytes_loaded;
-    m_last_loaded_time = load_information.m_load_time;
+    m_last_loaded_time = ClockType::now();
   }
   return load_information.m_bytes_loaded != 0;
 }
@@ -33,12 +33,7 @@ void CustomAsset::Unload()
   }
 }
 
-CustomAssetLibrary::TimeType CustomAsset::GetLastWriteTime() const
-{
-  return m_owning_library->GetLastAssetWriteTime(m_asset_id);
-}
-
-const CustomAssetLibrary::TimeType& CustomAsset::GetLastLoadedTime() const
+const CustomAsset::TimeType& CustomAsset::GetLastLoadedTime() const
 {
   std::lock_guard lk(m_info_lock);
   return m_last_loaded_time;
