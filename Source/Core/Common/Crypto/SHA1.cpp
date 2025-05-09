@@ -112,6 +112,10 @@ protected:
     constexpr size_t MSG_LEN_POS = BLOCK_LEN - sizeof(u64);
     if (block_used > MSG_LEN_POS)
     {
+#if defined(_GLIBCXX_ASSERTIONS)
+      static_assert(false, "DO NOT WANT _GLIBCXX_ASSERTIONS");
+#endif
+
       // Pad current block and process it
       std::memset(&block[block_used], 0, BLOCK_LEN - block_used);
       ProcessBlock(&block[0]);
