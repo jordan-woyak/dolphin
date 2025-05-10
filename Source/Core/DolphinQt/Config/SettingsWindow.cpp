@@ -4,13 +4,12 @@
 #include "DolphinQt/Config/SettingsWindow.h"
 
 #include <QDialogButtonBox>
+#include <QListWidget>
 #include <QPushButton>
-#include <QTabWidget>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 #include "DolphinQt/QtUtils/WrapInScrollArea.h"
-#include "DolphinQt/Resources.h"
-#include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/AdvancedPane.h"
 #include "DolphinQt/Settings/AudioPane.h"
 #include "DolphinQt/Settings/GameCubePane.h"
@@ -19,7 +18,17 @@
 #include "DolphinQt/Settings/PathPane.h"
 #include "DolphinQt/Settings/WiiPane.h"
 
-#include "Core/Core.h"
+namespace
+{
+
+class NavigationList final : public QListWidget
+{
+public:
+  NavigationList() { setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding); }
+  QSize sizeHint() const override { return minimumSize(); }
+};
+
+}  // namespace
 
 SettingsWindow::SettingsWindow(QWidget* parent) : QDialog(parent)
 {
@@ -28,36 +37,52 @@ SettingsWindow::SettingsWindow(QWidget* parent) : QDialog(parent)
   setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
   // Main Layout
-  QVBoxLayout* layout = new QVBoxLayout;
+  auto* const layout = new QVBoxLayout{this};
 
-  // Add content to layout before dialog buttons.
-  m_tab_widget = new QTabWidget();
-  layout->addWidget(m_tab_widget);
+  auto* const navigation_and_panes = new QHBoxLayout;
+  layout->addLayout(navigation_and_panes);
 
-  m_tab_widget->addTab(GetWrappedWidget(new GeneralPane, this, 125, 100), tr("General"));
-  m_tab_widget->addTab(GetWrappedWidget(new InterfacePane, this, 125, 100), tr("Interface"));
-  m_tab_widget->addTab(GetWrappedWidget(new AudioPane, this, 125, 100), tr("Audio"));
-  m_tab_widget->addTab(GetWrappedWidget(new PathPane, this, 125, 100), tr("Paths"));
-  m_tab_widget->addTab(GetWrappedWidget(new GameCubePane, this, 125, 100), tr("GameCube"));
-  m_tab_widget->addTab(GetWrappedWidget(new WiiPane, this, 125, 100), tr("Wii"));
-  m_tab_widget->addTab(GetWrappedWidget(new AdvancedPane, this, 125, 200), tr("Advanced"));
+  m_navigation_list = new NavigationList;
+
+  navigation_and_panes->addWidget(m_navigation_list);
+
+  m_stacked_panes = new QStackedWidget;
+  navigation_and_panes->addWidget(m_stacked_panes);
+
+  AddSettingsWidget(new GeneralPane, tr("General"));
+  AddSettingsWidget(new InterfacePane, tr("Interface"));
+  AddSettingsWidget(new AudioPane, tr("Audio"));
+  AddSettingsWidget(new PathPane, tr("Paths"));
+  AddSettingsWidget(new GameCubePane, tr("GameCube"));
+  AddSettingsWidget(new WiiPane, tr("Wii"));
+  AddSettingsWidget(new AdvancedPane, tr("Advanced"));
+
+  connect(m_navigation_list, &QListWidget::currentRowChanged, m_stacked_panes,
+          &QStackedWidget::setCurrentIndex);
+
+  // Make sure the first item is actually selected by default.
+  m_navigation_list->setCurrentRow(0);
 
   // Dialog box buttons
-  QDialogButtonBox* close_box = new QDialogButtonBox(QDialogButtonBox::Close);
+  auto* const close_box = new QDialogButtonBox(QDialogButtonBox::Close);
 
   connect(close_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
   layout->addWidget(close_box);
+}
 
-  setLayout(layout);
+void SettingsWindow::AddSettingsWidget(QWidget* widget, const QString& name)
+{
+  m_stacked_panes->addWidget(widget);
+  m_navigation_list->addItem(name);
 }
 
 void SettingsWindow::SelectAudioPane()
 {
-  m_tab_widget->setCurrentIndex(static_cast<int>(TabIndex::Audio));
+  m_navigation_list->setCurrentRow(static_cast<int>(TabIndex::Audio));
 }
 
 void SettingsWindow::SelectGeneralPane()
 {
-  m_tab_widget->setCurrentIndex(static_cast<int>(TabIndex::General));
+  m_navigation_list->setCurrentRow(static_cast<int>(TabIndex::General));
 }

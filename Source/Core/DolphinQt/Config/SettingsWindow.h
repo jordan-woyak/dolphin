@@ -5,7 +5,8 @@
 
 #include <QDialog>
 
-class QTabWidget;
+class QStackedWidget;
+class QListWidget;
 
 enum class TabIndex
 {
@@ -22,5 +23,8 @@ public:
   void SelectAudioPane();
 
 private:
-  QTabWidget* m_tab_widget;
+  void AddSettingsWidget(QWidget*, const QString& name);
+
+  QStackedWidget* m_stacked_panes;
+  QListWidget* m_navigation_list;
 };
