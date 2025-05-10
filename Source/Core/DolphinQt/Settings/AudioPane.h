@@ -40,8 +40,6 @@ private:
   void CheckNeedForLatencyControl();
   bool m_latency_control_supported;
 
-  QHBoxLayout* m_main_layout;
-
   // DSP Engine
   ConfigComplexChoice* m_dsp_combo;
 

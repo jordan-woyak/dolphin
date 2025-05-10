@@ -190,11 +190,14 @@ void AudioPane::CreateWidgets()
   main_vbox_layout->addWidget(backend_box);
   main_vbox_layout->addWidget(playback_box);
 
-  m_main_layout = new QHBoxLayout;
-  m_main_layout->addLayout(main_vbox_layout);
-  m_main_layout->addWidget(volume_box);
+  auto* const hbox_layout = new QHBoxLayout;
+  hbox_layout->addLayout(main_vbox_layout);
+  hbox_layout->addWidget(volume_box);
 
-  setLayout(m_main_layout);
+  auto* const main_layout = new QVBoxLayout{this};
+  main_layout->addLayout(hbox_layout);
+  main_layout->addStretch(1);
+
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
 
