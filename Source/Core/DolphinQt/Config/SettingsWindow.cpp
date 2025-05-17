@@ -28,8 +28,8 @@ StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
 
   auto* const layout = new QHBoxLayout{this};
 
-  // Use the original margin for the padding in our list items.
-  const int list_item_padding = layout->contentsMargins().left();
+  // Use the original spacing for the padding in our list items.
+  const int list_item_padding = layout->spacing();
 
   // Eliminate padding.
   layout->setContentsMargins(QMargins{});
