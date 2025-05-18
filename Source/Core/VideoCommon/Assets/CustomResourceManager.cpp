@@ -62,7 +62,7 @@ CustomResourceManager::TextureTimePair CustomResourceManager::GetTextureDataFrom
   if (it->second.asset_data &&
       it->second.asset_data->load_status == AssetData::LoadStatus::LoadFinalized)
   {
-    m_loaded_assets.MarkAssetAsRecent(it->second.asset->GetHandle(), it->second.asset);
+    m_loaded_assets.MakeAssetHighestPriority(it->second.asset->GetHandle(), it->second.asset);
     return {it->second.texture_data, it->second.asset->GetLastLoadedTime()};
   }
 
@@ -90,8 +90,8 @@ void CustomResourceManager::LoadTextureDataAsset(
   {
     // Tell the system we are still interested in loading this asset
     const auto asset_handle = internal_texture_data->asset->GetHandle();
-    m_pending_assets.MarkAssetAsRecent(asset_handle,
-                                       m_asset_handle_to_data[asset_handle].asset.get());
+    m_pending_assets.MakeAssetHighestPriority(asset_handle,
+                                              m_asset_handle_to_data[asset_handle].asset.get());
   }
   else if (internal_texture_data->asset_data->load_status == AssetData::LoadStatus::LoadFinished)
   {
@@ -137,7 +137,7 @@ void CustomResourceManager::ProcessAssetsToReload()
       asset_data.load_status = AssetData::LoadStatus::PendingReload;
       asset_data.has_errors = false;
       asset_data.load_request_time = now;
-      m_pending_assets.MarkAssetAsAvailable(it->second, asset_data.asset.get());
+      m_pending_assets.InsertAsset(it->second, asset_data.asset.get());
     }
   }
 }
@@ -155,7 +155,7 @@ void CustomResourceManager::ProcessLoadedAssets()
       continue;
 
     m_pending_assets.RemoveAsset(asset_handle);
-    m_loaded_assets.MarkAssetAsAvailable(asset_handle, asset_data.asset.get());
+    m_loaded_assets.InsertAsset(asset_handle, asset_data.asset.get());
     asset_data.load_status = AssetData::LoadStatus::LoadFinished;
     asset_data.load_request_time = {};
     m_ram_used += asset_data.asset->GetByteSizeInMemory();
@@ -171,7 +171,7 @@ void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
   // we get safely in our threshold
   while (ram_used > threshold_ram && m_loaded_assets.Size() > 0)
   {
-    auto* const asset = m_loaded_assets.RemoveLeastRecentAsset();
+    auto* const asset = m_loaded_assets.RemoveLowestPriorityAsset();
     ram_used -= asset->GetByteSizeInMemory();
 
     AssetData& asset_data = m_asset_handle_to_data[asset->GetHandle()];

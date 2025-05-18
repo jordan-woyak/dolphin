@@ -6,7 +6,6 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <vector>
 
@@ -114,53 +113,51 @@ private:
     return static_cast<T*>(asset_data_from_handle.asset.get());
   }
 
-  // This class defines a cache of least or most recently used assets
-  // It is used to keep track of the least used asset,
-  // to know what assets we can remove when memory is low.
-  // It is also used to find the most recent asset,
-  // to know which assets take priority in terms of loading
-  class LeastRecentlyUsedCache
+  // Maintains a priority-sorted list of assets.
+  // Used to figure out which assets to load or unload first.
+  // Most recently used assets get marked with highest priority.
+  class AssetPriorityQueue
   {
   public:
-    const std::list<CustomAsset*>& Elements() const { return m_asset_cache; }
+    const auto& Elements() const { return m_assets; }
 
-    void MarkAssetAsRecent(u64 asset_handle, CustomAsset* asset)
+    // Inserts or moves the asset to the top of the queue.
+    void MakeAssetHighestPriority(u64 asset_handle, CustomAsset* asset)
     {
       RemoveAsset(asset_handle);
-      m_asset_cache.push_front(asset);
+      m_assets.push_front(asset);
 
       // See CreateAsset for how a handle gets defined
       if (asset_handle >= m_iterator_lookup.size())
-        m_iterator_lookup.resize(asset_handle + 1);
-      m_iterator_lookup[asset_handle] = m_asset_cache.begin();
+        m_iterator_lookup.resize(asset_handle + 1, m_assets.end());
+
+      m_iterator_lookup[asset_handle] = m_assets.begin();
     }
 
-    // Do not change the order of the asset in the cache
-    // but add it to the back if it isn't available
-    void MarkAssetAsAvailable(u64 asset_handle, CustomAsset* asset)
+    // Inserts an asset at lowest priority or
+    //  does nothing if asset is already in the queue.
+    void InsertAsset(u64 asset_handle, CustomAsset* asset)
     {
       if (asset_handle >= m_iterator_lookup.size())
-      {
-        m_iterator_lookup.resize(asset_handle + 1);
-      }
+        m_iterator_lookup.resize(asset_handle + 1, m_assets.end());
 
-      if (!m_iterator_lookup[asset_handle].has_value())
+      if (m_iterator_lookup[asset_handle] == m_assets.end())
       {
-        m_asset_cache.push_back(asset);
-        m_iterator_lookup[asset_handle] = std::prev(m_asset_cache.end());
+        m_assets.push_back(asset);
+        m_iterator_lookup[asset_handle] = std::prev(m_assets.end());
       }
     }
 
-    CustomAsset* RemoveLeastRecentAsset()
+    CustomAsset* RemoveLowestPriorityAsset()
     {
-      if (m_asset_cache.empty()) [[unlikely]]
+      if (m_assets.empty()) [[unlikely]]
         return nullptr;
-      auto* const ret = m_asset_cache.back();
+      auto* const ret = m_assets.back();
       if (ret != nullptr)
       {
-        m_iterator_lookup[ret->GetHandle()].reset();
+        m_iterator_lookup[ret->GetHandle()] = m_assets.end();
       }
-      m_asset_cache.pop_back();
+      m_assets.pop_back();
       return ret;
     }
 
@@ -169,27 +166,28 @@ private:
       if (asset_handle >= m_iterator_lookup.size())
         return;
 
-      if (const auto iter = m_iterator_lookup[asset_handle])
+      const auto iter = m_iterator_lookup[asset_handle];
+      if (iter != m_assets.end())
       {
-        m_asset_cache.erase(*iter);
-        m_iterator_lookup[asset_handle].reset();
+        m_assets.erase(iter);
+        m_iterator_lookup[asset_handle] = m_assets.end();
       }
     }
 
-    bool IsEmpty() const { return m_asset_cache.empty(); }
+    bool IsEmpty() const { return m_assets.empty(); }
 
-    std::size_t Size() const { return m_asset_cache.size(); }
+    std::size_t Size() const { return m_assets.size(); }
 
   private:
-    std::list<CustomAsset*> m_asset_cache;
+    std::list<CustomAsset*> m_assets;
 
-    // Note: this vector is expected to be kept in sync with
-    // the total amount of (unique) assets ever seen
-    std::vector<std::optional<decltype(m_asset_cache)::iterator>> m_iterator_lookup;
+    // Handle-to-iterator lookup for fast access.
+    // Grows as needed on insert.
+    std::vector<decltype(m_assets)::iterator> m_iterator_lookup;
   };
 
-  LeastRecentlyUsedCache m_loaded_assets;
-  LeastRecentlyUsedCache m_pending_assets;
+  AssetPriorityQueue m_loaded_assets;
+  AssetPriorityQueue m_pending_assets;
 
   std::map<std::size_t, AssetData> m_asset_handle_to_data;
   std::map<CustomAssetLibrary::AssetID, std::size_t> m_asset_id_to_handle;
