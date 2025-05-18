@@ -70,7 +70,6 @@ private:
       Unloaded,
     };
     LoadStatus load_status = LoadStatus::PendingReload;
-    bool has_errors = false;
   };
 
   // A structure to represent some raw texture data
@@ -102,7 +101,6 @@ private:
       AssetData asset_data;
       asset_data.asset = std::make_unique<T>(library, asset_id, it->second);
       asset_data.type = asset_type;
-      asset_data.has_errors = false;
       asset_data.load_request_time = {};
 
       m_asset_handle_to_data.insert_or_assign(it->second, std::move(asset_data));

@@ -135,7 +135,6 @@ void CustomResourceManager::ProcessAssetsToReload()
       const auto asset_handle = it->second;
       AssetData& asset_data = m_asset_handle_to_data[asset_handle];
       asset_data.load_status = AssetData::LoadStatus::PendingReload;
-      asset_data.has_errors = false;
       asset_data.load_request_time = now;
       m_pending_assets.InsertAsset(it->second, asset_data.asset.get());
     }
@@ -182,7 +181,6 @@ void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
     }
     asset_data.asset->Unload();
     asset_data.load_status = AssetData::LoadStatus::Unloaded;
-    asset_data.has_errors = false;
     asset_data.load_request_time = {};
   }
 
