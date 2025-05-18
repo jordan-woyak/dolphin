@@ -126,7 +126,7 @@ void CustomAssetLoader::ScheduleAssetsToLoad(const std::list<CustomAsset*>& asse
   {
     std::lock_guard guard(m_assets_to_load_lock);
     m_assets_to_load = assets_to_load;
-    m_last_request_time = std::chrono::steady_clock::now();
+    m_last_request_time = CustomAssetLibrary::ClockType::now();
     m_worker_thread_wake.notify_all();
   }
 }

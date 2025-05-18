@@ -127,7 +127,7 @@ void CustomResourceManager::ProcessAssetsToReload()
     m_reload_mutex.unlock();
   }
 
-  const auto now = std::chrono::steady_clock::now();
+  const auto now = CustomAssetLibrary::ClockType::now();
   for (const auto& asset_id : assets_to_reload)
   {
     if (const auto it = m_asset_id_to_handle.find(asset_id); it != m_asset_id_to_handle.end())

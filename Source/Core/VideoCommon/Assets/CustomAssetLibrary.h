@@ -20,7 +20,8 @@ struct TextureAndSamplerData;
 class CustomAssetLibrary
 {
 public:
-  using TimeType = std::chrono::steady_clock::time_point;
+  using ClockType = std::chrono::steady_clock;
+  using TimeType = ClockType::time_point;
 
   // The AssetID is a unique identifier for a particular asset
   using AssetID = std::string;

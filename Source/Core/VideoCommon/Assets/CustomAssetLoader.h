@@ -56,7 +56,7 @@ private:
 
   std::list<CustomAsset*> m_assets_to_load;
   std::atomic<u64> m_asset_memory_used = 0;
-  std::chrono::steady_clock::time_point m_last_request_time = {};
+  CustomAssetLibrary::TimeType m_last_request_time = {};
   std::mutex m_assets_to_load_lock;
 
   std::condition_variable m_worker_thread_wake;
