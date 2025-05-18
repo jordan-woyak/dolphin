@@ -164,7 +164,7 @@ void CustomResourceManager::ProcessLoadedAssets()
 
 void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
 {
-  const u64 threshold_ram = 0.8f * m_max_ram_available;
+  const u64 threshold_ram = m_max_ram_available * 8 / 10;
   u64 ram_used = m_ram_used;
 
   // Clear out least recently used resources until
