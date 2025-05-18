@@ -186,13 +186,21 @@ private:
     std::vector<decltype(m_assets)::iterator> m_iterator_lookup;
   };
 
+  // Assets that are currently loaded in memory, in order of most recently used by the game.
   AssetPriorityQueue m_loaded_assets;
+
+  // Assets that need to be loaded.
+  // e.g. Because the game tried to use them or because they changed on disk.
+  // Ordered by most recently used.
   AssetPriorityQueue m_pending_assets;
 
   std::map<std::size_t, AssetData> m_asset_handle_to_data;
   std::map<CustomAssetLibrary::AssetID, std::size_t> m_asset_id_to_handle;
 
+  // Memory used by currently "loaded" assets.
   u64 m_ram_used = 0;
+
+  // A calculated amount of memory to avoid exceeding.
   u64 m_max_ram_available = 0;
 
   std::map<CustomAssetLibrary::AssetID, InternalTextureDataResource> m_texture_data_asset_cache;
