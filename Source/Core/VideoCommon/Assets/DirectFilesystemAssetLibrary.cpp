@@ -122,7 +122,7 @@ CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadPixelShader(const
   if (!PixelShaderData::FromJson(asset_id, root_obj, data))
     return {};
 
-  return LoadInfo{approx_mem_size, ClockType::now()};
+  return LoadInfo{approx_mem_size};
 }
 
 CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadMaterial(const AssetID& asset_id,
@@ -180,7 +180,7 @@ CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadMaterial(const As
     return {};
   }
 
-  return LoadInfo{metadata_size, ClockType::now()};
+  return LoadInfo{metadata_size};
 }
 
 CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadMesh(const AssetID& asset_id,
@@ -275,7 +275,7 @@ CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadMesh(const AssetI
   if (!MeshData::FromJson(asset_id, root_obj, data))
     return {};
 
-  return LoadInfo{approx_mem_size, ClockType::now()};
+  return LoadInfo{approx_mem_size};
 }
 
 CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadTexture(const AssetID& asset_id,
@@ -305,7 +305,7 @@ CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadTexture(const Ass
   if (!PurgeInvalidMipsFromTextureData(asset_id, data))
     return {};
 
-  return LoadInfo{GetAssetSize(*data), ClockType::now()};
+  return LoadInfo{GetAssetSize(*data)};
 }
 
 CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadTexture(const AssetID& asset_id,
@@ -378,7 +378,7 @@ CustomAssetLibrary::LoadInfo DirectFilesystemAssetLibrary::LoadTexture(const Ass
   if (!PurgeInvalidMipsFromTextureData(asset_id, &data->m_texture))
     return {};
 
-  return LoadInfo{GetAssetSize(data->m_texture) + metadata_size, ClockType::now()};
+  return LoadInfo{GetAssetSize(data->m_texture) + metadata_size};
 }
 
 void DirectFilesystemAssetLibrary::SetAssetIDMapData(const AssetID& asset_id,
