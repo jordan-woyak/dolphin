@@ -4,7 +4,6 @@
 #pragma once
 
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
 #include <list>
 #include <mutex>
