@@ -7,7 +7,6 @@
 #include <chrono>
 #include <condition_variable>
 #include <list>
-#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>

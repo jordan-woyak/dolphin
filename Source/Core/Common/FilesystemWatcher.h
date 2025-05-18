@@ -8,13 +8,10 @@
 #include <string>
 #include <string_view>
 
-namespace wtr
-{
-inline namespace watcher
+namespace wtr::inline watcher
 {
 class watch;
 }
-}  // namespace wtr
 
 namespace Common
 {

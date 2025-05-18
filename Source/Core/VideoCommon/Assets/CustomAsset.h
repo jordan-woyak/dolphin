@@ -8,7 +8,6 @@
 
 #include <memory>
 #include <mutex>
-#include <optional>
 
 namespace VideoCommon
 {
@@ -17,8 +16,8 @@ namespace VideoCommon
 class CustomAsset
 {
 public:
-  CustomAsset(std::shared_ptr<CustomAssetLibrary> library,
-              const CustomAssetLibrary::AssetID& asset_id, u64 session_id);
+  CustomAsset(std::shared_ptr<CustomAssetLibrary> library, CustomAssetLibrary::AssetID asset_id,
+              u64 asset_handle);
   virtual ~CustomAsset() = default;
   CustomAsset(const CustomAsset&) = delete;
   CustomAsset(CustomAsset&&) = delete;

@@ -157,7 +157,7 @@ private:
     {
       if (m_asset_cache.empty()) [[unlikely]]
         return nullptr;
-      const auto ret = m_asset_cache.back();
+      auto* const ret = m_asset_cache.back();
       if (ret != nullptr)
       {
         m_iterator_lookup[ret->GetHandle()].reset();

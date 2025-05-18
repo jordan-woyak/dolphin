@@ -4,7 +4,6 @@
 #pragma once
 
 #include <array>
-#include <filesystem>
 #include <fmt/format.h>
 #include <map>
 #include <memory>
@@ -18,11 +17,9 @@
 
 #include "Common/BitSet.h"
 #include "Common/CommonTypes.h"
-#include "Common/Flag.h"
 #include "Common/MathUtil.h"
 
 #include "VideoCommon/AbstractTexture.h"
-#include "VideoCommon/Assets/CustomAsset.h"
 #include "VideoCommon/BPMemory.h"
 #include "VideoCommon/HiresTextures.h"
 #include "VideoCommon/TextureConfig.h"

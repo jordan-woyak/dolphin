@@ -80,14 +80,15 @@ bool LoadTextureDataFromFile(const CustomAssetLibrary::AssetID& asset_id,
     }
 
     if (data->m_slices.empty()) [[unlikely]]
-      data->m_slices.push_back({});
+      data->m_slices.emplace_back();
 
-    if (!LoadMips(asset_path, &data->m_slices[0]))
+    if (!LoadMips(asset_path, data->m_slices.data()))
       return false;
 
     return true;
   }
-  else if (ext == ".png")
+
+  if (ext == ".png")
   {
     // PNG could support more complicated texture types in the future
     // but for now just error
@@ -100,14 +101,14 @@ bool LoadTextureDataFromFile(const CustomAssetLibrary::AssetID& asset_id,
 
     // If we have no slices, create one
     if (data->m_slices.empty())
-      data->m_slices.push_back({});
+      data->m_slices.emplace_back();
 
     auto& slice = data->m_slices[0];
     // If we have no levels, create one to pass into LoadPNGTexture
     if (slice.m_levels.empty())
-      slice.m_levels.push_back({});
+      slice.m_levels.emplace_back();
 
-    if (!LoadPNGTexture(&slice.m_levels[0], PathToString(asset_path)))
+    if (!LoadPNGTexture(slice.m_levels.data(), PathToString(asset_path)))
     {
       ERROR_LOG_FMT(VIDEO, "Asset '{}' error - could not load png texture!", asset_id);
       return false;

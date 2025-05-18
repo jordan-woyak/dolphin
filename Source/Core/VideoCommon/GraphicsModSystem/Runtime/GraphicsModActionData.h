@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <array>
-#include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -13,7 +11,7 @@
 #include "Common/Matrix.h"
 #include "Common/SmallVector.h"
 #include "VideoCommon/Assets/TextureAsset.h"
-#include "VideoCommon/PixelShaderGen.h"
+#include "VideoCommon/ShaderGenCommon.h"
 
 namespace GraphicsModActionData
 {

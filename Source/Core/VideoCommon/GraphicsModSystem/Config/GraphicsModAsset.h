@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <picojson.h>
 
 #include "VideoCommon/Assets/CustomAssetLibrary.h"

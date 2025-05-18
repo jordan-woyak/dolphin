@@ -6,12 +6,8 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <vector>
 
-#include "Common/CommonTypes.h"
 #include "VideoCommon/Assets/CustomResourceManager.h"
-#include "VideoCommon/Assets/CustomTextureData.h"
-#include "VideoCommon/TextureConfig.h"
 #include "VideoCommon/TextureInfo.h"
 
 enum class TextureFormat;

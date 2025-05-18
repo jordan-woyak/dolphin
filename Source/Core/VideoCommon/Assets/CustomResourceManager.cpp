@@ -79,7 +79,7 @@ void CustomResourceManager::LoadTextureDataAsset(
   if (!internal_texture_data->asset)
   {
     internal_texture_data->asset =
-        CreateAsset<TextureAsset>(asset_id, AssetData::AssetType::TextureData, library);
+        CreateAsset<TextureAsset>(asset_id, AssetData::AssetType::TextureData, std::move(library));
     internal_texture_data->asset_data =
         &m_asset_handle_to_data[internal_texture_data->asset->GetHandle()];
   }
@@ -188,7 +188,7 @@ void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
   // we get safely in our threshold
   while (ram_used > threshold_ram && m_loaded_assets.Size() > 0)
   {
-    const auto asset = m_loaded_assets.RemoveLeastRecentAsset();
+    auto* const asset = m_loaded_assets.RemoveLeastRecentAsset();
     ram_used -= asset->GetByteSizeInMemory();
 
     AssetData& asset_data = m_asset_handle_to_data[asset->GetHandle()];
@@ -205,7 +205,7 @@ void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
 
   // Recalculate to ensure accuracy
   m_ram_used = 0;
-  for (const auto asset : m_loaded_assets.Elements())
+  for (auto* const asset : m_loaded_assets.Elements())
   {
     m_ram_used += asset->GetByteSizeInMemory();
   }

@@ -5,13 +5,8 @@
 
 #include <algorithm>
 #include <array>
-#include <variant>
 
 #include "Common/Contains.h"
-#include "Common/Logging/Log.h"
-#include "Common/VariantUtil.h"
-
-#include "VideoCommon/AbstractGfx.h"
 
 namespace
 {
