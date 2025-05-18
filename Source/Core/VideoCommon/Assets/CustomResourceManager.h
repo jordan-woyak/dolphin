@@ -56,7 +56,6 @@ private:
   {
     std::unique_ptr<CustomAsset> asset;
     CustomAssetLibrary::TimeType load_request_time = {};
-    std::set<std::size_t> asset_owners;
 
     enum class AssetType
     {
@@ -69,8 +68,7 @@ private:
       PendingReload,
       LoadFinished,
       LoadFinalized,
-      DependenciesChanged,
-      Unloaded
+      Unloaded,
     };
     LoadStatus load_status = LoadStatus::PendingReload;
     bool has_errors = false;

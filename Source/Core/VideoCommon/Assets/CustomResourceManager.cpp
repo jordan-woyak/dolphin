@@ -137,14 +137,6 @@ void CustomResourceManager::ProcessAssetsToReload()
       asset_data.load_status = AssetData::LoadStatus::PendingReload;
       asset_data.has_errors = false;
       asset_data.load_request_time = now;
-      for (const auto owner_handle : asset_data.asset_owners)
-      {
-        AssetData& owner_asset_data = m_asset_handle_to_data[owner_handle];
-        if (owner_asset_data.load_status == AssetData::LoadStatus::LoadFinalized)
-        {
-          owner_asset_data.load_status = AssetData::LoadStatus::DependenciesChanged;
-        }
-      }
       m_pending_assets.MarkAssetAsAvailable(it->second, asset_data.asset.get());
     }
   }
@@ -167,15 +159,6 @@ void CustomResourceManager::ProcessLoadedAssets()
     asset_data.load_status = AssetData::LoadStatus::LoadFinished;
     asset_data.load_request_time = {};
     m_ram_used += asset_data.asset->GetByteSizeInMemory();
-
-    for (const auto owner_handle : asset_data.asset_owners)
-    {
-      AssetData& owner_asset_data = m_asset_handle_to_data[owner_handle];
-      if (owner_asset_data.load_status == AssetData::LoadStatus::LoadFinalized)
-      {
-        owner_asset_data.load_status = AssetData::LoadStatus::DependenciesChanged;
-      }
-    }
   }
 }
 
