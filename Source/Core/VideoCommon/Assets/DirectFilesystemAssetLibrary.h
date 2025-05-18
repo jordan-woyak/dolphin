@@ -36,7 +36,7 @@ private:
   Assets::AssetMap GetAssetMapForID(const AssetID& asset_id) const;
 
   mutable std::mutex m_asset_map_lock;
-  std::map<AssetID, Assets::AssetMap> m_assetid_to_asset_map_path;
+  std::map<AssetID, Assets::AssetMap> m_asset_id_to_asset_map_path;
 
   mutable std::mutex m_path_map_lock;
   std::map<std::string, AssetID, std::less<>> m_path_to_asset_id;

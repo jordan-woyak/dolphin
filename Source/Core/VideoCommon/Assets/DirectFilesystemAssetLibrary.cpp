@@ -387,7 +387,7 @@ void DirectFilesystemAssetLibrary::SetAssetIDMapData(const AssetID& asset_id,
   VideoCommon::Assets::AssetMap previous_asset_map;
   {
     std::lock_guard lk(m_asset_map_lock);
-    previous_asset_map = m_assetid_to_asset_map_path[asset_id];
+    previous_asset_map = m_asset_id_to_asset_map_path[asset_id];
   }
 
   {
@@ -405,7 +405,7 @@ void DirectFilesystemAssetLibrary::SetAssetIDMapData(const AssetID& asset_id,
 
   {
     std::lock_guard lk(m_asset_map_lock);
-    m_assetid_to_asset_map_path[asset_id] = std::move(asset_path_map);
+    m_asset_id_to_asset_map_path[asset_id] = std::move(asset_path_map);
   }
 }
 
@@ -424,8 +424,8 @@ VideoCommon::Assets::AssetMap
 DirectFilesystemAssetLibrary::GetAssetMapForID(const AssetID& asset_id) const
 {
   std::lock_guard lk(m_asset_map_lock);
-  if (auto iter = m_assetid_to_asset_map_path.find(asset_id);
-      iter != m_assetid_to_asset_map_path.end())
+  if (auto iter = m_asset_id_to_asset_map_path.find(asset_id);
+      iter != m_asset_id_to_asset_map_path.end())
   {
     return iter->second;
   }
