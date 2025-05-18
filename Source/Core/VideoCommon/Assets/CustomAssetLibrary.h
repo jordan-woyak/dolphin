@@ -28,7 +28,7 @@ public:
 
   struct LoadInfo
   {
-    std::size_t m_bytes_loaded = 0;
+    std::size_t bytes_loaded = 0;
   };
 
   virtual ~CustomAssetLibrary() = default;
