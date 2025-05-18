@@ -15,11 +15,16 @@ namespace VideoCommon
 {
 void CustomResourceManager::Initialize()
 {
+  // Use half of available system memory but leave at least 2GiB unused for system stability.
+  constexpr size_t must_keep_unused = 2 * size_t(1024 * 1024 * 1024);
+
   const size_t sys_mem = Common::MemPhysical();
-  const size_t recommended_min_mem = 2 * size_t(1024 * 1024 * 1024);
-  // keep 2GB memory for system stability if system RAM is 4GB+ - use half of memory in other cases
-  m_max_ram_available =
-      (sys_mem / 2 < recommended_min_mem) ? (sys_mem / 2) : (sys_mem - recommended_min_mem);
+  const size_t keep_unused_mem = std::max(sys_mem / 2, std::min(sys_mem, must_keep_unused));
+
+  m_max_ram_available = sys_mem - keep_unused_mem;
+
+  if (m_max_ram_available == 0)
+    ERROR_LOG_FMT(VIDEO, "Not enough system memory for custom resources.");
 
   m_asset_loader.Initialize(m_max_ram_available);
 
