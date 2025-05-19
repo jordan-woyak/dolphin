@@ -3,8 +3,6 @@
 
 #include "VideoCommon/Assets/CustomAssetLoader.h"
 
-#include <set>
-
 #include "Common/Thread.h"
 
 namespace VideoCommon
@@ -65,8 +63,8 @@ void CustomAssetLoader::StopWorkerThreads()
 void CustomAssetLoader::WorkerThreadRun()
 {
   Common::SetCurrentThreadName("Asset Loader Worker");
+
   std::unique_lock load_lock(m_assets_to_load_lock);
-  std::set<std::size_t> handles_in_progress;
   while (true)
   {
     m_worker_thread_wake.wait(load_lock,
@@ -78,7 +76,7 @@ void CustomAssetLoader::WorkerThreadRun()
     const auto iter = m_assets_to_load.begin();
     const auto item = *iter;
     m_assets_to_load.erase(iter);
-    const auto [it, inserted] = handles_in_progress.insert(item->GetHandle());
+    const auto [it, inserted] = m_handles_in_progress.insert(item->GetHandle());
     const auto last_request_time = m_last_request_time;
 
     // Was the asset added by another call to 'ScheduleAssetsToLoad'
@@ -101,7 +99,7 @@ void CustomAssetLoader::WorkerThreadRun()
     }
 
     load_lock.lock();
-    handles_in_progress.erase(item->GetHandle());
+    m_handles_in_progress.erase(item->GetHandle());
   }
 }
 

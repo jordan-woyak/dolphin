@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <list>
 #include <mutex>
+#include <set>
 #include <thread>
 #include <vector>
 
@@ -68,5 +69,7 @@ private:
   std::atomic<u64> m_used_memory = 0;
 
   std::mutex m_assets_loaded_lock;
+
+  std::set<std::size_t> m_handles_in_progress;
 };
 }  // namespace VideoCommon
