@@ -122,11 +122,8 @@ void CustomResourceManager::ProcessAssetsToReload()
 {
   decltype(m_assets_to_reload) assets_to_reload;
 
-  if (m_reload_mutex.try_lock())
-  {
+  if (const auto lk = std::unique_lock{m_reload_mutex, std::try_to_lock})
     std::swap(assets_to_reload, m_assets_to_reload);
-    m_reload_mutex.unlock();
-  }
 
   const auto now = CustomAssetLibrary::ClockType::now();
   for (const auto& asset_id : assets_to_reload)
