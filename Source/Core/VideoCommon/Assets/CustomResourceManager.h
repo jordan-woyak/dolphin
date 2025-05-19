@@ -83,7 +83,7 @@ private:
 
   void LoadTextureDataAsset(const CustomAssetLibrary::AssetID& asset_id,
                             std::shared_ptr<VideoCommon::CustomAssetLibrary> library,
-                            InternalTextureDataResource* internal_texture_data);
+                            InternalTextureDataResource* resource);
 
   void ProcessAssetsToReload();
   void ProcessLoadedAssets();

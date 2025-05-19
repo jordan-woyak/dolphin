@@ -77,30 +77,27 @@ CustomResourceManager::TextureTimePair CustomResourceManager::GetTextureDataFrom
 
 void CustomResourceManager::LoadTextureDataAsset(
     const CustomAssetLibrary::AssetID& asset_id,
-    std::shared_ptr<VideoCommon::CustomAssetLibrary> library,
-    InternalTextureDataResource* internal_texture_data)
+    std::shared_ptr<VideoCommon::CustomAssetLibrary> library, InternalTextureDataResource* resource)
 {
-  if (!internal_texture_data->asset)
+  if (!resource->asset)
   {
-    internal_texture_data->asset =
+    resource->asset =
         CreateAsset<TextureAsset>(asset_id, AssetData::AssetType::TextureData, std::move(library));
-    internal_texture_data->asset_data =
-        &m_asset_handle_to_data[internal_texture_data->asset->GetHandle()];
+    resource->asset_data = &m_asset_handle_to_data[resource->asset->GetHandle()];
   }
 
-  auto texture_data = internal_texture_data->asset->GetData();
-  if (!texture_data ||
-      internal_texture_data->asset_data->load_status == AssetData::LoadStatus::PendingReload)
+  auto texture_data = resource->asset->GetData();
+  if (!texture_data || resource->asset_data->load_status == AssetData::LoadStatus::PendingReload)
   {
     // Tell the system we are still interested in loading this asset
-    const auto asset_handle = internal_texture_data->asset->GetHandle();
+    const auto asset_handle = resource->asset->GetHandle();
     m_pending_assets.MakeAssetHighestPriority(asset_handle,
                                               m_asset_handle_to_data[asset_handle].asset.get());
   }
-  else if (internal_texture_data->asset_data->load_status == AssetData::LoadStatus::LoadFinished)
+  else if (resource->asset_data->load_status == AssetData::LoadStatus::LoadFinished)
   {
-    internal_texture_data->texture_data = std::move(texture_data);
-    internal_texture_data->asset_data->load_status = AssetData::LoadStatus::LoadFinalized;
+    resource->texture_data = std::move(texture_data);
+    resource->asset_data->load_status = AssetData::LoadStatus::LoadFinalized;
   }
 }
 
