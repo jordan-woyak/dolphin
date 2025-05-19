@@ -7,6 +7,8 @@
 
 #include "Common/MemoryUtil.h"
 
+#include "UICommon/UICommon.h"
+
 #include "VideoCommon/Assets/CustomAsset.h"
 #include "VideoCommon/Assets/TextureAsset.h"
 #include "VideoCommon/VideoEvents.h"
@@ -79,6 +81,8 @@ void CustomResourceManager::LoadTextureDataAsset(
     const CustomAssetLibrary::AssetID& asset_id,
     std::shared_ptr<VideoCommon::CustomAssetLibrary> library, InternalTextureDataResource* resource)
 {
+  INFO_LOG_FMT(VIDEO, "Load asset: {}", asset_id);
+
   if (!resource->asset)
   {
     resource->asset =
@@ -138,6 +142,8 @@ void CustomResourceManager::ProcessDirtyAssets()
       asset_data.load_status = AssetData::LoadStatus::PendingReload;
       asset_data.load_request_time = now;
       m_pending_assets.InsertAsset(it->second, asset_data.asset.get());
+
+      DEBUG_LOG_FMT(VIDEO, "Dirty asset pending reload: {}", asset_data.asset->GetAssetId());
     }
   }
 }
@@ -175,6 +181,9 @@ void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
     ram_used -= asset->GetByteSizeInMemory();
 
     AssetData& asset_data = m_asset_handle_to_data[asset->GetHandle()];
+
+    INFO_LOG_FMT(VIDEO, "Unloading asset: {} ({})", asset_data.asset->GetAssetId(),
+                 UICommon::FormatSize(asset_data.asset->GetByteSizeInMemory()));
 
     if (asset_data.type == AssetData::AssetType::TextureData)
     {

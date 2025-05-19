@@ -47,7 +47,7 @@ private:
   bool HasWorkerThreads() const;
   void StopWorkerThreads();
 
-  void WorkerThreadRun();
+  void WorkerThreadRun(u32 thread_index);
 
   Common::Flag m_exit_flag;
 

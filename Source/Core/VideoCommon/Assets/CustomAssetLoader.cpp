@@ -3,7 +3,12 @@
 
 #include "VideoCommon/Assets/CustomAssetLoader.h"
 
+#include <fmt/format.h>
+
+#include "Common/Logging/Log.h"
 #include "Common/Thread.h"
+
+#include "UICommon/UICommon.h"
 
 namespace VideoCommon
 {
@@ -21,7 +26,7 @@ bool CustomAssetLoader::StartWorkerThreads(u32 num_worker_threads)
 {
   for (u32 i = 0; i < num_worker_threads; i++)
   {
-    m_worker_threads.emplace_back(&CustomAssetLoader::WorkerThreadRun, this);
+    m_worker_threads.emplace_back(&CustomAssetLoader::WorkerThreadRun, this, i);
   }
 
   return HasWorkerThreads();
@@ -60,9 +65,9 @@ void CustomAssetLoader::StopWorkerThreads()
   m_exit_flag.Clear();
 }
 
-void CustomAssetLoader::WorkerThreadRun()
+void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
 {
-  Common::SetCurrentThreadName("Asset Loader Worker");
+  Common::SetCurrentThreadName(fmt::format("Asset Loader {}", thread_index).c_str());
 
   std::unique_lock load_lock(m_assets_to_load_lock);
   while (true)
@@ -96,6 +101,9 @@ void CustomAssetLoader::WorkerThreadRun()
 
     if (loaded)
     {
+      INFO_LOG_FMT(VIDEO, "CustomAssetLoader thread {} loaded: {} ({})", thread_index,
+                   item->GetAssetId(), UICommon::FormatSize(item->GetByteSizeInMemory()));
+
       std::lock_guard lk{m_assets_loaded_lock};
       m_used_memory += item->GetByteSizeInMemory();
       m_asset_handles_loaded.push_back(item->GetHandle());
