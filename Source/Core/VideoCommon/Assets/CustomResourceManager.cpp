@@ -25,6 +25,9 @@ void CustomResourceManager::Initialize()
 
   m_max_ram_available = sys_mem - keep_unused_mem;
 
+  // HAX
+  m_max_ram_available = size_t(3 * 1024 * 1024);
+
   if (m_max_ram_available == 0)
     ERROR_LOG_FMT(VIDEO, "Not enough system memory for custom resources.");
 
