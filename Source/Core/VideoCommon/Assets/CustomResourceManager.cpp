@@ -62,16 +62,15 @@ CustomResourceManager::TextureTimePair CustomResourceManager::GetTextureDataFrom
     const CustomAssetLibrary::AssetID& asset_id,
     std::shared_ptr<VideoCommon::CustomAssetLibrary> library)
 {
-  const auto [it, inserted] =
-      m_texture_data_asset_cache.try_emplace(asset_id, InternalTextureDataResource{});
-  if (it->second.asset_data &&
-      it->second.asset_data->load_status == AssetData::LoadStatus::LoadFinalized)
+  auto& resource = m_texture_data_asset_cache[asset_id];
+  if (resource.asset_data != nullptr &&
+      resource.asset_data->load_status == AssetData::LoadStatus::LoadFinalized)
   {
-    m_loaded_assets.MakeAssetHighestPriority(it->second.asset->GetHandle(), it->second.asset);
-    return {it->second.texture_data, it->second.asset->GetLastLoadedTime()};
+    m_loaded_assets.MakeAssetHighestPriority(resource.asset->GetHandle(), resource.asset);
+    return {resource.texture_data, resource.asset->GetLastLoadedTime()};
   }
 
-  LoadTextureDataAsset(asset_id, std::move(library), &it->second);
+  LoadTextureDataAsset(asset_id, std::move(library), &resource);
 
   return {};
 }
