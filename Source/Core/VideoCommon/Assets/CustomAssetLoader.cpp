@@ -67,40 +67,41 @@ void CustomAssetLoader::WorkerThreadRun()
   Common::SetCurrentThreadName("Asset Loader Worker");
   std::unique_lock load_lock(m_assets_to_load_lock);
   std::set<std::size_t> handles_in_progress;
-  while (!m_exit_flag.IsSet())
+  while (true)
   {
-    m_worker_thread_wake.wait(load_lock);
+    m_worker_thread_wake.wait(load_lock,
+                              [&] { return !m_assets_to_load.empty() || m_exit_flag.IsSet(); });
 
-    while (!m_assets_to_load.empty() && !m_exit_flag.IsSet())
+    if (m_exit_flag.IsSet())
+      return;
+
+    const auto iter = m_assets_to_load.begin();
+    const auto item = *iter;
+    m_assets_to_load.erase(iter);
+    const auto [it, inserted] = handles_in_progress.insert(item->GetHandle());
+    const auto last_request_time = m_last_request_time;
+
+    // Was the asset added by another call to 'ScheduleAssetsToLoad'
+    // while a load for that asset is still in progress on a worker?
+    if (!inserted)
+      continue;
+
+    if (m_used_memory > m_allowed_memory)
+      break;
+
+    load_lock.unlock();
+
+    // Prevent a second load from occurring when a load finishes after
+    // a new asset request is triggered by 'ScheduleAssetsToLoad'
+    if (last_request_time > item->GetLastLoadedTime() && item->Load())
     {
-      const auto iter = m_assets_to_load.begin();
-      const auto item = *iter;
-      m_assets_to_load.erase(iter);
-      const auto [it, inserted] = handles_in_progress.insert(item->GetHandle());
-      const auto last_request_time = m_last_request_time;
-
-      // Was the asset added by another call to 'ScheduleAssetsToLoad'
-      // while a load for that asset is still in progress on a worker?
-      if (!inserted)
-        continue;
-
-      if (m_used_memory > m_allowed_memory)
-        break;
-
-      load_lock.unlock();
-
-      // Prevent a second load from occurring when a load finishes after
-      // a new asset request is triggered by 'ScheduleAssetsToLoad'
-      if (last_request_time > item->GetLastLoadedTime() && item->Load())
-      {
-        std::lock_guard guard(m_assets_loaded_lock);
-        m_used_memory += item->GetByteSizeInMemory();
-        m_asset_handles_loaded.push_back(item->GetHandle());
-      }
-
-      load_lock.lock();
-      handles_in_progress.erase(item->GetHandle());
+      std::lock_guard guard(m_assets_loaded_lock);
+      m_used_memory += item->GetByteSizeInMemory();
+      m_asset_handles_loaded.push_back(item->GetHandle());
     }
+
+    load_lock.lock();
+    handles_in_progress.erase(item->GetHandle());
   }
 }
 
