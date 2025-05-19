@@ -37,7 +37,7 @@ public:
 
   // Schedule assets to load on the worker threads
   //  and set how much memory is available for loading these additional assets.
-  void ScheduleAssetsToLoad(const std::list<CustomAsset*>& assets_to_load, u64 allowed_memory);
+  void ScheduleAssetsToLoad(std::list<CustomAsset*> assets_to_load, u64 allowed_memory);
 
   void Reset(bool restart_worker_threads = true);
 
@@ -53,10 +53,8 @@ private:
 
   std::vector<std::thread> m_worker_threads;
 
-  std::list<CustomAsset*> m_assets_to_load;
-
-  CustomAssetLibrary::TimeType m_last_request_time = {};
   std::mutex m_assets_to_load_lock;
+  std::list<CustomAsset*> m_assets_to_load;
 
   std::condition_variable m_worker_thread_wake;
 

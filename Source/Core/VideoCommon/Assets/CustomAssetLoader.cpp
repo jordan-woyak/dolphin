@@ -73,62 +73,60 @@ void CustomAssetLoader::WorkerThreadRun()
     if (m_exit_flag.IsSet())
       return;
 
-    const auto iter = m_assets_to_load.begin();
-    const auto item = *iter;
-    m_assets_to_load.erase(iter);
-    const auto [it, inserted] = m_handles_in_progress.insert(item->GetHandle());
-    const auto last_request_time = m_last_request_time;
-
-    // Was the asset added by another call to 'ScheduleAssetsToLoad'
-    // while a load for that asset is still in progress on a worker?
-    if (!inserted)
-      continue;
-
+    // If more memory than allowed has already been loaded, we will load nothing more
+    //  until the next ScheduleAssetsToLoad from Manager.
     if (m_used_memory > m_allowed_memory)
-      break;
+    {
+      m_assets_to_load.clear();
+      continue;
+    }
+
+    auto* const item = m_assets_to_load.front();
+    m_assets_to_load.pop_front();
+
+    // Make sure another thread isn't loading this handle.
+    if (!m_handles_in_progress.insert(item->GetHandle()).second)
+      continue;
 
     load_lock.unlock();
 
-    // Prevent a second load from occurring when a load finishes after
-    // a new asset request is triggered by 'ScheduleAssetsToLoad'
-    if (last_request_time > item->GetLastLoadedTime() && item->Load())
-    {
-      std::lock_guard guard(m_assets_loaded_lock);
-      m_used_memory += item->GetByteSizeInMemory();
-      m_asset_handles_loaded.push_back(item->GetHandle());
-    }
+    const bool loaded = item->Load();
 
     load_lock.lock();
+
+    if (loaded)
+    {
+      std::lock_guard lk{m_assets_loaded_lock};
+      m_used_memory += item->GetByteSizeInMemory();
+      m_asset_handles_loaded.push_back(item->GetHandle());
+
+      // Make sure no other threads try to re-process this item.
+      // Manager will take the handles and re-ScheduleAssetsToLoad based on timestamps if needed.
+      std::erase(m_assets_to_load, item);
+    }
+
     m_handles_in_progress.erase(item->GetHandle());
   }
 }
 
 std::vector<std::size_t> CustomAssetLoader::TakeLoadedAssetHandles()
 {
-  std::vector<std::size_t> completed_asset_handles;
-  {
-    std::lock_guard guard(m_assets_loaded_lock);
-    m_asset_handles_loaded.swap(completed_asset_handles);
-    m_used_memory = 0;
-  }
-
-  return completed_asset_handles;
+  std::lock_guard guard(m_assets_loaded_lock);
+  m_used_memory = 0;
+  return std::move(m_asset_handles_loaded);
 }
 
-void CustomAssetLoader::ScheduleAssetsToLoad(const std::list<CustomAsset*>& assets_to_load,
+void CustomAssetLoader::ScheduleAssetsToLoad(std::list<CustomAsset*> assets_to_load,
                                              u64 allowed_memory)
 {
   if (assets_to_load.empty()) [[unlikely]]
     return;
 
   // There's new assets to process, notify worker threads
-  {
-    std::lock_guard guard(m_assets_to_load_lock);
-    m_allowed_memory = allowed_memory;
-    m_assets_to_load = assets_to_load;
-    m_last_request_time = CustomAssetLibrary::ClockType::now();
-    m_worker_thread_wake.notify_all();
-  }
+  std::lock_guard guard(m_assets_to_load_lock);
+  m_allowed_memory = allowed_memory;
+  m_assets_to_load = std::move(assets_to_load);
+  m_worker_thread_wake.notify_all();
 }
 
 void CustomAssetLoader::Reset(bool restart_worker_threads)
