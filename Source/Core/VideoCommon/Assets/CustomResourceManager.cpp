@@ -48,14 +48,14 @@ void CustomResourceManager::Reset()
   m_asset_handle_to_data.clear();
   m_asset_id_to_handle.clear();
   m_texture_data_asset_cache.clear();
-  m_assets_to_reload.clear();
+  m_dirty_assets.clear();
   m_ram_used = 0;
 }
 
-void CustomResourceManager::ReloadAsset(const CustomAssetLibrary::AssetID& asset_id)
+void CustomResourceManager::MarkAssetDirty(const CustomAssetLibrary::AssetID& asset_id)
 {
-  std::lock_guard guard(m_reload_mutex);
-  m_assets_to_reload.insert(asset_id);
+  std::lock_guard guard(m_dirty_mutex);
+  m_dirty_assets.insert(asset_id);
 }
 
 CustomResourceManager::TextureTimePair CustomResourceManager::GetTextureDataFromAsset(
@@ -103,7 +103,7 @@ void CustomResourceManager::LoadTextureDataAsset(
 
 void CustomResourceManager::XFBTriggered()
 {
-  ProcessAssetsToReload();
+  ProcessDirtyAssets();
   ProcessLoadedAssets();
 
   if (m_ram_used > m_max_ram_available)
@@ -118,15 +118,15 @@ void CustomResourceManager::XFBTriggered()
     m_asset_loader.ScheduleAssetsToLoad(m_pending_assets.Elements());
 }
 
-void CustomResourceManager::ProcessAssetsToReload()
+void CustomResourceManager::ProcessDirtyAssets()
 {
-  decltype(m_assets_to_reload) assets_to_reload;
+  decltype(m_dirty_assets) dirty_assets;
 
-  if (const auto lk = std::unique_lock{m_reload_mutex, std::try_to_lock})
-    std::swap(assets_to_reload, m_assets_to_reload);
+  if (const auto lk = std::unique_lock{m_dirty_mutex, std::try_to_lock})
+    std::swap(dirty_assets, m_dirty_assets);
 
   const auto now = CustomAssetLibrary::ClockType::now();
-  for (const auto& asset_id : assets_to_reload)
+  for (const auto& asset_id : dirty_assets)
   {
     if (const auto it = m_asset_id_to_handle.find(asset_id); it != m_asset_id_to_handle.end())
     {

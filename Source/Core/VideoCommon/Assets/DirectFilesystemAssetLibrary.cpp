@@ -416,7 +416,7 @@ void DirectFilesystemAssetLibrary::PathModified(std::string_view path)
   {
     auto& system = Core::System::GetInstance();
     auto& resource_manager = system.GetCustomResourceManager();
-    resource_manager.ReloadAsset(iter->second);
+    resource_manager.MarkAssetDirty(iter->second);
   }
 }
 

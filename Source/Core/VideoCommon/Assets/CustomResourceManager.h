@@ -35,7 +35,7 @@ public:
   void Reset();
 
   // Request that an asset be reloaded
-  void ReloadAsset(const CustomAssetLibrary::AssetID& asset_id);
+  void MarkAssetDirty(const CustomAssetLibrary::AssetID& asset_id);
 
   void XFBTriggered();
 
@@ -85,7 +85,7 @@ private:
                             std::shared_ptr<VideoCommon::CustomAssetLibrary> library,
                             InternalTextureDataResource* resource);
 
-  void ProcessAssetsToReload();
+  void ProcessDirtyAssets();
   void ProcessLoadedAssets();
   void RemoveAssetsUntilBelowMemoryLimit();
 
@@ -203,8 +203,8 @@ private:
 
   std::map<CustomAssetLibrary::AssetID, InternalTextureDataResource> m_texture_data_asset_cache;
 
-  std::mutex m_reload_mutex;
-  std::set<CustomAssetLibrary::AssetID> m_assets_to_reload;
+  std::mutex m_dirty_mutex;
+  std::set<CustomAssetLibrary::AssetID> m_dirty_assets;
 
   CustomAssetLoader m_asset_loader;
 
