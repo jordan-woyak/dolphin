@@ -26,7 +26,7 @@ void CustomResourceManager::Initialize()
   if (m_max_ram_available == 0)
     ERROR_LOG_FMT(VIDEO, "Not enough system memory for custom resources.");
 
-  m_asset_loader.Initialize(m_max_ram_available);
+  m_asset_loader.Initialize();
 
   m_xfb_event =
       AfterFrameEvent::Register([this](Core::System&) { XFBTriggered(); }, "CustomResourceManager");
@@ -113,9 +113,12 @@ void CustomResourceManager::XFBTriggered()
 
   if (m_pending_assets.IsEmpty())
     return;
-  m_asset_loader.SetAssetMemoryUsed(m_ram_used);
-  if (m_ram_used < m_max_ram_available)
-    m_asset_loader.ScheduleAssetsToLoad(m_pending_assets.Elements());
+
+  if (m_ram_used > m_max_ram_available)
+    return;
+
+  const u64 allowed_memory = m_max_ram_available - m_ram_used;
+  m_asset_loader.ScheduleAssetsToLoad(m_pending_assets.Elements(), allowed_memory);
 }
 
 void CustomResourceManager::ProcessDirtyAssets()

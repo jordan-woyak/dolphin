@@ -9,9 +9,8 @@
 
 namespace VideoCommon
 {
-void CustomAssetLoader::Initialize(u64 max_memory_allowed)
+void CustomAssetLoader::Initialize()
 {
-  m_max_memory_allowed = max_memory_allowed;
   ResizeWorkerThreads(2);
 }
 
@@ -85,7 +84,7 @@ void CustomAssetLoader::WorkerThreadRun()
       if (!inserted)
         continue;
 
-      if ((m_asset_memory_used + m_asset_memory_loaded) > m_max_memory_allowed)
+      if (m_used_memory > m_allowed_memory)
         break;
 
       load_lock.unlock();
@@ -95,7 +94,7 @@ void CustomAssetLoader::WorkerThreadRun()
       if (last_request_time > item->GetLastLoadedTime() && item->Load())
       {
         std::lock_guard guard(m_assets_loaded_lock);
-        m_asset_memory_loaded += item->GetByteSizeInMemory();
+        m_used_memory += item->GetByteSizeInMemory();
         m_asset_handles_loaded.push_back(item->GetHandle());
       }
 
@@ -111,13 +110,14 @@ std::vector<std::size_t> CustomAssetLoader::TakeLoadedAssetHandles()
   {
     std::lock_guard guard(m_assets_loaded_lock);
     m_asset_handles_loaded.swap(completed_asset_handles);
-    m_asset_memory_loaded = 0;
+    m_used_memory = 0;
   }
 
   return completed_asset_handles;
 }
 
-void CustomAssetLoader::ScheduleAssetsToLoad(const std::list<CustomAsset*>& assets_to_load)
+void CustomAssetLoader::ScheduleAssetsToLoad(const std::list<CustomAsset*>& assets_to_load,
+                                             u64 allowed_memory)
 {
   if (assets_to_load.empty()) [[unlikely]]
     return;
@@ -125,15 +125,11 @@ void CustomAssetLoader::ScheduleAssetsToLoad(const std::list<CustomAsset*>& asse
   // There's new assets to process, notify worker threads
   {
     std::lock_guard guard(m_assets_to_load_lock);
+    m_allowed_memory = allowed_memory;
     m_assets_to_load = assets_to_load;
     m_last_request_time = CustomAssetLibrary::ClockType::now();
     m_worker_thread_wake.notify_all();
   }
-}
-
-void CustomAssetLoader::SetAssetMemoryUsed(u64 memory_used)
-{
-  m_asset_memory_used = memory_used;
 }
 
 void CustomAssetLoader::Reset(bool restart_worker_threads)
@@ -142,9 +138,9 @@ void CustomAssetLoader::Reset(bool restart_worker_threads)
   StopWorkerThreads();
 
   m_assets_to_load.clear();
-  m_asset_memory_used = 0;
+  m_allowed_memory = 0;
   m_asset_handles_loaded.clear();
-  m_asset_memory_loaded = 0;
+  m_used_memory = 0;
 
   if (restart_worker_threads)
   {

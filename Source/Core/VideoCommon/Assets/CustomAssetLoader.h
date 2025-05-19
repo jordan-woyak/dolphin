@@ -28,16 +28,16 @@ public:
   CustomAssetLoader& operator=(const CustomAssetLoader&) = delete;
   CustomAssetLoader& operator=(CustomAssetLoader&&) = delete;
 
-  void Initialize(u64 max_memory_allowed);
+  void Initialize();
   void Shutdown();
 
   // Returns a vector of asset handles that were loaded
   std::vector<std::size_t> TakeLoadedAssetHandles();
 
-  // Schedules assets on the worker threads to load
-  void ScheduleAssetsToLoad(const std::list<CustomAsset*>& pending_assets);
+  // Schedule assets to load on the worker threads
+  //  and set how much memory is available for loading these additional assets.
+  void ScheduleAssetsToLoad(const std::list<CustomAsset*>& assets_to_load, u64 allowed_memory);
 
-  void SetAssetMemoryUsed(u64 memory_used);
   void Reset(bool restart_worker_threads = true);
 
 private:
@@ -50,18 +50,23 @@ private:
 
   Common::Flag m_exit_flag;
 
-  u64 m_max_memory_allowed = 0;
   std::vector<std::thread> m_worker_threads;
 
   std::list<CustomAsset*> m_assets_to_load;
-  std::atomic<u64> m_asset_memory_used = 0;
+
   CustomAssetLibrary::TimeType m_last_request_time = {};
   std::mutex m_assets_to_load_lock;
 
   std::condition_variable m_worker_thread_wake;
 
   std::vector<std::size_t> m_asset_handles_loaded;
-  std::atomic<u64> m_asset_memory_loaded = 0;
+
+  // Memory available to load new assets.
+  u64 m_allowed_memory = 0;
+
+  // Memory used by just-loaded assets yet to be taken by the Manager.
+  std::atomic<u64> m_used_memory = 0;
+
   std::mutex m_assets_loaded_lock;
 };
 }  // namespace VideoCommon
