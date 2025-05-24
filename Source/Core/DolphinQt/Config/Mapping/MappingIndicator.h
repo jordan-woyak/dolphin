@@ -276,5 +276,6 @@ private:
   std::unique_ptr<ciface::MappingCommon::DirectionalInputMappingsDetector> m_mapper;
   std::unique_ptr<ciface::MappingCommon::CalibrationBuilder> m_calibrator;
 
+  // Elapsed seconds.
   float m_animation_state = 0;
 };

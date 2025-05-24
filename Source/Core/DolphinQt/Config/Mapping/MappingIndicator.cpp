@@ -939,7 +939,7 @@ void CalibrationWidget::DrawInProgressMapping(QPainter& p)
 
   p.rotate(qRadiansToDegrees(m_mapper->GetCurrentAngle()));
 
-  const auto ping_pong = 1 - std::abs(1 - (2 * m_animation_state));
+  const auto ping_pong = 1 - std::abs(1 - (2 * std::fmod(m_animation_state, 1)));
 
   // Stick.
   DrawPushedStick(p, m_indicator,
@@ -970,7 +970,9 @@ void CalibrationWidget::DrawInProgressCalibration(QPainter& p, Common::DVec2 poi
   // Clockwise spinning stick.
   p.save();
   p.rotate(m_animation_state * -360.0);
-  DrawPushedStick(p, m_indicator, -1.0);
+  DrawPushedStick(
+      p, m_indicator,
+      -QEasingCurve(QEasingCurve::OutCirc).valueForProgress(std::min(m_animation_state * 2, 1.f)));
   p.restore();
 
   const auto center = m_calibrator->GetCenter();
@@ -1142,7 +1144,7 @@ void CalibrationWidget::StartCalibration(std::optional<Common::DVec2> center)
 
 void CalibrationWidget::StepAnimation(float elapsed_seconds)
 {
-  m_animation_state = std::fmod(m_animation_state + elapsed_seconds, 1.f);
+  m_animation_state += elapsed_seconds;
 }
 
 void CalibrationWidget::Update(Common::DVec2 point)
