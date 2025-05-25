@@ -47,8 +47,7 @@ void CustomResourceManager::Reset()
   m_active_assets = {};
   m_pending_assets = {};
   m_asset_handle_to_data.clear();
-  m_asset_id_to_handle.clear();
-  m_texture_data_asset_cache.clear();
+  m_asset_id_to_data.clear();
   m_dirty_assets.clear();
   m_ram_used = 0;
 }
@@ -63,47 +62,34 @@ CustomResourceManager::TextureTimePair CustomResourceManager::GetTextureDataFrom
     const CustomAssetLibrary::AssetID& asset_id,
     std::shared_ptr<VideoCommon::CustomAssetLibrary> library)
 {
-  auto& resource = m_texture_data_asset_cache[asset_id];
-  if (resource.asset_data != nullptr &&
-      resource.asset_data->load_status == AssetData::LoadStatus::ResourceDataAvailable)
-  {
-    m_active_assets.MakeAssetHighestPriority(resource.asset->GetHandle(), resource.asset);
-    return {resource.texture_data, resource.asset->GetLastLoadedTime()};
-  }
-
-  // If there is an error, don't try and load again until the error is fixed
-  if (resource.asset_data != nullptr && resource.asset_data->has_load_error)
-    return {};
-
-  LoadTextureDataAsset(asset_id, std::move(library), &resource);
-  m_active_assets.MakeAssetHighestPriority(resource.asset->GetHandle(), resource.asset);
-
-  return {};
+  auto* const asset = GetAsset<TextureAsset>(asset_id, std::move(library));
+  return {asset->GetData(), asset->GetLastLoadedTime()};
 }
 
-void CustomResourceManager::LoadTextureDataAsset(
-    const CustomAssetLibrary::AssetID& asset_id,
-    std::shared_ptr<VideoCommon::CustomAssetLibrary> library, InternalTextureDataResource* resource)
+void CustomResourceManager::MakeAssetHighestPriority(AssetData* data)
 {
-  if (!resource->asset)
-  {
-    resource->asset =
-        CreateAsset<TextureAsset>(asset_id, AssetData::AssetType::TextureData, std::move(library));
-    resource->asset_data = &m_asset_handle_to_data[resource->asset->GetHandle()];
+  // Update active state.
+  if (data->active_iter == m_active_assets.end())
+  {  // Place newly active asset at the front of the list.
+    data->active_iter = m_active_assets.insert(m_active_assets.begin(), data);
+  }
+  else
+  {  // Bump already active asset to the front of the list.
+    m_active_assets.splice(m_active_assets.begin(), m_active_assets, data->active_iter);
   }
 
-  auto texture_data = resource->asset->GetData();
-  if (!texture_data || resource->asset_data->load_status == AssetData::LoadStatus::PendingReload)
-  {
-    // Tell the system we are still interested in loading this asset
-    const auto asset_handle = resource->asset->GetHandle();
-    m_pending_assets.MakeAssetHighestPriority(asset_handle,
-                                              m_asset_handle_to_data[asset_handle].asset.get());
+  if (data->IsLoaded() || data->has_load_error)
+    return;
+
+  // Update pending state.
+  if (data->pending_iter == m_pending_assets.end())
+  {  // Create a new load request.
+    data->pending_iter =
+        m_pending_assets.insert(m_pending_assets.begin(), LoadRequest{data, Clock::now()});
   }
-  else if (resource->asset_data->load_status == AssetData::LoadStatus::LoadFinished)
-  {
-    resource->texture_data = std::move(texture_data);
-    resource->asset_data->load_status = AssetData::LoadStatus::ResourceDataAvailable;
+  else
+  {  // Bump the existing load request to the front of the list.
+    m_pending_assets.splice(m_pending_assets.begin(), m_pending_assets, data->pending_iter);
   }
 }
 
@@ -117,14 +103,19 @@ void CustomResourceManager::XFBTriggered()
     RemoveAssetsUntilBelowMemoryLimit();
   }
 
-  if (m_pending_assets.IsEmpty())
+  if (m_pending_assets.empty())
     return;
 
   if (m_ram_used > m_max_ram_available)
     return;
 
   const u64 allowed_memory = m_max_ram_available - m_ram_used;
-  m_asset_loader.ScheduleAssetsToLoad(m_pending_assets.Elements(), allowed_memory);
+
+  std::list<CustomAsset*> assets_to_load;
+  for (const auto& request : m_pending_assets)
+    assets_to_load.emplace_back(request.asset_data->asset.get());
+
+  m_asset_loader.ScheduleAssetsToLoad(assets_to_load, allowed_memory);
 }
 
 void CustomResourceManager::ProcessDirtyAssets()
@@ -137,82 +128,94 @@ void CustomResourceManager::ProcessDirtyAssets()
   const auto now = CustomAsset::ClockType::now();
   for (const auto& asset_id : dirty_assets)
   {
-    if (const auto it = m_asset_id_to_handle.find(asset_id); it != m_asset_id_to_handle.end())
-    {
-      const auto asset_handle = it->second;
-      AssetData& asset_data = m_asset_handle_to_data[asset_handle];
-      asset_data.load_status = AssetData::LoadStatus::PendingReload;
-      asset_data.load_request_time = now;
+    const auto it = m_asset_id_to_data.find(asset_id);
 
-      // Asset was reloaded, clear any errors we might have
-      asset_data.has_load_error = false;
+    if (it == m_asset_id_to_data.end())
+      continue;
 
-      m_pending_assets.InsertAsset(it->second, asset_data.asset.get());
+    AssetData& asset_data = *it->second;
 
-      DEBUG_LOG_FMT(VIDEO, "Dirty asset pending reload: {}", asset_data.asset->GetAssetId());
+    // Clear error state.
+    asset_data.has_load_error = false;
+
+    // Ignore the change if the asset isn't active.
+    if (asset_data.active_iter == m_active_assets.end())
+      continue;
+
+    if (asset_data.pending_iter == m_pending_assets.end())
+    {  // Create a new load request.
+      asset_data.pending_iter =
+          m_pending_assets.insert(m_pending_assets.end(), LoadRequest{&asset_data, now});
     }
+    else
+    {  // Update the existing load request.
+      asset_data.pending_iter->load_request_time = now;
+    }
+
+    INFO_LOG_FMT(VIDEO, "Dirty asset pending reload: {}", asset_data.asset->GetAssetId());
   }
 }
 
 void CustomResourceManager::ProcessLoadedAssets()
 {
-  const auto asset_handles_loaded = m_asset_loader.TakeLoadedAssetHandles();
-  for (const auto& [handle, load_successful] : asset_handles_loaded)
-  {
-    AssetData& asset_data = m_asset_handle_to_data[handle];
+  const auto load_results = m_asset_loader.TakeLoadResults();
+  m_ram_used += load_results.change_in_memory;
 
-    // If we have a reload request that is newer than our loaded time
-    // we need to wait
-    if (asset_data.load_request_time > asset_data.asset->GetLastLoadedTime())
+  for (const auto& [handle, load_successful] : load_results.asset_handles)
+  {
+    AssetData& asset_data = *m_asset_handle_to_data[handle];
+
+    // Ensure this loaded asset is in the active list.
+    if (asset_data.active_iter == m_active_assets.end())
+      asset_data.active_iter = m_active_assets.insert(m_active_assets.end(), &asset_data);
+
+    // Did we still even want this asset loaded?
+    if (asset_data.pending_iter == m_pending_assets.end())
       continue;
 
-    m_pending_assets.RemoveAsset(handle);
+    // If we have a reload request that is newer than our loaded time
+    // we need to wait for another reload.
+    if (asset_data.pending_iter->load_request_time > asset_data.asset->GetLastLoadedTime())
+      continue;
 
-    asset_data.load_request_time = {};
+    // Remove from pending list.
+    if (asset_data.pending_iter != m_pending_assets.end())
+      m_pending_assets.erase(std::exchange(asset_data.pending_iter, m_pending_assets.end()));
+
     if (!load_successful)
-    {
       asset_data.has_load_error = true;
-    }
-    else
-    {
-      m_active_assets.InsertAsset(handle, asset_data.asset.get());
-      asset_data.load_status = AssetData::LoadStatus::LoadFinished;
-      m_ram_used += asset_data.asset->GetByteSizeInMemory();
-    }
   }
 }
 
 void CustomResourceManager::RemoveAssetsUntilBelowMemoryLimit()
 {
   const u64 threshold_ram = m_max_ram_available * 8 / 10;
-  u64 ram_used = m_ram_used;
+
+  if (m_ram_used > threshold_ram)
+  {
+    INFO_LOG_FMT(VIDEO, "Memory usage over threshold: {}", UICommon::FormatSize(m_ram_used));
+  }
 
   // Clear out least recently used resources until
   // we get safely in our threshold
-  while (ram_used > threshold_ram && m_active_assets.Size() > 0)
+  while (m_ram_used > threshold_ram && !m_active_assets.empty())
   {
-    auto* const asset = m_active_assets.RemoveLowestPriorityAsset();
-    ram_used -= asset->GetByteSizeInMemory();
+    auto* const data = m_active_assets.back();
+    m_active_assets.pop_back();
+    data->active_iter = m_active_assets.end();
 
-    AssetData& asset_data = m_asset_handle_to_data[asset->GetHandle()];
+    // Also remove from pending list.
+    if (data->pending_iter != m_pending_assets.end())
+      m_pending_assets.erase(std::exchange(data->pending_iter, m_pending_assets.end()));
 
-    INFO_LOG_FMT(VIDEO, "Unloading asset: {} ({})", asset_data.asset->GetAssetId(),
-                 UICommon::FormatSize(asset_data.asset->GetByteSizeInMemory()));
+    auto* const asset = data->asset.get();
 
-    if (asset_data.type == AssetData::AssetType::TextureData)
-    {
-      m_texture_data_asset_cache.erase(asset->GetAssetId());
-    }
-    asset_data.asset->Unload();
-    asset_data.load_status = AssetData::LoadStatus::Unloaded;
-    asset_data.load_request_time = {};
-  }
+    m_ram_used -= asset->GetByteSizeInMemory();
 
-  // Recalculate to ensure accuracy
-  m_ram_used = 0;
-  for (auto* const asset : m_active_assets.Elements())
-  {
-    m_ram_used += asset->GetByteSizeInMemory();
+    INFO_LOG_FMT(VIDEO, "Unloading asset: {} ({})", asset->GetAssetId(),
+                 UICommon::FormatSize(asset->GetByteSizeInMemory()));
+
+    asset->Unload();
   }
 }
 

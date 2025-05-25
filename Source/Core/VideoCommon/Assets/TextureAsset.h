@@ -35,6 +35,8 @@ class TextureAsset final : public CustomLoadableAsset<CustomTextureData>
 public:
   using CustomLoadableAsset::CustomLoadableAsset;
 
+  static constexpr auto ASSET_TYPE = AssetType::TextureData;
+
 private:
   CustomAssetLibrary::LoadInfo LoadImpl(const CustomAssetLibrary::AssetID& asset_id) override;
 };

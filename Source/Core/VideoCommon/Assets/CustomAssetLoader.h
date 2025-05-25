@@ -32,9 +32,15 @@ public:
   void Initialize();
   void Shutdown();
 
-  using AssetHandleLoadedPair = std::pair<std::size_t, bool>;
+  struct LoadResults
+  {
+    std::vector<std::pair<std::size_t, bool>> asset_handles;
+    s64 change_in_memory;
+  };
+
   // Returns a vector of loaded asset handle / loaded result pairs
-  std::vector<AssetHandleLoadedPair> TakeLoadedAssetHandles();
+  //  and the change in memory.
+  LoadResults TakeLoadResults();
 
   // Schedule assets to load on the worker threads
   //  and set how much memory is available for loading these additional assets.
@@ -59,13 +65,13 @@ private:
 
   std::condition_variable m_worker_thread_wake;
 
-  std::vector<AssetHandleLoadedPair> m_asset_handles_loaded;
+  std::vector<std::pair<std::size_t, bool>> m_asset_handles_loaded;
 
   // Memory available to load new assets.
-  u64 m_allowed_memory = 0;
+  s64 m_allowed_memory = 0;
 
-  // Memory used by just-loaded assets yet to be taken by the Manager.
-  std::atomic<u64> m_used_memory = 0;
+  // Change in memory from just-loaded/unloaded asset results yet to be taken by the Manager.
+  std::atomic<s64> m_change_in_memory = 0;
 
   std::mutex m_assets_loaded_lock;
 

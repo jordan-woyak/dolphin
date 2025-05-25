@@ -80,7 +80,7 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
 
     // If more memory than allowed has already been loaded, we will load nothing more
     //  until the next ScheduleAssetsToLoad from Manager.
-    if (m_used_memory > m_allowed_memory)
+    if (m_change_in_memory > m_allowed_memory)
     {
       m_assets_to_load.clear();
       continue;
@@ -95,7 +95,15 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
 
     load_lock.unlock();
 
+    // Unload previously loaded asset.
+    if (const auto previous_byte_size = s64(item->GetByteSizeInMemory()))
+    {
+      item->Unload();
+      m_change_in_memory -= previous_byte_size;
+    }
+
     const bool load_successful = item->Load();
+    m_change_in_memory += s64(item->GetByteSizeInMemory());
 
     load_lock.lock();
 
@@ -104,8 +112,6 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
                    item->GetAssetId(), UICommon::FormatSize(item->GetByteSizeInMemory()));
 
       std::lock_guard lk{m_assets_loaded_lock};
-      if (load_successful)
-        m_used_memory += item->GetByteSizeInMemory();
       m_asset_handles_loaded.emplace_back(item->GetHandle(), load_successful);
 
       // Make sure no other threads try to re-process this item.
@@ -117,11 +123,10 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
   }
 }
 
-std::vector<CustomAssetLoader::AssetHandleLoadedPair> CustomAssetLoader::TakeLoadedAssetHandles()
+auto CustomAssetLoader::TakeLoadResults() -> LoadResults
 {
   std::lock_guard guard(m_assets_loaded_lock);
-  m_used_memory = 0;
-  return std::move(m_asset_handles_loaded);
+  return {std::move(m_asset_handles_loaded), m_change_in_memory.exchange(0)};
 }
 
 void CustomAssetLoader::ScheduleAssetsToLoad(std::list<CustomAsset*> assets_to_load,
@@ -132,7 +137,7 @@ void CustomAssetLoader::ScheduleAssetsToLoad(std::list<CustomAsset*> assets_to_l
 
   // There's new assets to process, notify worker threads
   std::lock_guard guard(m_assets_to_load_lock);
-  m_allowed_memory = allowed_memory;
+  m_allowed_memory = s64(allowed_memory);
   m_assets_to_load = std::move(assets_to_load);
   m_worker_thread_wake.notify_all();
 }
@@ -144,8 +149,7 @@ void CustomAssetLoader::Reset(bool restart_worker_threads)
 
   m_assets_to_load.clear();
   m_allowed_memory = 0;
-  m_asset_handles_loaded.clear();
-  m_used_memory = 0;
+  m_asset_handles_loaded = {};
 
   if (restart_worker_threads)
   {

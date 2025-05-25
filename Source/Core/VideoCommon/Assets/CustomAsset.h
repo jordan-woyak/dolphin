@@ -21,6 +21,11 @@ public:
   using ClockType = std::chrono::steady_clock;
   using TimeType = ClockType::time_point;
 
+  enum class AssetType
+  {
+    TextureData,
+  };
+
   CustomAsset(std::shared_ptr<CustomAssetLibrary> library,
               const CustomAssetLibrary::AssetID& asset_id, u64 session_id);
   virtual ~CustomAsset() = default;
