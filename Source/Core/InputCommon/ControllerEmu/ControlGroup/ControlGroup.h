@@ -63,7 +63,7 @@ public:
     Disabled,
   };
 
-  explicit ControlGroup(std::string name, GroupType type = GroupType::Other,
+  explicit ControlGroup(const std::string& name, GroupType type = GroupType::Other,
                         DefaultValue default_value = DefaultValue::AlwaysEnabled);
   ControlGroup(std::string name, std::string ui_name, GroupType type = GroupType::Other,
                DefaultValue default_value = DefaultValue::AlwaysEnabled);
@@ -89,15 +89,6 @@ public:
         std::make_unique<NumericSetting<T>>(value, details, default_value_, min_value, max_value));
   }
 
-  void AddEnable(SettingValue<bool>* value, const NumericSettingDetails& details,
-                 std::common_type_t<bool> default_value_,
-                 std::common_type_t<bool> min_value = false,
-                 std::common_type_t<bool> max_value = true)
-  {
-    enable_setting = std::make_unique<NumericSetting<bool>>(value, details, default_value_,
-                                                            min_value, max_value);
-  }
-
   void AddVirtualNotchSetting(SettingValue<double>* value, double max_virtual_notch_deg);
 
   void AddDeadzoneSetting(SettingValue<double>* value, double maximum_deadzone);
@@ -108,13 +99,17 @@ public:
     return std::copysign(std::max(T{0}, std::abs(input) - deadzone) / (T{1} - deadzone), input);
   }
 
+  bool HasEnableSetting() const;
+
   const std::string name;
   const std::string ui_name;
   const GroupType type;
-  const DefaultValue default_value;
 
+  // The default "enabled" state.
+  const DefaultValue default_value;
   SettingValue<bool> enabled;
-  std::unique_ptr<NumericSetting<bool>> enable_setting;
+  std::unique_ptr<NumericSetting<bool>> enabled_setting;
+
   std::vector<std::unique_ptr<Control>> controls;
   std::vector<std::unique_ptr<NumericSettingBase>> numeric_settings;
 };

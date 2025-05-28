@@ -26,11 +26,6 @@ IMUCursor::IMUCursor(std::string name_, std::string ui_name_)
           ControlGroup::DefaultValue::Enabled)
 #endif
 {
-  AddEnable(
-      &enabled,
-      {_trans("Enabled"), nullptr, nullptr, nullptr, ControllerEmu::SettingVisibility::Normal},
-      false, false, true);
-
   AddInput(Translatability::Translate, _trans("Recenter"));
 
   // Default values chosen to reach screen edges in most games including the Wii Menu.
