@@ -43,7 +43,7 @@ StackedSettingsWindow::StackedSettingsWindow(QWidget* parent) : QDialog{parent}
 
   // FYI: "base" is the window color on Windows and "alternate-base" is very high contrast on macOS.
   const auto [list_background, list_hover_background] =
-#if defined(_WIN32)
+#if !defined(__APPLE__)
       std::pair("palette(alternate-base)", "palette(base)");
 #else
       std::pair("palette(base)", "palette(alternate-base)");
