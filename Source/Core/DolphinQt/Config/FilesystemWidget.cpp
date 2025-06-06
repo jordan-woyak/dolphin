@@ -312,7 +312,7 @@ void FilesystemWidget::ShowContextMenu(const QPoint&)
     break;
   }
 
-  menu->exec(QCursor::pos());
+  menu->popup(QCursor::pos());
 }
 
 DiscIO::Partition FilesystemWidget::GetPartitionFromID(int id)
