@@ -64,12 +64,9 @@ BluetoothRealDevice::~BluetoothRealDevice()
   {
     SendHCIResetCommand();
     WaitForHCICommandComplete(HCI_CMD_RESET);
-    const int ret = libusb_release_interface(m_handle, 0);
-    if (ret != LIBUSB_SUCCESS)
-      WARN_LOG_FMT(IOS_WIIMOTE, "libusb_release_interface failed: {}", LibusbUtils::ErrorWrap(ret));
-    libusb_close(m_handle);
-    libusb_unref_device(m_device);
+    CloseLibUSBHandle();
   }
+
   SaveLinkKeys();
 }
 
@@ -177,22 +174,35 @@ std::optional<IPCReply> BluetoothRealDevice::Open(const OpenRequest& request)
     return IPCReply(IPC_ENOENT);
   }
 
+  m_run_acl_data_thread.Set();
+  m_acl_data_thread = std::thread(&BluetoothRealDevice::ACLDataReadThreadFunc, this);
+
   return Device::Open(request);
 }
 
 std::optional<IPCReply> BluetoothRealDevice::Close(u32 fd)
 {
-  if (m_handle)
-  {
-    const int ret = libusb_release_interface(m_handle, 0);
-    if (ret != LIBUSB_SUCCESS)
-      WARN_LOG_FMT(IOS_WIIMOTE, "libusb_release_interface failed: {}", LibusbUtils::ErrorWrap(ret));
-    libusb_close(m_handle);
-    libusb_unref_device(m_device);
-    m_handle = nullptr;
-  }
+  if (m_handle != nullptr)
+    CloseLibUSBHandle();
 
   return Device::Close(fd);
+}
+
+void BluetoothRealDevice::CloseLibUSBHandle()
+{
+  if (m_acl_data_thread.joinable())
+  {
+    m_run_acl_data_thread.Clear();
+    m_acl_data_thread.join();
+    m_acl_data_read_queue.Clear();
+  }
+
+  const int ret = libusb_release_interface(m_handle, 0);
+  if (ret != LIBUSB_SUCCESS)
+    WARN_LOG_FMT(IOS_WIIMOTE, "libusb_release_interface failed: {}", LibusbUtils::ErrorWrap(ret));
+  libusb_close(m_handle);
+  libusb_unref_device(m_device);
+  m_handle = nullptr;
 }
 
 std::optional<IPCReply> BluetoothRealDevice::IOCtlV(const IOCtlVRequest& request)
@@ -243,16 +253,11 @@ std::optional<IPCReply> BluetoothRealDevice::IOCtlV(const IOCtlVRequest& request
                               cmd->length);
     memory.CopyFromEmu(buffer.get() + LIBUSB_CONTROL_SETUP_SIZE, cmd->data_address, cmd->length);
     libusb_transfer* transfer = libusb_alloc_transfer(0);
-    transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
     libusb_fill_control_transfer(transfer, m_handle, buffer.get(), nullptr, this, 0);
     transfer->callback = [](libusb_transfer* tr) {
       static_cast<BluetoothRealDevice*>(tr->user_data)->HandleCtrlTransfer(tr);
     };
-    PendingTransfer pending_transfer{std::move(cmd), std::move(buffer)};
-    m_current_transfers.emplace(transfer, std::move(pending_transfer));
-    const int ret = libusb_submit_transfer(transfer);
-    if (ret != LIBUSB_SUCCESS)
-      WARN_LOG_FMT(IOS_WIIMOTE, "libusb_submit_transfer failed: {}", LibusbUtils::ErrorWrap(ret));
+    SubmitTransfer(transfer, PendingTransfer{std::move(cmd), std::move(buffer)});
     break;
   }
   // ACL data (incoming or outgoing) and incoming HCI events (respectively)
@@ -286,6 +291,29 @@ std::optional<IPCReply> BluetoothRealDevice::IOCtlV(const IOCtlVRequest& request
         return std::nullopt;
       }
     }
+    else
+    {
+      // Throttle for Bluetooth packet timing.
+      auto& core_timing = Core::System::GetInstance().GetCoreTiming();
+      core_timing.Throttle(core_timing.GetTicks());
+
+      {
+        // Common::UniqueBuffer<u8> buffer(cmd->length);
+        // auto& system = GetSystem();
+        // auto& memory = system.GetMemory();
+        // memory.CopyFromEmu(buffer.get(), cmd->data_address, cmd->length);
+        // INFO_LOG_FMT(IOS_WIIMOTE, "ACL_DATA_IN size: {} data: {}", buffer.size(),
+        //              ArrayToString(buffer.data(), buffer.size()));
+      }
+
+      if (cmd->endpoint == ACL_DATA_IN)
+      {
+        m_acl_endpoint = std::move(cmd);
+        Update();
+        return std::nullopt;
+      }
+    }
+
     auto buffer = cmd->MakeBuffer(cmd->length);
     libusb_transfer* transfer = libusb_alloc_transfer(0);
     transfer->buffer = buffer.get();
@@ -294,22 +322,83 @@ std::optional<IPCReply> BluetoothRealDevice::IOCtlV(const IOCtlVRequest& request
     };
     transfer->dev_handle = m_handle;
     transfer->endpoint = cmd->endpoint;
-    transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
     transfer->length = cmd->length;
     transfer->timeout = TIMEOUT;
     transfer->type = request.request == USB::IOCTLV_USBV0_BLKMSG ? LIBUSB_TRANSFER_TYPE_BULK :
                                                                    LIBUSB_TRANSFER_TYPE_INTERRUPT;
     transfer->user_data = this;
-    PendingTransfer pending_transfer{std::move(cmd), std::move(buffer)};
-    m_current_transfers.emplace(transfer, std::move(pending_transfer));
-    const int ret = libusb_submit_transfer(transfer);
-    if (ret != LIBUSB_SUCCESS)
-      WARN_LOG_FMT(IOS_WIIMOTE, "libusb_submit_transfer failed: {}", LibusbUtils::ErrorWrap(ret));
+    SubmitTransfer(transfer, PendingTransfer{std::move(cmd), std::move(buffer)});
     break;
   }
   }
+
   // Replies are generated inside of the message handlers (and asynchronously).
   return std::nullopt;
+}
+
+void BluetoothRealDevice::SubmitTransfer(libusb_transfer* transfer,
+                                         PendingTransfer pending_transfer)
+{
+  transfer->flags |= LIBUSB_TRANSFER_FREE_TRANSFER;
+  m_current_transfers.emplace(transfer, std::move(pending_transfer));
+  const int ret = libusb_submit_transfer(transfer);
+  if (ret != LIBUSB_SUCCESS)
+    WARN_LOG_FMT(IOS_WIIMOTE, "libusb_submit_transfer failed: {}", LibusbUtils::ErrorWrap(ret));
+}
+
+void BluetoothRealDevice::ACLDataReadThreadFunc()
+{
+  while (m_run_acl_data_thread.IsSet())
+  {
+    // TODO: size:
+    std::vector<u8> buffer(1700);
+
+    static constexpr int acl_data_in_timeout = 1;
+
+    int transferred_length = 0;
+    const int ret = libusb_bulk_transfer(m_handle, ACL_DATA_IN, buffer.data(), int(buffer.size()),
+                                         &transferred_length, acl_data_in_timeout);
+
+    if (ret == LIBUSB_ERROR_TIMEOUT || transferred_length == 0)
+      continue;
+
+    if (ret != LIBUSB_SUCCESS)
+    {
+      ERROR_LOG_FMT(IOS_WIIMOTE, "libusb_bulk_transfer: {}", LibusbUtils::ErrorWrap(ret));
+      std::this_thread::yield();
+      continue;
+    }
+
+    DEBUG_LOG_FMT(IOS_WIIMOTE, "libusb_bulk_transfer size: {}", transferred_length);
+
+    if (m_acl_data_read_queue.Size() >= 100)
+    {
+      ERROR_LOG_FMT(IOS_WIIMOTE, "ACL queue size reached 100 - current packet will be dropped!");
+      continue;
+    }
+
+    buffer.resize(transferred_length);
+    m_acl_data_read_queue.Emplace(std::move(buffer));
+  }
+}
+
+void BluetoothRealDevice::Update()
+{
+  if (m_acl_endpoint == nullptr || m_acl_data_read_queue.Empty())
+    return;
+
+  auto buffer = std::move(m_acl_data_read_queue.Front());
+  m_acl_data_read_queue.Pop();
+
+  const auto buffer_size = buffer.size();
+
+  // TODO: assert the size
+
+  INFO_LOG_FMT(IOS_WIIMOTE, "sending ACL data to core size: {}", buffer_size);
+
+  m_acl_endpoint->FillBuffer(buffer.data(), buffer_size);
+  GetEmulationKernel().EnqueueIPCReply(m_acl_endpoint->ios_request, s32(buffer_size));
+  m_acl_endpoint.reset();
 }
 
 static bool s_has_shown_savestate_warning = false;
@@ -779,6 +868,9 @@ void BluetoothRealDevice::HandleBulkOrIntrTransfer(libusb_transfer* tr)
         m_need_reset_keys.Set();
     }
   }
+
+  // INFO_LOG_FMT(IOS_WIIMOTE, "HandleBulkOrIntrTransfer: endpoint: {:02x} actual_length: {}",
+  //              tr->endpoint, tr->actual_length);
 
   const auto& command = m_current_transfers.at(tr).command;
   command->FillBuffer(tr->buffer, tr->actual_length);

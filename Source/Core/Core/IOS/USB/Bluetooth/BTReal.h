@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <thread>
 #if defined(__LIBUSB__)
 #include <array>
 #include <atomic>
@@ -14,6 +15,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/Flag.h"
 #include "Common/Timer.h"
+
 #include "Core/IOS/IOS.h"
 #include "Core/IOS/USB/Bluetooth/BTBase.h"
 #include "Core/IOS/USB/Bluetooth/hci.h"
@@ -49,14 +51,12 @@ public:
   std::optional<IPCReply> Open(const OpenRequest& request) override;
   std::optional<IPCReply> Close(u32 fd) override;
   std::optional<IPCReply> IOCtlV(const IOCtlVRequest& request) override;
+  void Update() override;
 
   void DoState(PointerWrap& p) override;
   void UpdateSyncButtonState(bool is_held) override;
   void TriggerSyncButtonPressedEvent() override;
   void TriggerSyncButtonHeldEvent() override;
-
-  void HandleCtrlTransfer(libusb_transfer* finished_transfer);
-  void HandleBulkOrIntrTransfer(libusb_transfer* finished_transfer);
 
   static bool IsConfiguredBluetoothDevice(u16 vid, u16 pid);
 
@@ -97,6 +97,18 @@ private:
     std::unique_ptr<u8[]> buffer;
   };
   std::map<libusb_transfer*, PendingTransfer> m_current_transfers;
+
+  // This thread repeatedly reads ACL data to fill the below queue.
+  std::thread m_acl_data_thread;
+  Common::Flag m_run_acl_data_thread;
+  Common::SPSCQueue<std::vector<u8>> m_acl_data_read_queue;
+  std::unique_ptr<USB::TransferCommand> m_acl_endpoint;
+
+  void SubmitTransfer(libusb_transfer* transfer, PendingTransfer pending_transfer);
+  void ACLDataReadThreadFunc();
+  void HandleCtrlTransfer(libusb_transfer* finished_transfer);
+  void HandleBulkOrIntrTransfer(libusb_transfer* finished_transfer);
+  void CloseLibUSBHandle();
 
   // Set when we received a command to which we need to fake a reply
   Common::Flag m_fake_read_buffer_size_reply;
