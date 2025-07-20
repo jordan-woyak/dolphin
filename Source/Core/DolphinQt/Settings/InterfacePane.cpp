@@ -231,11 +231,7 @@ void InterfacePane::CreateInGame()
   groupbox_layout->addWidget(m_checkbox_show_active_title);
   groupbox_layout->addWidget(m_checkbox_pause_on_focus_lost);
   groupbox_layout->addWidget(mouse_groupbox);
-#ifdef _WIN32
   groupbox_layout->addWidget(m_checkbox_lock_mouse);
-#else
-  m_checkbox_lock_mouse->hide();
-#endif
 }
 
 void InterfacePane::ConnectLayout()
