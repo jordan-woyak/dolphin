@@ -4,12 +4,11 @@
 #pragma once
 
 class QObject;
-class QRect;
 class QWidget;
 
 namespace QtUtils
 {
 
-QObject* ClipCursor(QWidget* widget, const QRect& rect);
+QObject* ClipCursor(QWidget* widget);
 
 }  // namespace QtUtils

@@ -218,56 +218,12 @@ void RenderWidget::showFullScreen()
 // Lock the cursor within the window/widget internal borders, including the aspect ratio if wanted
 void RenderWidget::SetCursorLocked(bool locked, bool follow_aspect_ratio)
 {
-  // It seems like QT doesn't scale the window frame correctly with some DPIs
-  // so it might happen that the locked cursor can be on the frame of the window,
-  // being able to resize it, but that is a minor problem.
-  // As a hack, if necessary, we could always scale down the size by 2 pixel, to a min of 1 given
-  // that the size can be 0 already. We probably shouldn't scale axes already scaled by aspect ratio
-  QRect render_rect = geometry();
-  if (parentWidget())
-  {
-    render_rect.moveTopLeft(parentWidget()->mapToGlobal(render_rect.topLeft()));
-  }
-  auto scale = devicePixelRatioF();  // Seems to always be rounded on Win. Should we round results?
-  QPoint screen_offset = QPoint(0, 0);
-  if (window()->windowHandle() && window()->windowHandle()->screen())
-  {
-    screen_offset = window()->windowHandle()->screen()->geometry().topLeft();
-  }
-  render_rect.moveTopLeft(((render_rect.topLeft() - screen_offset) * scale) + screen_offset);
-  render_rect.setSize(render_rect.size() * scale);
-
-  if (follow_aspect_ratio)
-  {
-    // TODO: SetCursorLocked() should be re-called every time this value is changed?
-    // This might cause imprecisions of one pixel (but it won't cause the cursor to go over borders)
-    Common::Vec2 aspect_ratio = g_controller_interface.GetWindowInputScale();
-    if (aspect_ratio.x > 1.f)
-    {
-      const float new_half_width = float(render_rect.width()) / (aspect_ratio.x * 2.f);
-      // Only ceil if it was >= 0.25
-      const float ceiled_new_half_width = std::ceil(std::round(new_half_width * 2.f) / 2.f);
-      const int x_center = render_rect.center().x();
-      // Make a guess on which one to floor and ceil.
-      // For more precision, we should have kept the rounding point scale from above as well.
-      render_rect.setLeft(x_center - std::floor(new_half_width));
-      render_rect.setRight(x_center + ceiled_new_half_width);
-    }
-    if (aspect_ratio.y > 1.f)
-    {
-      const float new_half_height = render_rect.height() / (aspect_ratio.y * 2.f);
-      const float ceiled_new_half_height = std::ceil(std::round(new_half_height * 2.f) / 2.f);
-      const int y_center = render_rect.center().y();
-      render_rect.setTop(y_center - std::floor(new_half_height));
-      render_rect.setBottom(y_center + ceiled_new_half_height);
-    }
-  }
 
   if (locked)
   {
     INFO_LOG_FMT(VIDEO, "lock cursor");
     delete std::exchange(m_cursor_clipper, nullptr);
-    m_cursor_clipper = QtUtils::ClipCursor(this, render_rect);
+    m_cursor_clipper = QtUtils::ClipCursor(this);
     if (m_cursor_clipper != nullptr)
     {
       if (Settings::Instance().GetCursorVisibility() != Config::ShowCursor::Constantly)
@@ -291,8 +247,9 @@ void RenderWidget::SetCursorLocked(bool locked, bool follow_aspect_ratio)
     // Leave it where it was otherwise, e.g. a prompt has opened or we alt tabbed.
     if (isActiveWindow())
     {
-      cursor().setPos(render_rect.left() + render_rect.width() / 2,
-                      render_rect.top() + render_rect.height() / 2);
+      const auto center = rect().center();
+      const auto global_center = mapToGlobal(center);
+      QCursor::setPos(global_center);
     }
 
     // Show the cursor so the user knows it has been unlocked.
