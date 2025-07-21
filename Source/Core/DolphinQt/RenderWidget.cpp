@@ -398,17 +398,11 @@ bool RenderWidget::event(QEvent* event)
 
     emit FocusChanged(false);
     break;
-  case QEvent::Move:
-    SetCursorLocked(IsCursorLocked());
-    break;
-
   // According to https://bugreports.qt.io/browse/QTBUG-95925 the recommended practice for
   // handling DPI change is responding to paint events
   case QEvent::Paint:
   case QEvent::Resize:
   {
-    SetCursorLocked(IsCursorLocked());
-
     const QResizeEvent* se = static_cast<QResizeEvent*>(event);
     QSize new_size = se->size();
 
@@ -428,13 +422,7 @@ bool RenderWidget::event(QEvent* event)
     }
     break;
   }
-  // Happens when we add/remove the widget from the main window instead of the dedicated one
-  case QEvent::ParentChange:
-    SetCursorLocked(false);
-    break;
   case QEvent::WindowStateChange:
-    // Lock the mouse again when fullscreen changes (we might have missed some events)
-    SetCursorLocked(IsCursorLocked() || (isFullScreen() && Settings::Instance().GetLockCursor()));
     emit StateChanged(isFullScreen());
     break;
   case QEvent::Close:
