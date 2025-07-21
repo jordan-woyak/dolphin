@@ -3,8 +3,6 @@
 
 #include "DolphinQt/RenderWidget.h"
 
-#include <array>
-
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -25,18 +23,16 @@
 #include "Core/System.h"
 
 #include "DolphinQt/Host.h"
+#include "DolphinQt/QtUtils/ClipCursor.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
-#include "VideoCommon/OnScreenUI.h"
 #include "VideoCommon/Present.h"
-#include "VideoCommon/VideoConfig.h"
 
 #ifdef _WIN32
-#include <Windows.h>
 #include <dwmapi.h>
 #endif
 
@@ -175,7 +171,7 @@ void RenderWidget::UpdateCursor()
   }
   else
   {
-    setCursor((m_cursor_locked &&
+    setCursor((IsCursorLocked() &&
                Settings::Instance().GetCursorVisibility() == Config::ShowCursor::Never) ?
                   Qt::BlankCursor :
                   Qt::ArrowCursor);
@@ -201,7 +197,7 @@ void RenderWidget::HandleCursorTimer()
 {
   if (!isActiveWindow())
     return;
-  if ((!Settings::Instance().GetLockCursor() || m_cursor_locked) &&
+  if ((!Settings::Instance().GetLockCursor() || IsCursorLocked()) &&
       Settings::Instance().GetCursorVisibility() == Config::ShowCursor::OnMovement)
   {
     setCursor(Qt::BlankCursor);
@@ -269,31 +265,11 @@ void RenderWidget::SetCursorLocked(bool locked, bool follow_aspect_ratio)
 
   if (locked)
   {
-#ifdef _WIN32
-    RECT rect;
-    rect.left = render_rect.left();
-    rect.right = render_rect.right();
-    rect.top = render_rect.top();
-    rect.bottom = render_rect.bottom();
-
-    if (ClipCursor(&rect))
-#else
-    // TODO: Implement on other platforms. XGrabPointer on Linux X11 should be equivalent to
-    // ClipCursor on Windows, though XFixesCreatePointerBarrier and XFixesDestroyPointerBarrier
-    // may also work. On Wayland zwp_pointer_constraints_v1::confine_pointer and
-    // zwp_pointer_constraints_v1::destroy provide this functionality.
-    // More info:
-    // https://stackoverflow.com/a/36269507
-    // https://tronche.com/gui/x/xlib/input/XGrabPointer.html
-    // https://www.x.org/releases/X11R7.7/doc/fixesproto/fixesproto.txt
-    // https://wayland.app/protocols/pointer-constraints-unstable-v1
-
-    // The setting is hidden in the UI if not implemented
-    if (false)
-#endif
+    INFO_LOG_FMT(VIDEO, "lock cursor");
+    delete std::exchange(m_cursor_clipper, nullptr);
+    m_cursor_clipper = QtUtils::ClipCursor(this, render_rect);
+    if (m_cursor_clipper != nullptr)
     {
-      m_cursor_locked = true;
-
       if (Settings::Instance().GetCursorVisibility() != Config::ShowCursor::Constantly)
       {
         setCursor(Qt::BlankCursor);
@@ -304,33 +280,31 @@ void RenderWidget::SetCursorLocked(bool locked, bool follow_aspect_ratio)
   }
   else
   {
-#ifdef _WIN32
-    ClipCursor(nullptr);
-#endif
+    if (!IsCursorLocked())
+      return;
 
-    if (m_cursor_locked)
+    INFO_LOG_FMT(VIDEO, "unlock cursor");
+
+    delete std::exchange(m_cursor_clipper, nullptr);
+
+    // Center the mouse in the window if it's still active
+    // Leave it where it was otherwise, e.g. a prompt has opened or we alt tabbed.
+    if (isActiveWindow())
     {
-      m_cursor_locked = false;
-
-      if (!Settings::Instance().GetLockCursor())
-      {
-        return;
-      }
-
-      // Center the mouse in the window if it's still active
-      // Leave it where it was otherwise, e.g. a prompt has opened or we alt tabbed.
-      if (isActiveWindow())
-      {
-        cursor().setPos(render_rect.left() + render_rect.width() / 2,
-                        render_rect.top() + render_rect.height() / 2);
-      }
-
-      // Show the cursor or the user won't know the mouse is now unlocked
-      setCursor(Qt::ArrowCursor);
-
-      Host::GetInstance()->SetRenderFullFocus(false);
+      cursor().setPos(render_rect.left() + render_rect.width() / 2,
+                      render_rect.top() + render_rect.height() / 2);
     }
+
+    // Show the cursor so the user knows it has been unlocked.
+    setCursor(Qt::ArrowCursor);
+
+    Host::GetInstance()->SetRenderFullFocus(false);
   }
+}
+
+bool RenderWidget::IsCursorLocked() const
+{
+  return m_cursor_clipper != nullptr;
 }
 
 void RenderWidget::SetCursorLockedOnNextActivation(bool locked)
@@ -468,7 +442,7 @@ bool RenderWidget::event(QEvent* event)
     emit FocusChanged(false);
     break;
   case QEvent::Move:
-    SetCursorLocked(m_cursor_locked);
+    SetCursorLocked(IsCursorLocked());
     break;
 
   // According to https://bugreports.qt.io/browse/QTBUG-95925 the recommended practice for
@@ -476,7 +450,7 @@ bool RenderWidget::event(QEvent* event)
   case QEvent::Paint:
   case QEvent::Resize:
   {
-    SetCursorLocked(m_cursor_locked);
+    SetCursorLocked(IsCursorLocked());
 
     const QResizeEvent* se = static_cast<QResizeEvent*>(event);
     QSize new_size = se->size();
@@ -503,7 +477,7 @@ bool RenderWidget::event(QEvent* event)
     break;
   case QEvent::WindowStateChange:
     // Lock the mouse again when fullscreen changes (we might have missed some events)
-    SetCursorLocked(m_cursor_locked || (isFullScreen() && Settings::Instance().GetLockCursor()));
+    SetCursorLocked(IsCursorLocked() || (isFullScreen() && Settings::Instance().GetLockCursor()));
     emit StateChanged(isFullScreen());
     break;
   case QEvent::Close:

@@ -19,7 +19,7 @@ public:
   bool event(QEvent* event) override;
   void showFullScreen();
   QPaintEngine* paintEngine() const override;
-  bool IsCursorLocked() const { return m_cursor_locked; }
+  bool IsCursorLocked() const;
   void SetCursorLockedOnNextActivation(bool locked = true);
   void SetWaitingForMessageBox(bool waiting_for_message_box);
   void SetCursorLocked(bool locked, bool follow_aspect_ratio = true);
@@ -51,7 +51,7 @@ private:
   int m_last_window_width = 0;
   int m_last_window_height = 0;
   float m_last_window_scale = 0;
-  bool m_cursor_locked = false;
+  QObject* m_cursor_clipper = nullptr;
   bool m_lock_cursor_on_next_activation = false;
   bool m_dont_lock_cursor_on_show = false;
   bool m_waiting_for_message_box = false;
