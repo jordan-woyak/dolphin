@@ -3,16 +3,19 @@
 
 #include "DolphinQt/QtUtils/ClipCursor.h"
 
+#include <QApplication>
 #include <QCursor>
 #include <QEvent>
+#include <QGuiApplication>
 #include <QObject>
 #include <QRect>
+#include <QWidget>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <Windows.h>
+#elif defined(HAVE_X11)
+#include <X11/Xlib.h>
 #endif
-
-#include "Common/Logging/Log.h"
 
 namespace QtUtils
 {
@@ -20,17 +23,14 @@ namespace QtUtils
 class CursorClipper final : public QObject
 {
 public:
-  using QObject::QObject;
+  explicit CursorClipper(QWidget* widget) : QObject(widget), m_widget{widget} {}
 
-  bool event(QEvent* event) override
+  bool eventFilter(QObject* obj, QEvent* event) override
   {
-    INFO_LOG_FMT(VIDEO, "QEvent");
-
     switch (event->type())
     {
     case QEvent::Leave:
     {
-      INFO_LOG_FMT(VIDEO, "QEvent::Leave");
       auto pos = QCursor::pos();
       pos.setX(qBound(m_rect.left(), pos.x(), m_rect.right() - 1));
       pos.setY(qBound(m_rect.top(), pos.y(), m_rect.bottom() - 1));
@@ -41,7 +41,7 @@ public:
       break;
     }
 
-    return QObject::event(event);
+    return QObject::eventFilter(obj, event);
   }
 
   bool Clip(const QRect& rect)
@@ -67,9 +67,31 @@ public:
     // https://www.x.org/releases/X11R7.7/doc/fixesproto/fixesproto.txt
     // https://wayland.app/protocols/pointer-constraints-unstable-v1
 
-    parent()->installEventFilter(this);
+    auto* const display = GetX11Display();
+
+    if (display == nullptr)
+      return false;
+
+    const auto win = m_widget->winId();
+
+    XGrabPointer(display, win, True, ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                 GrabModeAsync, GrabModeAsync, win, None, CurrentTime);
+
+    // parent()->installEventFilter(this);
     return true;
 #endif
+  }
+
+  static Display* GetX11Display()
+  {
+    auto* native = qApp->nativeInterface<QNativeInterface::QX11Application>();
+    if (native == nullptr)
+    {
+      qWarning() << "Not running under X11.";
+      return nullptr;
+    }
+
+    return native->display();
   }
 
   ~CursorClipper() override
@@ -78,16 +100,20 @@ public:
     ClipCursor(nullptr);
 #else
 
+    auto* const display = GetX11Display();
+    if (display != nullptr)
+      XUngrabPointer(display, CurrentTime);
 #endif
   }
 
 private:
+  QWidget* const m_widget;
   QRect m_rect;
 };
 
-QObject* ClipCursor(QObject* obj, const QRect& rect)
+QObject* ClipCursor(QWidget* widget, const QRect& rect)
 {
-  auto* const clipper = new CursorClipper{obj};
+  auto* const clipper = new CursorClipper{widget};
   if (clipper->Clip(rect))
     return clipper;
 

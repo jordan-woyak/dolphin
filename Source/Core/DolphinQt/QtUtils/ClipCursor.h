@@ -5,10 +5,11 @@
 
 class QObject;
 class QRect;
+class QWidget;
 
 namespace QtUtils
 {
 
-QObject* ClipCursor(QObject* obj, const QRect& rect);
+QObject* ClipCursor(QWidget* widget, const QRect& rect);
 
 }  // namespace QtUtils
