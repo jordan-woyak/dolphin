@@ -128,38 +128,34 @@ constexpr bool IsValidLowMask(const T mask) noexcept
   return (mask & (mask + 1)) == 0;
 }
 
-template <typename T, typename PtrType>
+template <typename T, typename SrcType>
 class BitCastPtrType
 {
 public:
-  static_assert(std::is_trivially_copyable<PtrType>(),
+  static_assert(std::is_trivially_copyable<SrcType>(),
                 "BitCastPtr source type must be trivially copyable.");
   static_assert(std::is_trivially_copyable<T>(),
                 "BitCastPtr destination type must be trivially copyable.");
 
-  explicit BitCastPtrType(PtrType* ptr) : m_ptr(ptr) {}
+  using PtrType = std::conditional_t<std::is_const_v<SrcType>, const u8, u8>;
+
+  explicit BitCastPtrType(SrcType* ptr) : m_ptr{reinterpret_cast<PtrType*>(ptr)} {}
 
   // Enable operator= only for pointers to non-const data
-  template <typename S>
-  inline typename std::enable_if<std::is_same<S, T>() && !std::is_const<PtrType>()>::type
-  operator=(const S& source)
+  BitCastPtrType& operator=(const T& source) requires(!std::is_const_v<SrcType>)
   {
     std::memcpy(m_ptr, &source, sizeof(source));
+    return *this;
   }
 
-  inline operator T() const
+  operator T() const
   {
     T result;
     std::memcpy(&result, m_ptr, sizeof(result));
     return result;
   }
 
-  inline auto operator[](std::size_t index) const
-  {
-    using S = std::conditional_t<std::is_const<PtrType>::value, const std::byte, std::byte>;
-    S* const target = reinterpret_cast<S*>(m_ptr) + index * sizeof(T);
-    return BitCastPtrType<T, S>{target};
-  }
+  auto operator[](std::size_t index) const { return BitCastPtrType{m_ptr + index * sizeof(T)}; }
 
 private:
   PtrType* m_ptr;
