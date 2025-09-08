@@ -202,6 +202,9 @@ float CalcScanLine(float dy)
 
 void main()
 {
+    // There's no IR variable, so this guesses the IR, but may be off for some games.
+    float calc_ir = ceil(GetResolution().y / 500);
+
     vec2 vTexCoord = GetCoordinates();
     vec4 OutputSize = vec4(GetWindowResolution(), GetInvWindowResolution());
     vec4 SourceSize = vec4(GetResolution(), GetInvResolution());
@@ -219,7 +222,7 @@ void main()
         }
     }
 
-    vec2 texcoordInPixels = texcoord * SourceSize.xy;
+    vec2 texcoordInPixels = texcoord * SourceSize.xy / calc_ir;
     vec2 tc;
     float scanLineWeight;
 
@@ -237,7 +240,7 @@ void main()
         deltas.y = deltas.y * deltas.y * deltas.y;
         deltas  *= 0.5 * SourceSize.zw * signs;
 
-        tc = coord + deltas;
+        tc = coord * calc_ir + deltas;
     }
     else
     {
@@ -252,7 +255,7 @@ void main()
         deltas   = deltas * deltas * deltas;
         deltas  *= 0.5 * SourceSize.w * signs;
 
-        tc = vec2(texcoord.x, coord + deltas);
+        tc = vec2(texcoord.x, coord * calc_ir + deltas);
     }
 
     vec3 colour = SampleLocation(tc).rgb;
