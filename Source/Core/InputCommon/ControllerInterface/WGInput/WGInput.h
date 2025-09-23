@@ -3,10 +3,11 @@
 
 #pragma once
 
+#include "InputCommon/ControllerInterface/InputBackend.h"
+
 namespace ciface::WGInput
 {
-void Init();
-void DeInit();
-void PopulateDevices();
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
 
 }  // namespace ciface::WGInput

@@ -10,14 +10,13 @@
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/ControllerInterface/DInput/DInputJoystick.h"
 #include "InputCommon/ControllerInterface/DInput/DInputKeyboardMouse.h"
+#include "InputCommon/ControllerInterface/Win32/Win32.h"
 
 #pragma comment(lib, "Dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
 
 namespace ciface::DInput
 {
-static IDirectInput8* s_idi8 = nullptr;
-
 BOOL CALLBACK DIEnumDeviceObjectsCallback(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvRef)
 {
   ((std::list<DIDEVICEOBJECTINSTANCE>*)pvRef)->push_back(*lpddoi);
@@ -52,55 +51,109 @@ std::string GetDeviceName(const LPDIRECTINPUTDEVICE8 device)
   return result;
 }
 
-// Assumes hwnd had not changed from the previous call
-void PopulateDevices(HWND hwnd)
+class InputBackend final : public ciface::InputBackend
 {
-  if (!s_idi8)
+public:
+  explicit InputBackend(ControllerInterface* controller_interface);
+  ~InputBackend() override;
+
+  void PopulateDevices() override;
+
+  void HandleWindowChange() override;
+
+  void RefreshDevices() override
   {
-    HRESULT hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION,
-                                    IID_IDirectInput8, (LPVOID*)&s_idi8, nullptr);
-    if (FAILED(hr))
-    {
-      ERROR_LOG_FMT(CONTROLLERINTERFACE, "DirectInput8Create failed: {}", Common::HRWrap(hr));
+    if (!m_idi8)
       return;
-    }
+
+    m_notification.Unregister();
+    RefreshJoysticks();
+    m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
   }
 
+private:
+  void RefreshJoysticks();
+
+  HWND GetHWND()
+  {
+    return static_cast<HWND>(GetControllerInterface().GetWindowSystemInfo().render_window);
+  }
+
+  HMODULE hXInput = nullptr;
+  IDirectInput8* m_idi8 = nullptr;
+  Win32::DeviceChangeNotification m_notification;
+};
+
+// Assumes hwnd had not changed from the previous call
+InputBackend::InputBackend(ControllerInterface* controller_interface)
+    : ciface::InputBackend{controller_interface}
+{
+  HRESULT hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION, IID_IDirectInput8,
+                                  (LPVOID*)&m_idi8, nullptr);
+  if (FAILED(hr))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "DirectInput8Create failed: {}", Common::HRWrap(hr));
+  }
+}
+
+void InputBackend::PopulateDevices()
+{
+  if (!m_idi8)
+    return;
+
+  if (auto kbm = CreateKeyboardMouse(m_idi8, GetHWND()))
+    AddDevice(std::move(kbm));
+
+  RefreshJoysticks();
+
+  m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
+}
+
+void InputBackend::RefreshJoysticks()
+{
   // Remove old (invalid) devices. No need to ever remove the KeyboardMouse device.
   // Note that if we have 2+ DInput controllers, not fully repopulating devices
   // will mean that a device with index "2" could persist while there is no device with index "0".
   // This is slightly inconsistent as when we refresh all devices, they will instead reset, and
   // that happens a lot (for uncontrolled reasons, like starting/stopping the emulation).
-  g_controller_interface.RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsValid(); });
+  RemoveDevices([](const auto* dev) { return !dev->IsValid(); });
 
-  InitKeyboardMouse(s_idi8, hwnd);
-  InitJoystick(s_idi8, hwnd);
+  EnumerateJoysticks(m_idi8, GetHWND(), std::bind_front(&InputBackend::AddDevice, this));
 }
 
-void ChangeWindow(HWND hwnd)
+void InputBackend::HandleWindowChange()
 {
-  if (s_idi8)  // Has init? Ignore if called before the first PopulateDevices()
-  {
-    // The KeyboardMouse device is marked as virtual device, so we avoid removing it.
-    // We need to force all the DInput joysticks to be destroyed now, or recreation would fail.
-    g_controller_interface.RemoveDevice(
-        [](const auto* dev) {
-          return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsVirtualDevice();
-        },
-        true);
+  if (!m_idi8)
+    return;
 
-    SetKeyboardMouseWindow(hwnd);
-    InitJoystick(s_idi8, hwnd);
-  }
+  m_notification.Unregister();
+
+  // Remove all DInput Device objects except the KeyboardMouse.
+  RemoveDevices([](const auto* dev) { return !dev->IsVirtualDevice(); });
+
+  SetKeyboardMouseWindow(GetHWND());
+
+  RefreshJoysticks();
+
+  m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
 }
 
-void DeInit()
+InputBackend::~InputBackend()
 {
-  if (s_idi8)
-  {
-    s_idi8->Release();
-    s_idi8 = nullptr;
-  }
+  m_notification.Unregister();
+
+  RemoveAllDevices();
+
+  if (!m_idi8)
+    return;
+
+  m_idi8->Release();
+  m_idi8 = nullptr;
 }
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
+{
+  return std::make_unique<InputBackend>(controller_interface);
+}
+
 }  // namespace ciface::DInput

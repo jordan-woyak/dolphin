@@ -3,6 +3,8 @@
 
 #include "InputCommon/ControllerInterface/InputBackend.h"
 
+#include "InputCommon/ControllerInterface/ControllerInterface.h"
+
 namespace ciface
 {
 InputBackend::InputBackend(ControllerInterface* controller_interface)
@@ -12,7 +14,7 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
 
 InputBackend::~InputBackend() = default;
 
-void InputBackend::UpdateInput(std::vector<std::weak_ptr<ciface::Core::Device>>& devices_to_remove)
+void InputBackend::UpdateBeforeInput()
 {
 }
 
@@ -23,6 +25,21 @@ void InputBackend::HandleWindowChange()
 ControllerInterface& InputBackend::GetControllerInterface()
 {
   return m_controller_interface;
+}
+
+void InputBackend::AddDevice(std::shared_ptr<Core::Device> device)
+{
+  GetControllerInterface().AddDevice(this, std::move(device));
+}
+
+void InputBackend::RemoveAllDevices()
+{
+  RemoveDevices([](auto&&) constexpr { return true; });
+}
+
+void InputBackend::RemoveDevices(Common::MoveOnlyFunction<bool(ciface::Core::Device*)> callback)
+{
+  GetControllerInterface().RemoveDevices(this, std::move(callback));
 }
 
 }  // namespace ciface

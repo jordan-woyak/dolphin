@@ -43,7 +43,14 @@ class InputBackend final : public ciface::InputBackend
 {
 public:
   using ciface::InputBackend::InputBackend;
+
   void PopulateDevices() override;
+
+  void RefreshDevices() override
+  {
+    RemoveAllDevices();
+    PopulateDevices();
+  }
 };
 
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
@@ -70,7 +77,7 @@ void InputBackend::PopulateDevices()
     int fd = open(child.physicalName.c_str(), O_RDONLY | O_NONBLOCK);
     if (fd < 0)
       continue;
-    g_controller_interface.AddDevice(std::make_shared<PipeDevice>(fd, child.virtualName));
+    AddDevice(std::make_shared<PipeDevice>(fd, child.virtualName));
   }
 }
 

@@ -20,9 +20,10 @@
 #include "Common/ScopeGuard.h"
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
-#include "Core/CoreTiming.h"
+
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 #include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPProto.h"
+
 #include "SFML/Network/IpAddress.hpp"
 
 namespace ciface::DualShockUDPClient
@@ -199,12 +200,16 @@ struct Server
 class InputBackend final : public ciface::InputBackend
 {
 public:
-  InputBackend(ControllerInterface* controller_interface);
+  explicit InputBackend(ControllerInterface* controller_interface);
   ~InputBackend() override;
-  void PopulateDevices() override;
+
+  void PopulateDevices() override { ConfigChanged(); }
+
+  void RefreshDevices() override { Restart(); }
 
 private:
   void ConfigChanged();
+  void RecreateDevices();
   void Restart();
 
   void HotplugThreadFunc();
@@ -324,7 +329,7 @@ void InputBackend::HotplugThreadFunc()
             {
               server.m_port_info[port_info->pad_id] = *port_info;
               // Just remove and re-add all the devices for simplicity
-              GetControllerInterface().PlatformPopulateDevices([this] { PopulateDevices(); });
+              RecreateDevices();
             }
           }
         }
@@ -350,7 +355,7 @@ void InputBackend::HotplugThreadFunc()
         }
         // We can't only remove devices added by this server as we wouldn't know which they are
         if (any_connected)
-          GetControllerInterface().PlatformPopulateDevices([this] { PopulateDevices(); });
+          RecreateDevices();
       }
     }
   }
@@ -402,7 +407,7 @@ void InputBackend::Restart()
   }
 
   // Only removes devices as servers have been cleaned
-  GetControllerInterface().PlatformPopulateDevices([this] { PopulateDevices(); });
+  RecreateDevices();
 
   m_client_uid = Common::Random::GenerateValue<u32>();
   m_next_listports_time = SteadyClock::now();
@@ -477,19 +482,14 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
   ConfigChanged();
 }
 
-// This can be called by the host thread as well as the hotplug thread, concurrently.
-// So use PlatformPopulateDevices().
-// m_servers is already safe because it can only be modified when the DSU thread is not running,
-// from the main thread
-void InputBackend::PopulateDevices()
+void InputBackend::RecreateDevices()
 {
   INFO_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient PopulateDevices");
 
   // m_servers has already been updated so we can't use it to know which devices we removed,
   // also it's good to remove all of them before adding new ones so that their id will be set
   // correctly if they have the same name
-  GetControllerInterface().RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == DUALSHOCKUDP_SOURCE_NAME; });
+  RemoveAllDevices();
 
   // Users might have created more than one server on the same IP/Port.
   // Devices might end up being duplicated (if the server responds two all requests)
@@ -502,9 +502,8 @@ void InputBackend::PopulateDevices()
       if (port_info.pad_state != Proto::DsState::Connected)
         continue;
 
-      GetControllerInterface().AddDevice(
-          std::make_shared<Device>(server.m_description, static_cast<int>(port_index),
-                                   server.m_address, server.m_port, m_client_uid));
+      AddDevice(std::make_shared<Device>(server.m_description, static_cast<int>(port_index),
+                                         server.m_address, server.m_port, m_client_uid));
     }
   }
 }

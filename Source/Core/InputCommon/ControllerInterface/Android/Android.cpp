@@ -468,9 +468,16 @@ namespace ciface::Android
 class InputBackend final : public ciface::InputBackend
 {
 public:
-  InputBackend(ControllerInterface* controller_interface);
+  explicit InputBackend(ControllerInterface* controller_interface);
   ~InputBackend();
+
   void PopulateDevices() override;
+
+  void InputBackend::RefreshDevices()
+  {
+    RemoveAllDevices();
+    PopulateDevices();
+  }
 
 private:
   void AddDevice(JNIEnv* env, int device_id);
@@ -928,6 +935,8 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
 
 InputBackend::~InputBackend()
 {
+  RemoveAllDevices();
+
   JNIEnv* env = IDCache::GetEnvForThread();
 
   env->CallStaticVoidMethod(s_controller_interface_class,
@@ -962,7 +971,7 @@ void InputBackend::AddDevice(JNIEnv* env, int device_id)
   if (device->Inputs().empty() && device->Outputs().empty())
     return;
 
-  GetControllerInterface().AddDevice(device);
+  AddDevice(device);
 
   Core::DeviceQualifier qualifier;
   qualifier.FromDevice(device.get());
@@ -987,7 +996,7 @@ void InputBackend::AddSensorDevice(JNIEnv* env)
   if (device->Inputs().empty() && device->Outputs().empty())
     return;
 
-  GetControllerInterface().AddDevice(device);
+  AddDevice(device);
 
   Core::DeviceQualifier qualifier;
   qualifier.FromDevice(device.get());

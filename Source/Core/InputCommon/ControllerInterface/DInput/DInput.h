@@ -10,6 +10,7 @@
 #include <string>
 
 #include "InputCommon/ControllerInterface/DInput/DInput8.h"
+#include "InputCommon/ControllerInterface/InputBackend.h"
 
 namespace ciface::DInput
 {
@@ -18,7 +19,6 @@ BOOL CALLBACK DIEnumDeviceObjectsCallback(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVO
 BOOL CALLBACK DIEnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVOID pvRef);
 std::string GetDeviceName(const LPDIRECTINPUTDEVICE8 device);
 
-void PopulateDevices(HWND hwnd);
-void ChangeWindow(HWND hwnd);
-void DeInit();
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
+
 }  // namespace ciface::DInput

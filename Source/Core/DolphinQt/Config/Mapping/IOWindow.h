@@ -4,7 +4,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <string>
 
 #include <QComboBox>
@@ -87,7 +86,6 @@ private:
   void AppendSelectedOption();
   void UpdateOptionList();
   void UpdateDeviceList();
-  void ReleaseDevices();
 
   enum class UpdateMode
   {
@@ -138,5 +136,4 @@ private:
   ciface::Core::DeviceQualifier m_devq;
   Type m_type;
   std::shared_ptr<ciface::Core::Device> m_selected_device;
-  std::mutex m_selected_device_mutex;
 };

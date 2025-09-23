@@ -3,12 +3,15 @@
 
 #pragma once
 
+#include <functional>
+
 #include "InputCommon/ControllerInterface/CoreDevice.h"
 #include "InputCommon/ControllerInterface/ForceFeedback/ForceFeedbackDevice.h"
 
 namespace ciface::DInput
 {
-void InitJoystick(IDirectInput8* const idi8, HWND hwnd);
+void EnumerateJoysticks(IDirectInput8* const idi8, HWND hwnd,
+                        const std::function<void(std::shared_ptr<ciface::Core::Device>)>&);
 
 class Joystick : public ForceFeedback::ForceFeedbackDevice
 {
@@ -75,4 +78,5 @@ private:
 
   bool m_buffered;
 };
+
 }  // namespace ciface::DInput

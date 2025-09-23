@@ -11,7 +11,6 @@
 
 #include "Core/HW/WiimoteCommon/DataReport.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
-#include "Core/HW/WiimoteEmu/Camera.h"
 #include "Core/HW/WiimoteEmu/Extension/Classic.h"
 #include "Core/HW/WiimoteEmu/Extension/Nunchuk.h"
 #include "Core/HW/WiimoteEmu/MotionPlus.h"
@@ -24,6 +23,8 @@ using namespace WiimoteCommon;
 
 void AddDevice(std::unique_ptr<WiimoteReal::Wiimote>);
 void ReleaseDevices(std::optional<u32> count = std::nullopt);
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
 
 class Device final : public Core::Device
 {

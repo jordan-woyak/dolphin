@@ -3,12 +3,40 @@
 
 #include "InputCommon/ControllerInterface/XInput/XInput.h"
 
+#include "InputCommon/ControllerInterface/Win32/Win32.h"
+
 #ifndef XINPUT_GAMEPAD_GUIDE
 #define XINPUT_GAMEPAD_GUIDE 0x0400
 #endif
 
 namespace ciface::XInput
 {
+
+class InputBackend final : public ciface::InputBackend
+{
+public:
+  explicit InputBackend(ControllerInterface* controller_interface);
+  ~InputBackend() override;
+
+  void PopulateDevices() override { RefreshDevices(); }
+
+  void RefreshDevices() override
+  {
+    if (!hXInput)
+      return;
+
+    m_notification.Unregister();
+    RecreateAllGamepads();
+    m_notification.Register(std::bind(&InputBackend::RecreateAllGamepads, this));
+  }
+
+private:
+  void RecreateAllGamepads();
+
+  HMODULE hXInput = nullptr;
+  Win32::DeviceChangeNotification m_notification;
+};
+
 struct ButtonDef
 {
   const char* name;
@@ -123,8 +151,6 @@ private:
   const ControlState& m_level;
 };
 
-static HMODULE hXInput = nullptr;
-
 typedef decltype(&XInputGetCapabilities) XInputGetCapabilities_t;
 typedef decltype(&XInputSetState) XInputSetState_t;
 typedef decltype(&XInputGetState) XInputGetState_t;
@@ -137,67 +163,70 @@ static XInputGetBatteryInformation_t PXInputGetBatteryInformation = nullptr;
 
 static bool s_have_guide_button = false;
 
-void Init()
+InputBackend::InputBackend(ControllerInterface* controller_interface)
+    : ciface::InputBackend{controller_interface}
 {
+  // Try for the most recent version we were compiled against (will only work if running on Win8+)
+  hXInput = ::LoadLibrary(XINPUT_DLL);
   if (!hXInput)
   {
-    // Try for the most recent version we were compiled against (will only work if running on Win8+)
-    hXInput = ::LoadLibrary(XINPUT_DLL);
+    // Drop back to DXSDK June 2010 version. Requires DX June 2010 redist.
+    hXInput = ::LoadLibrary(TEXT("xinput1_3.dll"));
     if (!hXInput)
     {
-      // Drop back to DXSDK June 2010 version. Requires DX June 2010 redist.
-      hXInput = ::LoadLibrary(TEXT("xinput1_3.dll"));
-      if (!hXInput)
-      {
-        return;
-      }
-    }
-
-    PXInputGetCapabilities =
-        (XInputGetCapabilities_t)::GetProcAddress(hXInput, "XInputGetCapabilities");
-    PXInputSetState = (XInputSetState_t)::GetProcAddress(hXInput, "XInputSetState");
-    PXInputGetBatteryInformation =
-        (XInputGetBatteryInformation_t)::GetProcAddress(hXInput, "XInputGetBatteryInformation");
-
-    // Ordinal 100 is the same as XInputGetState, except it doesn't dummy out the guide
-    // button info. Try loading it and fall back if needed.
-    PXInputGetState = (XInputGetState_t)::GetProcAddress(hXInput, (LPCSTR)100);
-
-    s_have_guide_button = PXInputGetState != nullptr;
-
-    if (!PXInputGetState)
-      PXInputGetState = (XInputGetState_t)::GetProcAddress(hXInput, "XInputGetState");
-
-    if (!PXInputGetCapabilities || !PXInputSetState || !PXInputGetState ||
-        !PXInputGetBatteryInformation)
-    {
-      ::FreeLibrary(hXInput);
-      hXInput = nullptr;
       return;
     }
   }
-}
 
-void PopulateDevices()
-{
-  if (!hXInput)
-    return;
+  PXInputGetCapabilities =
+      (XInputGetCapabilities_t)::GetProcAddress(hXInput, "XInputGetCapabilities");
+  PXInputSetState = (XInputSetState_t)::GetProcAddress(hXInput, "XInputSetState");
+  PXInputGetBatteryInformation =
+      (XInputGetBatteryInformation_t)::GetProcAddress(hXInput, "XInputGetBatteryInformation");
 
-  g_controller_interface.RemoveDevice([](const auto* dev) { return dev->GetSource() == "XInput"; });
+  // Ordinal 100 is the same as XInputGetState, except it doesn't dummy out the guide
+  // button info. Try loading it and fall back if needed.
+  PXInputGetState = (XInputGetState_t)::GetProcAddress(hXInput, (LPCSTR)100);
 
-  XINPUT_CAPABILITIES caps;
-  for (int i = 0; i != 4; ++i)
-    if (ERROR_SUCCESS == PXInputGetCapabilities(i, 0, &caps))
-      g_controller_interface.AddDevice(std::make_shared<Device>(caps, i));
-}
+  s_have_guide_button = PXInputGetState != nullptr;
 
-void DeInit()
-{
-  if (hXInput)
+  if (!PXInputGetState)
+    PXInputGetState = (XInputGetState_t)::GetProcAddress(hXInput, "XInputGetState");
+
+  if (!PXInputGetCapabilities || !PXInputSetState || !PXInputGetState ||
+      !PXInputGetBatteryInformation)
   {
     ::FreeLibrary(hXInput);
     hXInput = nullptr;
   }
+}
+
+void InputBackend::RecreateAllGamepads()
+{
+  if (!hXInput)
+    return;
+
+  RemoveAllDevices();
+
+  XINPUT_CAPABILITIES caps;
+  for (int i = 0; i != 4; ++i)
+  {
+    if (ERROR_SUCCESS == PXInputGetCapabilities(i, 0, &caps))
+      AddDevice(std::make_shared<Device>(caps, i));
+  }
+}
+
+InputBackend::~InputBackend()
+{
+  if (!hXInput)
+    return;
+
+  m_notification.Unregister();
+
+  RemoveAllDevices();
+
+  ::FreeLibrary(hXInput);
+  hXInput = nullptr;
 }
 
 Device::Device(const XINPUT_CAPABILITIES& caps, u8 index) : m_subtype(caps.SubType), m_index(index)
@@ -298,6 +327,11 @@ void Device::UpdateMotors()
 std::optional<int> Device::GetPreferredId() const
 {
   return m_index;
+}
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
+{
+  return std::make_unique<InputBackend>(controller_interface);
 }
 
 }  // namespace ciface::XInput

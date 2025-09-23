@@ -619,10 +619,6 @@ struct AddRemoveEvent
   WGI::RawGameController raw_game_controller;
 };
 
-static thread_local bool s_initialized_winrt;
-static winrt::event_token s_event_added, s_event_removed;
-static Common::WorkQueueThread<AddRemoveEvent> s_device_add_remove_queue;
-
 static bool COMIsInitialized()
 {
   APTTYPE apt_type{};
@@ -630,7 +626,44 @@ static bool COMIsInitialized()
   return CoGetApartmentType(&apt_type, &apt_qualifier) == S_OK;
 }
 
-static void AddDevice(const WGI::RawGameController& raw_game_controller)
+class InputBackend final : public ciface::InputBackend
+{
+public:
+  explicit InputBackend(ControllerInterface* controller_interface);
+  ~InputBackend() override;
+
+  void PopulateDevices() override
+  {
+    RecreateAllGameControllers();
+    StartHotplugThread();
+  }
+
+  void RefreshDevices() override
+  {
+    StopHotplugThread();
+    RecreateAllGameControllers();
+    StartHotplugThread();
+  }
+
+private:
+  void RecreateAllGameControllers();
+
+  void StartHotplugThread();
+  void StopHotplugThread();
+
+  void AddGameController(const WGI::RawGameController& raw_game_controller);
+  void RemoveGameController(const WGI::RawGameController& raw_game_controller);
+
+  void HandleAddRemoveEvent(AddRemoveEvent evt);
+
+  Common::WorkQueueThread<AddRemoveEvent> m_device_add_remove_queue;
+
+  bool m_initialized_winrt{};
+  winrt::event_token s_event_added{};
+  winrt::event_token s_event_removed{};
+};
+
+void InputBackend::AddGameController(const WGI::RawGameController& raw_game_controller)
 {
   // Get user-facing device name if available. Otherwise generate a name from vid/pid.
   std::string device_name;
@@ -659,7 +692,7 @@ static void AddDevice(const WGI::RawGameController& raw_game_controller)
 
     // Only add if it has some inputs/outputs.
     if (dev->Inputs().size() || dev->Outputs().size())
-      g_controller_interface.AddDevice(std::move(dev));
+      AddDevice(std::move(dev));
   }
   catch (winrt::hresult_error)
   {
@@ -667,11 +700,9 @@ static void AddDevice(const WGI::RawGameController& raw_game_controller)
   }
 }
 
-static void RemoveDevice(const WGI::RawGameController& raw_game_controller)
+void InputBackend::RemoveGameController(const WGI::RawGameController& raw_game_controller)
 {
-  g_controller_interface.RemoveDevice([&](const auto* dev) {
-    if (dev->GetSource() != SOURCE_NAME)
-      return false;
+  RemoveDevices([&](const Core::Device* dev) {
     return static_cast<const Device*>(dev)->GetRawGameController() == raw_game_controller;
   });
 }
@@ -683,7 +714,7 @@ static void RemoveDevice(const WGI::RawGameController& raw_game_controller)
 // (H is the lambda)
 #pragma warning(disable : 4265)
 
-static void HandleAddRemoveEvent(AddRemoveEvent evt)
+void InputBackend::HandleAddRemoveEvent(AddRemoveEvent evt)
 {
   try
   {
@@ -701,11 +732,11 @@ static void HandleAddRemoveEvent(AddRemoveEvent evt)
   switch (evt.type)
   {
   case AddRemoveEventType::AddOrReplace:
-    RemoveDevice(evt.raw_game_controller);
-    AddDevice(evt.raw_game_controller);
+    RemoveGameController(evt.raw_game_controller);
+    AddGameController(evt.raw_game_controller);
     break;
   case AddRemoveEventType::Remove:
-    RemoveDevice(evt.raw_game_controller);
+    RemoveGameController(evt.raw_game_controller);
     break;
   default:
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "WGInput: Invalid add/remove controller event: {}",
@@ -713,30 +744,35 @@ static void HandleAddRemoveEvent(AddRemoveEvent evt)
   }
 }
 
-void Init()
+InputBackend::InputBackend(ControllerInterface* controller_interface)
+    : ciface::InputBackend{controller_interface}
 {
   if (!COMIsInitialized())
   {
     // NOTE: Devices in g_controller_interface should only be accessed by threads that have had
     // winrt (com) initialized.
     winrt::init_apartment();
-    s_initialized_winrt = true;
+    m_initialized_winrt = true;
   }
+}
 
-  s_device_add_remove_queue.Reset("WGInput Add/Remove Device Thread", HandleAddRemoveEvent);
+void InputBackend::StartHotplugThread()
+{
+  m_device_add_remove_queue.Reset("WGInput Add/Remove Device Thread",
+                                  std::bind_front(&InputBackend::HandleAddRemoveEvent, this));
 
   try
   {
     // These events will be invoked from WGI-managed threadpool.
     s_event_added = WGI::RawGameController::RawGameControllerAdded(
-        [](auto&&, WGI::RawGameController raw_game_controller) {
-          s_device_add_remove_queue.EmplaceItem(
+        [this](auto&&, WGI::RawGameController raw_game_controller) {
+          m_device_add_remove_queue.EmplaceItem(
               AddRemoveEvent{AddRemoveEventType::AddOrReplace, std::move(raw_game_controller)});
         });
 
     s_event_removed = WGI::RawGameController::RawGameControllerRemoved(
-        [](auto&&, WGI::RawGameController raw_game_controller) {
-          s_device_add_remove_queue.EmplaceItem(
+        [this](auto&&, WGI::RawGameController raw_game_controller) {
+          m_device_add_remove_queue.EmplaceItem(
               AddRemoveEvent{AddRemoveEventType::Remove, std::move(raw_game_controller)});
         });
   }
@@ -748,21 +784,28 @@ void Init()
 
 #pragma warning(pop)
 
-void DeInit()
+void InputBackend::StopHotplugThread()
 {
-  s_device_add_remove_queue.Shutdown();
-
   WGI::RawGameController::RawGameControllerAdded(s_event_added);
   WGI::RawGameController::RawGameControllerRemoved(s_event_removed);
 
-  if (s_initialized_winrt)
+  m_device_add_remove_queue.Shutdown();
+}
+
+InputBackend::~InputBackend()
+{
+  StopHotplugThread();
+
+  RemoveAllDevices();
+
+  if (m_initialized_winrt)
   {
     winrt::uninit_apartment();
-    s_initialized_winrt = false;
+    m_initialized_winrt = false;
   }
 }
 
-void PopulateDevices()
+void InputBackend::RecreateAllGameControllers()
 {
   // WGI Interfaces to potentially use:
   // Gamepad: Buttons, 2x Sticks and 2x Triggers, 4x Vibration Motors
@@ -781,8 +824,8 @@ void PopulateDevices()
     for (const WGI::RawGameController& raw_game_controller :
          WGI::RawGameController::RawGameControllers())
     {
-      RemoveDevice(raw_game_controller);
-      AddDevice(raw_game_controller);
+      RemoveGameController(raw_game_controller);
+      AddGameController(raw_game_controller);
     }
   }
   catch (winrt::hresult_error)
@@ -790,6 +833,11 @@ void PopulateDevices()
     // Only reach here if RawGameControllers() failed
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "WGInput: PopulateDevices failed");
   }
+}
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
+{
+  return std::make_unique<InputBackend>(controller_interface);
 }
 
 }  // namespace ciface::WGInput

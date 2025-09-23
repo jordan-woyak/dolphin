@@ -10,13 +10,40 @@
 #include "Core/HW/WiimoteEmu/ExtensionPort.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
-#include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 namespace ciface::WiimoteController
 {
 static constexpr char SOURCE_NAME[] = "Bluetooth";
 
 static constexpr size_t IR_SENSITIVITY_LEVEL_COUNT = 5;
+
+class InputBackend final : public ciface::InputBackend
+{
+public:
+  using ciface::InputBackend::InputBackend;
+  ~InputBackend() override = default;
+
+  void PopulateDevices() override {}
+
+  void RefreshDevices() override
+  {
+    ReleaseWiimotes(std::nullopt);
+    WiimoteReal::ProcessWiimotePool();
+  }
+
+  void AddWiimote(std::unique_ptr<WiimoteReal::Wiimote> wiimote);
+
+  void ReleaseWiimotes(std::optional<u32> count);
+};
+
+static InputBackend* s_input_backend{};
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
+{
+  auto result = std::make_unique<InputBackend>(controller_interface);
+  s_input_backend = result.get();
+  return result;
+}
 
 template <typename T>
 class Button final : public Core::Device::Input
@@ -105,6 +132,11 @@ void Device::QueueReport(T&& report, std::function<void(ErrorCode)> ack_callback
 
 void AddDevice(std::unique_ptr<WiimoteReal::Wiimote> wiimote)
 {
+  s_input_backend->AddWiimote(std::move(wiimote));
+}
+
+void InputBackend::AddWiimote(std::unique_ptr<WiimoteReal::Wiimote> wiimote)
+{
   // Our real wiimote class requires an index.
   // Within the pool it's only going to be used for logging purposes.
   static constexpr int CIFACE_WIIMOTE_INDEX = 55;
@@ -118,26 +150,31 @@ void AddDevice(std::unique_ptr<WiimoteReal::Wiimote> wiimote)
   wiimote->Prepare();
   wiimote->EventLinked();
 
-  g_controller_interface.AddDevice(std::make_shared<Device>(std::move(wiimote)));
+  AddDevice(std::make_unique<Device>(std::move(wiimote)));
 }
 
 void ReleaseDevices(std::optional<u32> count)
 {
+  s_input_backend->ReleaseWiimotes(count);
+}
+
+void InputBackend::ReleaseWiimotes(std::optional<u32> count)
+{
+  if (count.has_value())
+    DEBUG_LOG_FMT(WIIMOTE, "WiimoteController ReleaseWiimotes({})", *count);
+  else
+    DEBUG_LOG_FMT(WIIMOTE, "WiimoteController ReleaseWiimotes(all)");
+
   u32 removed_devices = 0;
 
   // Remove up to "count" remotes (or all of them if nullopt).
-  // Real wiimotes will be added to the pool.
-  // Make sure to force the device removal immediately (as they are shared ptrs and
-  // they could be kept alive, preventing us from re-creating the device)
-  g_controller_interface.RemoveDevice(
-      [&](const Core::Device* device) {
-        if (device->GetSource() != SOURCE_NAME || count == removed_devices)
-          return false;
-
-        ++removed_devices;
-        return true;
-      },
-      true);
+  // Real wiimotes will be added to the pool (from their destructor).
+  RemoveDevices([&](const Core::Device*) {
+    if (removed_devices == count)
+      return false;
+    ++removed_devices;
+    return true;
+  });
 }
 
 Device::Device(std::unique_ptr<WiimoteReal::Wiimote> wiimote) : m_wiimote(std::move(wiimote))

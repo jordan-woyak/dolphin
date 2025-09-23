@@ -82,14 +82,8 @@ Settings::Settings()
     }
     else
     {
-      // Any device shared_ptr in the host thread needs to be released immediately as otherwise
-      // they'd continue living until the queued event has run, but some devices can't be recreated
-      // until they are destroyed.
-      // This is safe from any thread. Devices will be refreshed and re-acquired and in
-      // DevicesChanged(). Calling it without queueing shouldn't cause any deadlocks but is slow.
-      emit ReleaseDevices();
-
-      QueueOnObject(this, [this] { emit DevicesChanged(); });
+      // All Device shared_ptr must be released immediately.
+      QueueOnObjectBlocking(this, [this] { emit DevicesChanged(); });
     }
   });
 }

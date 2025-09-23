@@ -3,8 +3,6 @@
 
 #include "InputCommon/ControllerInterface/SteamDeck/SteamDeck.h"
 
-#include <type_traits>
-
 #include <hidapi.h>
 
 #include "Common/CommonTypes.h"
@@ -124,8 +122,15 @@ private:
 class InputBackend final : public ciface::InputBackend
 {
 public:
-  InputBackend(ControllerInterface* controller_interface);
+  explicit InputBackend(ControllerInterface* controller_interface);
+
   void PopulateDevices() override;
+
+  void RefreshDevices() override
+  {
+    RemoveAllDevices();
+    PopulateDevices();
+  }
 };
 
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
@@ -186,10 +191,7 @@ void InputBackend::PopulateDevices()
     return;
   }
 
-  GetControllerInterface().RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == STEAMDECK_SOURCE_NAME; });
-
-  GetControllerInterface().AddDevice(std::make_shared<Device>(deck_dev));
+  AddDevice(std::make_shared<Device>(deck_dev));
 }
 
 Device::Device(hid_device* device) : m_device{device}

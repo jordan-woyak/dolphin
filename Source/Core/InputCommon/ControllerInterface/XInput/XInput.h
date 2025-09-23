@@ -19,10 +19,6 @@
 
 namespace ciface::XInput
 {
-void Init();
-void PopulateDevices();
-void DeInit();
-
 class Device final : public Core::Device
 {
 public:
@@ -44,4 +40,7 @@ private:
   const BYTE m_subtype;
   const u8 m_index;
 };
+
+std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
+
 }  // namespace ciface::XInput

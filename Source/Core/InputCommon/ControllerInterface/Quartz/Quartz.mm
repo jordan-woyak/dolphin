@@ -17,7 +17,15 @@ class InputBackend final : public ciface::InputBackend
 {
 public:
   using ciface::InputBackend::InputBackend;
+
   void PopulateDevices() override;
+
+  void RefreshDevices() override
+  {
+    RemoveAllDevices();
+    PopulateDevices();
+  }
+
   void HandleWindowChange() override;
 };
 
@@ -28,11 +36,7 @@ std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* co
 
 void InputBackend::HandleWindowChange()
 {
-  const std::string source_name = GetSourceName();
-  GetControllerInterface().RemoveDevice(
-      [&](const auto* dev) { return dev->GetSource() == source_name; }, true);
-
-  PopulateDevices();
+  RefreshDevices();
 }
 
 void InputBackend::PopulateDevices()
@@ -41,7 +45,7 @@ void InputBackend::PopulateDevices()
   if (wsi.type != WindowSystemType::MacOS)
     return;
 
-  GetControllerInterface().AddDevice(std::make_shared<KeyboardAndMouse>(wsi.render_window));
+  AddDevice(std::make_shared<KeyboardAndMouse>(wsi.render_window));
 }
 
 }  // namespace ciface::Quartz

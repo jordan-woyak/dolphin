@@ -56,15 +56,10 @@ static const struct
 #include "InputCommon/ControllerInterface/DInput/NamedKeys.h"  // NOLINT
 };
 
-// Prevent duplicate keyboard/mouse devices. Modified by more threads.
-static bool s_keyboard_mouse_exists;
 static HWND s_hwnd;
 
-void InitKeyboardMouse(IDirectInput8* const idi8, HWND hwnd)
+std::shared_ptr<ciface::Core::Device> CreateKeyboardMouse(IDirectInput8* const idi8, HWND hwnd)
 {
-  if (s_keyboard_mouse_exists)
-    return;
-
   s_hwnd = hwnd;
 
   // Mouse and keyboard are a combined device, to allow shift+click and stuff
@@ -84,8 +79,7 @@ void InitKeyboardMouse(IDirectInput8* const idi8, HWND hwnd)
       SUCCEEDED(mo_device->SetDataFormat(&c_dfDIMouse2)) &&
       SUCCEEDED(mo_device->SetCooperativeLevel(nullptr, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE)))
   {
-    g_controller_interface.AddDevice(std::make_shared<KeyboardMouse>(kb_device, mo_device));
-    return;
+    return std::make_shared<KeyboardMouse>(kb_device, mo_device);
   }
 
   ERROR_LOG_FMT(CONTROLLERINTERFACE, "KeyboardMouse device failed to be created");
@@ -94,6 +88,8 @@ void InitKeyboardMouse(IDirectInput8* const idi8, HWND hwnd)
     kb_device->Release();
   if (mo_device)
     mo_device->Release();
+
+  return nullptr;
 }
 
 void SetKeyboardMouseWindow(HWND hwnd)
@@ -103,8 +99,6 @@ void SetKeyboardMouseWindow(HWND hwnd)
 
 KeyboardMouse::~KeyboardMouse()
 {
-  s_keyboard_mouse_exists = false;
-
   // Independently of the order in which we do these, if we put a breakpoint on Unacquire() (or in
   // any place in the call stack before this), when refreshing devices from the UI, on the second
   // attempt, it will get stuck in an infinite (while) loop inside dinput8.dll. Given that it can't
@@ -122,8 +116,6 @@ KeyboardMouse::KeyboardMouse(const LPDIRECTINPUTDEVICE8 kb_device,
                              const LPDIRECTINPUTDEVICE8 mo_device)
     : m_kb_device(kb_device), m_mo_device(mo_device), m_last_update(GetTickCount()), m_state_in()
 {
-  s_keyboard_mouse_exists = true;
-
   if (FAILED(m_kb_device->Acquire()))
     WARN_LOG_FMT(CONTROLLERINTERFACE, "Keyboard device failed to acquire. We'll retry later");
   if (FAILED(m_mo_device->Acquire()))
@@ -336,4 +328,5 @@ ControlState KeyboardMouse::Cursor::GetState() const
 {
   return m_axis / (m_positive ? 1.0 : -1.0);
 }
+
 }  // namespace ciface::DInput

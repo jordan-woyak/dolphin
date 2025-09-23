@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -13,7 +14,6 @@
 #include <fmt/format.h>
 
 #include "Common/MathUtil.h"
-#include "Common/Thread.h"
 
 namespace ciface::Core
 {
@@ -193,8 +193,8 @@ std::string DeviceQualifier::ToString() const
 
   if (cid > -1)
     return fmt::format("{}/{}/{}", source, cid, name);
-  else
-    return fmt::format("{}//{}", source, name);
+
+  return fmt::format("{}//{}", source, name);
 }
 
 //
@@ -246,87 +246,71 @@ bool DeviceQualifier::operator==(const DeviceQualifier& devq) const
 
 std::shared_ptr<Device> DeviceContainer::FindDevice(const DeviceQualifier& devq) const
 {
-  std::lock_guard lk(m_devices_mutex);
-  for (const auto& d : m_devices)
+  for (auto devices = GetLockedDevices(); const auto& [backend, device] : devices->container)
   {
-    if (devq == d.get())
-      return d;
-  }
+    // We don't want Device pointers hanging around in ControllerEmu during shutdown.
+    if (devices->is_shutting_down)
+      return nullptr;
 
+    if (devq == device.get())
+      return device;
+  }
   return nullptr;
 }
 
 std::vector<std::shared_ptr<Device>> DeviceContainer::GetAllDevices() const
 {
-  std::lock_guard lk(m_devices_mutex);
+  const auto& devices = GetLockedDevices();
+  std::vector<std::shared_ptr<Device>> result;
 
-  std::vector<std::shared_ptr<Device>> devices;
+  // We don't want Device pointers hanging around in ControllerEmu during shutdown.
+  if (devices->is_shutting_down)
+    return result;
 
-  for (const auto& d : m_devices)
-    devices.emplace_back(d);
+  result.reserve(devices->container.size());
+  for (const auto& device : devices->container)
+    result.emplace_back(device.device);
 
-  return devices;
+  return result;
 }
 
 std::vector<std::string> DeviceContainer::GetAllDeviceStrings() const
 {
-  std::lock_guard lk(m_devices_mutex);
+  const auto& devices = GetLockedDevices();
+  std::vector<std::string> result;
 
-  std::vector<std::string> device_strings;
-  DeviceQualifier device_qualifier;
+  result.reserve(devices->container.size());
+  for (const auto& device : devices->container)
+    result.emplace_back(device.device->GetQualifiedName());
 
-  for (const auto& d : m_devices)
-  {
-    device_qualifier.FromDevice(d.get());
-    device_strings.emplace_back(device_qualifier.ToString());
-  }
-
-  return device_strings;
+  return result;
 }
 
 bool DeviceContainer::HasDefaultDevice() const
 {
-  std::lock_guard lk(m_devices_mutex);
-  // Devices are already sorted by priority
-  return !m_devices.empty() && m_devices[0]->GetSortPriority() >= 0;
+  const auto devices = GetAllDevices();
+  if (!devices.empty())
+  {
+    // Devices are already sorted by priority
+    return devices.front()->GetSortPriority() >= 0;
+  }
+
+  return false;
 }
 
 std::string DeviceContainer::GetDefaultDeviceString() const
 {
-  std::lock_guard lk(m_devices_mutex);
-  // Devices are already sorted by priority
-  if (m_devices.empty() || m_devices[0]->GetSortPriority() < 0)
-    return "";
-
-  DeviceQualifier device_qualifier;
-  device_qualifier.FromDevice(m_devices[0].get());
-  return device_qualifier.ToString();
-}
-
-Device::Input* DeviceContainer::FindInput(std::string_view name, const Device* def_dev) const
-{
-  if (def_dev)
+  const auto devices = GetAllDevices();
+  if (!devices.empty())
   {
-    Device::Input* const inp = def_dev->FindInput(name);
-    if (inp)
-      return inp;
+    // Devices are already sorted by priority
+    if (devices.front()->GetSortPriority() < 0)
+      return {};
+
+    return devices.front()->GetQualifiedName();
   }
 
-  std::lock_guard lk(m_devices_mutex);
-  for (const auto& d : m_devices)
-  {
-    Device::Input* const i = d->FindInput(name);
-
-    if (i)
-      return i;
-  }
-
-  return nullptr;
-}
-
-Device::Output* DeviceContainer::FindOutput(std::string_view name, const Device* def_dev) const
-{
-  return def_dev->FindOutput(name);
+  return {};
 }
 
 bool DeviceContainer::HasConnectedDevice(const DeviceQualifier& qualifier) const
@@ -335,11 +319,37 @@ bool DeviceContainer::HasConnectedDevice(const DeviceQualifier& qualifier) const
   return device != nullptr && device->IsValid();
 }
 
+// Register a callback to be called when a device is added or removed (as from the input backends'
+// hotplug thread), or when devices are refreshed
+// Returns a handle for later removing the callback.
+auto DeviceContainer::RegisterDevicesChangedCallback(HotplugCallback callback)
+    -> HotplugCallbackHandle
+{
+  const auto devices = GetLockedDevices();
+  devices->device_change_callbacks.emplace_back(std::move(callback));
+  return std::prev(devices->device_change_callbacks.end());
+}
+
+// Unregister a device callback.
+void DeviceContainer::UnregisterDevicesChangedCallback(const HotplugCallbackHandle& handle)
+{
+  GetLockedDevices()->device_change_callbacks.erase(handle);
+}
+
+// Invoke all callbacks that were registered
+void DeviceContainer::InvokeDevicesChangedCallbacks()
+{
+  auto callbacks_copy = GetLockedDevices()->device_change_callbacks;
+  // Invoke callbacks without holding the lock.
+  for (const auto& callback : callbacks_copy)
+    callback();
+}
+
 struct InputDetector::Impl
 {
   struct InputState
   {
-    InputState(ciface::Core::Device::Input* input_) : input{input_} { stats.Push(0.0); }
+    explicit InputState(ciface::Core::Device::Input* input_) : input{input_} { stats.Push(0.0); }
 
     ciface::Core::Device::Input* input;
     ControlState initial_state = input->GetState();
@@ -365,7 +375,7 @@ struct InputDetector::Impl
       last_state = new_state;
     }
 
-    bool IsPressed()
+    bool IsPressed() const
     {
       if (!is_ready)
         return false;

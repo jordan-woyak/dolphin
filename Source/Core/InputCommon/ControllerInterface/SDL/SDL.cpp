@@ -6,6 +6,7 @@
 #include <span>
 #include <thread>
 #include <vector>
+#include "Common/Thread.h"
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -13,7 +14,6 @@
 
 #include <SDL3/SDL.h>
 
-#include "Common/Event.h"
 #include "Common/Logging/Log.h"
 #include "Common/ScopeGuard.h"
 
@@ -26,17 +26,22 @@ namespace ciface::SDL
 class InputBackend final : public ciface::InputBackend
 {
 public:
-  InputBackend(ControllerInterface* controller_interface);
+  explicit InputBackend(ControllerInterface* controller_interface);
   ~InputBackend() override;
+
   void PopulateDevices() override;
-  void UpdateInput(std::vector<std::weak_ptr<ciface::Core::Device>>& devices_to_remove) override;
+
+  void RefreshDevices() override;
+
+  void UpdateBeforeInput() override;
 
 private:
   void OpenAndAddDevice(SDL_JoystickID instance_id);
 
   bool HandleEventAndContinue(const SDL_Event& e);
 
-  Common::Event m_init_event;
+  void HotplugThreadFunc();
+
   Uint32 m_stop_event_type;
   Uint32 m_populate_event_type;
   std::thread m_hotplug_thread;
@@ -140,75 +145,66 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
 
   // Disable DualSense Player LEDs; We already colorize the Primary LED
   SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_PLAYER_LED, "0");
+}
 
-  m_hotplug_thread = std::thread([this] {
-    Common::ScopeGuard quit_guard([] {
-      // TODO: there seems to be some sort of memory leak with SDL, quit isn't freeing everything up
-      SDL_Quit();
-    });
-    {
-      Common::ScopeGuard init_guard([this] { m_init_event.Set(); });
+void InputBackend::PopulateDevices()
+{
+  m_hotplug_thread = std::thread{&InputBackend::HotplugThreadFunc, this};
+}
 
-      if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD))
-      {
-        ERROR_LOG_FMT(CONTROLLERINTERFACE, "SDL failed to initialize");
-        return;
-      }
+void InputBackend::HotplugThreadFunc()
+{
+  Common::SetCurrentThreadName("SDL Hotplug Thread");
 
-      const Uint32 custom_events_start = SDL_RegisterEvents(2);
-      if (custom_events_start == static_cast<Uint32>(-1))
-      {
-        ERROR_LOG_FMT(CONTROLLERINTERFACE, "SDL failed to register custom events");
-        return;
-      }
-      m_stop_event_type = custom_events_start;
-      m_populate_event_type = custom_events_start + 1;
-
-      // Drain all of the events and add the initial joysticks before returning. Otherwise, the
-      // individual joystick events as well as the custom populate event will be handled _after_
-      // ControllerInterface::Init/RefreshDevices has cleared its list of devices, resulting in
-      // duplicate devices. Adding devices will actually "fail" here, as the ControllerInterface
-      // hasn't finished initializing yet.
-      SDL_Event e;
-      while (SDL_PollEvent(&e))
-      {
-        if (!HandleEventAndContinue(e))
-          return;
-      }
-    }
-
-#ifdef _WIN32
-    // This is a hack to workaround SDL_hidapi using window messages to detect device
-    // removal/arrival, yet no part of SDL pumps messages for it. It can hopefully be removed in the
-    // future when SDL fixes the issue. Note this is a separate issue from SDL_HINT_JOYSTICK_THREAD.
-    // Also note that SDL_WaitEvent may block while device detection window messages get queued up,
-    // causing some noticible stutter. This is just another reason it should be fixed properly by
-    // SDL...
-    const auto window_handle =
-        FindWindowEx(HWND_MESSAGE, nullptr, TEXT("SDL_HIDAPI_DEVICE_DETECTION"), nullptr);
-#endif
-
-    SDL_Event e;
-    while (SDL_WaitEvent(&e))
-    {
-      if (!HandleEventAndContinue(e))
-        return;
-
-#ifdef _WIN32
-      MSG msg;
-      while (window_handle && PeekMessage(&msg, window_handle, 0, 0, PM_NOREMOVE))
-      {
-        if (GetMessageA(&msg, window_handle, 0, 0) != 0)
-        {
-          TranslateMessage(&msg);
-          DispatchMessage(&msg);
-        }
-      }
-#endif
-    }
+  Common::ScopeGuard quit_guard([this] {
+    RemoveAllDevices();
+    SDL_Quit();
   });
 
-  m_init_event.Wait();
+  if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_HAPTIC | SDL_INIT_GAMEPAD))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "SDL failed to initialize");
+    return;
+  }
+
+  const Uint32 custom_events_start = SDL_RegisterEvents(2);
+  if (custom_events_start == static_cast<Uint32>(-1))
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "SDL failed to register custom events");
+    return;
+  }
+  m_stop_event_type = custom_events_start;
+  m_populate_event_type = custom_events_start + 1;
+
+#ifdef _WIN32
+  // This is a hack to workaround SDL_hidapi using window messages to detect device
+  // removal/arrival, yet no part of SDL pumps messages for it. It can hopefully be removed in the
+  // future when SDL fixes the issue. Note this is a separate issue from SDL_HINT_JOYSTICK_THREAD.
+  // Also note that SDL_WaitEvent may block while device detection window messages get queued up,
+  // causing some noticible stutter. This is just another reason it should be fixed properly by
+  // SDL...
+  const auto window_handle =
+      FindWindowEx(HWND_MESSAGE, nullptr, TEXT("SDL_HIDAPI_DEVICE_DETECTION"), nullptr);
+#endif
+
+  SDL_Event e;
+  while (SDL_WaitEvent(&e))
+  {
+    if (!HandleEventAndContinue(e))
+      return;
+
+#ifdef _WIN32
+    MSG msg;
+    while (window_handle && PeekMessage(&msg, window_handle, 0, 0, PM_NOREMOVE))
+    {
+      if (GetMessageA(&msg, window_handle, 0, 0) != 0)
+      {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+    }
+#endif
+  }
 }
 
 InputBackend::~InputBackend()
@@ -222,7 +218,7 @@ InputBackend::~InputBackend()
   m_hotplug_thread.join();
 }
 
-void InputBackend::PopulateDevices()
+void InputBackend::RefreshDevices()
 {
   if (!m_hotplug_thread.joinable())
     return;
@@ -231,7 +227,7 @@ void InputBackend::PopulateDevices()
   SDL_PushEvent(&populate_event);
 }
 
-void InputBackend::UpdateInput(std::vector<std::weak_ptr<ciface::Core::Device>>&)
+void InputBackend::UpdateBeforeInput()
 {
   SDL_UpdateGamepads();
 }
@@ -253,7 +249,7 @@ void InputBackend::OpenAndAddDevice(SDL_JoystickID instance_id)
     }
     auto gamepad = std::make_shared<Gamepad>(gc, js);
     if (!gamepad->Inputs().empty() || !gamepad->Outputs().empty())
-      GetControllerInterface().AddDevice(std::move(gamepad));
+      AddDevice(std::move(gamepad));
   }
 }
 
@@ -265,21 +261,20 @@ bool InputBackend::HandleEventAndContinue(const SDL_Event& e)
   }
   else if (e.type == SDL_EVENT_JOYSTICK_REMOVED)
   {
-    GetControllerInterface().RemoveDevice([&e](const auto* device) {
-      return device->GetSource() == "SDL" &&
-             static_cast<const Gamepad*>(device)->GetSDLInstanceID() == e.jdevice.which;
+    RemoveDevices([&](const Core::Device* device) {
+      return static_cast<const Gamepad*>(device)->GetSDLInstanceID() == e.jdevice.which;
     });
   }
   else if (e.type == m_populate_event_type)
   {
-    GetControllerInterface().PlatformPopulateDevices([this] {
-      int joystick_count = 0;
-      auto* const joystick_ids = SDL_GetJoysticks(&joystick_count);
-      for (auto instance_id : std::span(joystick_ids, joystick_count))
-        OpenAndAddDevice(instance_id);
+    RemoveAllDevices();
 
-      SDL_free(joystick_ids);
-    });
+    int joystick_count = 0;
+    auto* const joystick_ids = SDL_GetJoysticks(&joystick_count);
+    for (auto instance_id : std::span(joystick_ids, joystick_count))
+      OpenAndAddDevice(instance_id);
+
+    SDL_free(joystick_ids);
   }
   else if (e.type == m_stop_event_type)
   {

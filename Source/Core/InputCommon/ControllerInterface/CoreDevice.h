@@ -4,7 +4,9 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <limits>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -14,6 +16,8 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
+#include "Common/LockProtected.h"
+#include "InputCommon/ControllerInterface/InputBackend.h"
 
 // idk in case I wanted to change it to double or something, idk what's best
 typedef double ControlState;
@@ -60,8 +64,6 @@ public:
   public:
     virtual ~Control() = default;
     virtual std::string GetName() const = 0;
-    virtual Input* ToInput() { return nullptr; }
-    virtual Output* ToOutput() { return nullptr; }
 
     // May be overridden to allow multiple valid names.
     // Useful for backwards-compatible configurations when names change.
@@ -96,8 +98,6 @@ public:
     // expression-parser or controller-emu)
     virtual ControlState GetState() const = 0;
 
-    Input* ToInput() override { return this; }
-
     // Overridden by CombinedInput,
     // so hotkey logic knows Ctrl, L_Ctrl, and R_Ctrl are the same,
     // and so input detection can return the parent name.
@@ -120,7 +120,6 @@ public:
   public:
     ~Output() override = default;
     virtual void SetState(ControlState state) = 0;
-    Output* ToOutput() override { return this; }
   };
 
   virtual ~Device();
@@ -161,8 +160,8 @@ public:
   Output* FindOutput(std::string_view name) const;
 
 protected:
-  void AddInput(Input* const i);
-  void AddOutput(Output* const o);
+  void AddInput(Input* i);
+  void AddOutput(Output* o);
 
   // Pass Inputs for center-neutral (- and +) directions of some axis.
   // This function adds those Inputs and also a FullAnalogSurface Input for each direction.
@@ -195,7 +194,7 @@ public:
       : source(std::move(source_)), cid(id_), name(std::move(name_))
   {
   }
-  void FromDevice(const Device* const dev);
+  void FromDevice(const Device* dev);
   void FromString(const std::string& str);
   std::string ToString() const;
 
@@ -222,24 +221,49 @@ public:
     bool IsAnalogPress() const { return smoothness > 1.00001; }
   };
 
-  Device::Input* FindInput(std::string_view name, const Device* def_dev) const;
-  Device::Output* FindOutput(std::string_view name, const Device* def_dev) const;
-
   std::vector<std::shared_ptr<Device>> GetAllDevices() const;
   std::vector<std::string> GetAllDeviceStrings() const;
+
   bool HasDefaultDevice() const;
   std::string GetDefaultDeviceString() const;
   std::shared_ptr<Device> FindDevice(const DeviceQualifier& devq) const;
 
   bool HasConnectedDevice(const DeviceQualifier& qualifier) const;
 
-  std::recursive_mutex& GetDevicesMutex() const { return m_devices_mutex; }
+  using HotplugCallback = std::function<void()>;
+  using HotplugCallbackList = std::list<HotplugCallback>;
+  using HotplugCallbackHandle = HotplugCallbackList::iterator;
+
+  // Note: Callbacks are expected to *immediately* release shared_ptr to any Device
+  //  which are no longer in this container.
+  // This whole interaction is a bit fragile, but that's how it is right now..
+  HotplugCallbackHandle RegisterDevicesChangedCallback(HotplugCallback callback);
+  void UnregisterDevicesChangedCallback(const HotplugCallbackHandle& handle);
+
+  // Exclusively needed when reading/writing the devices container.
+  // Not needed when individually reading/writing a single device ptr.
+  auto GetLockedDevices() const { return m_devices.Lock(); }
 
 protected:
-  // Exclusively needed when reading/writing the "m_devices" array.
-  // Not needed when individually reading/writing a single device ptr.
-  mutable std::recursive_mutex m_devices_mutex;
-  std::vector<std::shared_ptr<Device>> m_devices;
+  auto GetLockedDevices() { return m_devices.Lock(); }
+
+  void InvokeDevicesChangedCallbacks();
+
+  struct DeviceEntry
+  {
+    InputBackend* backend;
+    std::shared_ptr<Device> device;
+  };
+  using ContainerType = std::vector<DeviceEntry>;
+
+private:
+  struct Details
+  {
+    ContainerType container;
+    HotplugCallbackList device_change_callbacks;
+    bool is_shutting_down{};
+  };
+  Common::LockProtected<Details, std::recursive_mutex> m_devices;
 };
 
 // Wait for inputs on supplied devices.

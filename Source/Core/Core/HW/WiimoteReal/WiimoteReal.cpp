@@ -4,16 +4,13 @@
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
 
 #include <algorithm>
-#include <cstdlib>
 #include <mutex>
-#include <queue>
 #include <unordered_set>
 
-#include "Common/ChunkFile.h"
+#include <SFML/Network/UdpSocket.hpp>
+
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
-#include "Common/FileUtil.h"
-#include "Common/IniFile.h"
 #include "Common/Swap.h"
 #include "Common/Thread.h"
 
@@ -30,9 +27,6 @@
 #include "Core/System.h"
 
 #include "InputCommon/ControllerInterface/Wiimote/WiimoteController.h"
-#include "InputCommon/InputConfig.h"
-
-#include "SFML/Network.hpp"
 
 namespace WiimoteReal
 {
@@ -100,12 +94,6 @@ static void TryToFillWiimoteSlot(u32 index)
 
   if (TryToConnectWiimoteToSlot(s_wiimote_pool.front().wiimote, index))
     s_wiimote_pool.erase(s_wiimote_pool.begin());
-}
-
-void PopulateDevices()
-{
-  // There is a very small chance of deadlocks if we didn't do it in another thread
-  s_wiimote_scanner.PopulateDevices();
 }
 
 // Attempts to fill enabled real wiimote slots.
@@ -608,7 +596,7 @@ void WiimoteScanner::StopThread()
 void WiimoteScanner::SetScanMode(WiimoteScanMode scan_mode)
 {
   m_scan_mode.store(scan_mode);
-  m_scan_mode_changed_or_population_event.Set();
+  m_scan_mode_changed.Set();
 }
 
 bool WiimoteScanner::IsReady() const
@@ -672,12 +660,6 @@ void WiimoteScanner::PoolThreadFunc()
   }
 }
 
-void WiimoteScanner::PopulateDevices()
-{
-  m_populate_devices.Set();
-  m_scan_mode_changed_or_population_event.Set();
-}
-
 void WiimoteScanner::ThreadFunc()
 {
   std::thread pool_thread(&WiimoteScanner::PoolThreadFunc, this);
@@ -701,12 +683,9 @@ void WiimoteScanner::ThreadFunc()
 
   while (m_scan_thread_running.IsSet())
   {
-    m_scan_mode_changed_or_population_event.WaitFor(std::chrono::milliseconds(500));
+    m_scan_mode_changed.WaitFor(std::chrono::milliseconds(500));
 
-    if (m_populate_devices.TestAndClear())
-    {
-      g_controller_interface.PlatformPopulateDevices([] { ProcessWiimotePool(); });
-    }
+    ProcessWiimotePool();
 
     // Does stuff needed to detect disconnects on Windows
     for (const auto& backend : m_backends)
@@ -750,7 +729,7 @@ void WiimoteScanner::ThreadFunc()
           }
 
           AddWiimoteToPool(std::unique_ptr<Wiimote>(wiimote));
-          g_controller_interface.PlatformPopulateDevices([] { ProcessWiimotePool(); });
+          ProcessWiimotePool();
         }
 
         if (found_board)
@@ -860,6 +839,7 @@ int Wiimote::GetIndex() const
 }
 
 // config dialog calls this when some settings change
+// FYI: happens after controller interface init
 void Initialize(::Wiimote::InitializeMode init_mode)
 {
   if (!s_real_wiimotes_initialized)
@@ -901,6 +881,7 @@ void Stop()
 }
 
 // called when the Dolphin app exits
+// FYI: happens after controller interface shutdown
 void Shutdown()
 {
   s_real_wiimotes_initialized = false;
@@ -912,8 +893,7 @@ void Shutdown()
   for (unsigned int i = 0; i < MAX_BBMOTES; ++i)
     HandleWiimoteDisconnect(i);
 
-  // Release remotes from ControllerInterface and empty the pool.
-  ciface::WiimoteController::ReleaseDevices();
+  // Release remotes from the pool.
   s_wiimote_pool.clear();
 }
 
@@ -1012,12 +992,12 @@ void HandleWiimoteSourceChange(unsigned int index)
     if (auto removed_wiimote = std::move(g_wiimotes[index]))
       AddWiimoteToPool(std::move(removed_wiimote));
   }
-  g_controller_interface.PlatformPopulateDevices([] { ProcessWiimotePool(); });
+  ProcessWiimotePool();
 }
 
 void HandleWiimotesInControllerInterfaceSettingChange()
 {
-  g_controller_interface.PlatformPopulateDevices([] { ProcessWiimotePool(); });
+  ProcessWiimotePool();
 }
 
 }  // namespace WiimoteReal

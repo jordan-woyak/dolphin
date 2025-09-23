@@ -12,7 +12,7 @@
 
 namespace ciface::DInput
 {
-void InitKeyboardMouse(IDirectInput8* const idi8, HWND hwnd);
+std::shared_ptr<ciface::Core::Device> CreateKeyboardMouse(IDirectInput8* const idi8, HWND hwnd);
 
 using RelativeMouseState = RelativeInputState<Common::TVec3<LONG>>;
 void SetKeyboardMouseWindow(HWND hwnd);

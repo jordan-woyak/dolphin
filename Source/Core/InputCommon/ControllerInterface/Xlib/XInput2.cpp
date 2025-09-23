@@ -6,14 +6,12 @@
 #include <X11/XKBlib.h>
 
 #include <X11/extensions/XInput2.h>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
 #include <fmt/format.h>
 
 #include "Common/Logging/Log.h"
-#include "Common/StringUtil.h"
 
 #include "Core/Host.h"
 
@@ -72,7 +70,15 @@ class InputBackend final : public ciface::InputBackend
 {
 public:
   using ciface::InputBackend::InputBackend;
+
   void PopulateDevices() override;
+
+  void RefreshDevices() override
+  {
+    RemoveAllDevices();
+    PopulateDevices();
+  }
+
   void HandleWindowChange() override;
 };
 
@@ -83,10 +89,7 @@ std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* co
 
 void InputBackend::HandleWindowChange()
 {
-  GetControllerInterface().RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == SOURCE_NAME; }, true);
-
-  PopulateDevices();
+  RefreshDevices();
 }
 
 // This function will add zero or more KeyboardMouse objects to devices.
@@ -148,9 +151,8 @@ void InputBackend::PopulateDevices()
       }
       // Since current_master is a master pointer, its attachment must
       // be a master keyboard.
-      GetControllerInterface().AddDevice(
-          std::make_shared<KeyboardMouse>((Window)hwnd, xi_opcode, current_master->deviceid,
-                                          current_master->attachment, scroll_increment));
+      AddDevice(std::make_shared<KeyboardMouse>((Window)hwnd, xi_opcode, current_master->deviceid,
+                                                current_master->attachment, scroll_increment));
     }
   }
 

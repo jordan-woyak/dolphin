@@ -399,7 +399,8 @@ void IOWindow::CreateMainLayout()
     m_option_list->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
 
     m_option_list->setItemDelegate(new InputStateDelegate(this, 1, [&](int row) {
-      std::lock_guard lock(m_selected_device_mutex);
+      // TODO: grab the state lock?
+
       // Clamp off negative values but allow greater than one in the text display.
       return std::max(GetSelectedDevice()->Inputs()[row]->GetState(), 0.0);
     }));
@@ -518,7 +519,6 @@ void IOWindow::ConnectWidgets()
 {
   connect(m_select_button, &QPushButton::clicked, [this] { AppendSelectedOption(); });
   connect(m_option_list, &QTableWidget::cellDoubleClicked, [this] { AppendSelectedOption(); });
-  connect(&Settings::Instance(), &Settings::ReleaseDevices, this, &IOWindow::ReleaseDevices);
   connect(&Settings::Instance(), &Settings::DevicesChanged, this, &IOWindow::UpdateDeviceList);
 
   // Input detection:
@@ -662,15 +662,8 @@ void IOWindow::OnRangeChanged(int value)
   emit TestOutputComplete();
 }
 
-void IOWindow::ReleaseDevices()
-{
-  std::lock_guard lock(m_selected_device_mutex);
-  m_selected_device = nullptr;
-}
-
 void IOWindow::UpdateOptionList()
 {
-  std::lock_guard lock(m_selected_device_mutex);
   m_selected_device = g_controller_interface.FindDevice(m_devq);
   m_option_list->setRowCount(0);
 

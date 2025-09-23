@@ -4,8 +4,6 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
-#include <list>
 #include <memory>
 #include <mutex>
 
@@ -55,51 +53,18 @@ enum class InputChannel
 
 }  // namespace ciface
 
-//
-// ControllerInterface
-//
-// Some crazy shit I made to control different device inputs and outputs
-// from lots of different sources, hopefully more easily.
-//
 class ControllerInterface : public ciface::Core::DeviceContainer
 {
+  friend ciface::InputBackend;
+
 public:
-  using HotplugCallbackHandle = std::list<std::function<void()>>::iterator;
-
-  enum class WindowChangeReason
-  {
-    // Application is shutting down
-    Exit,
-    Other
-  };
-
-  enum class RefreshReason
-  {
-    // Only the window changed.
-    WindowChangeOnly,
-    // User requested, or any other internal reason (e.g. init).
-    // The window might have changed anyway.
-    Other
-  };
-
-  ControllerInterface() : m_is_init(false) {}
+  // Not thread safe.
   void Initialize(const WindowSystemInfo& wsi);
-  // Only call from one thread at a time.
-  void ChangeWindow(void* hwnd, WindowChangeReason reason = WindowChangeReason::Other);
-  // Can be called by any thread at any time (when initialized).
-  void RefreshDevices(RefreshReason reason = RefreshReason::Other);
   void Shutdown();
-  bool AddDevice(std::shared_ptr<ciface::Core::Device> device);
-  // Removes all the devices the function returns true to.
-  // If all the devices shared ptrs need to be destroyed immediately,
-  // set force_devices_release to true.
-  void RemoveDevice(std::function<bool(const ciface::Core::Device*)> callback,
-                    bool force_devices_release = false);
-  // This is mandatory to use on device populations functions that can be called concurrently by
-  // more than one thread, or that are called by a single other thread.
-  // Without this, our devices list might end up in a mixed state.
-  void PlatformPopulateDevices(std::function<void()> callback);
-  bool IsInit() const { return m_is_init; }
+  bool IsInit() const;
+
+  void ChangeWindow(void* hwnd);
+  void RefreshDevices();
   void UpdateInput();
 
   // Set adjustment from the full render window aspect-ratio to the drawn aspect-ratio.
@@ -112,12 +77,7 @@ public:
 
   // Request that the mouse cursor should be centered in the render window at the next opportunity.
   void SetMouseCenteringRequested(bool center);
-
   bool IsMouseCenteringRequested() const;
-
-  HotplugCallbackHandle RegisterDevicesChangedCallback(std::function<void(void)> callback);
-  void UnregisterDevicesChangedCallback(const HotplugCallbackHandle& handle);
-  void InvokeDevicesChangedCallbacks() const;
 
   static void SetCurrentInputChannel(ciface::InputChannel);
   static ciface::InputChannel GetCurrentInputChannel();
@@ -125,16 +85,20 @@ public:
   WindowSystemInfo GetWindowSystemInfo() const;
 
 private:
-  void ClearDevices();
+  void AddDevice(ciface::InputBackend*, std::shared_ptr<ciface::Core::Device>);
 
-  std::list<std::function<void()>> m_devices_changed_callbacks;
-  mutable std::recursive_mutex m_devices_population_mutex;
-  mutable std::mutex m_callbacks_mutex;
-  std::atomic<bool> m_is_init;
-  // This is now always protected by m_devices_population_mutex, so
-  // it doesn't really need to be a counter or atomic anymore (it could be a raw bool),
-  // but we keep it so for simplicity, in case we changed the design.
-  std::atomic<int> m_populating_devices_counter;
+  // Remove devices on a particular backend for which the function returns true.
+  // Each InputBackend should perform this on its own time.
+  // Not every backend is prepared for random Device destruction.
+  using RemoveDevicesCallback = Common::MoveOnlyFunction<bool(ciface::Core::Device*)>;
+  void RemoveDevices(ciface::InputBackend*, RemoveDevicesCallback callback);
+
+  void PerformDeviceRemoval(ContainerType&&);
+
+  bool m_is_init{};
+
+  std::mutex m_update_mutex;
+
   WindowSystemInfo m_wsi;
   std::atomic<float> m_aspect_ratio_adjustment = 1;
   std::atomic<bool> m_requested_mouse_centering = false;

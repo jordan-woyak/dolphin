@@ -10,15 +10,17 @@
 #include <thread>
 #include <vector>
 
-#include "Common/Common.h"
 #include "Common/Config/Config.h"
 #include "Common/Event.h"
 #include "Common/Flag.h"
 #include "Common/SPSCQueue.h"
+
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteCommon/WiimoteConstants.h"
 #include "Core/HW/WiimoteCommon/WiimoteHid.h"
 #include "Core/HW/WiimoteCommon/WiimoteReport.h"
+
+#include "InputCommon/ControllerInterface/InputBackend.h"
 
 class PointerWrap;
 
@@ -188,7 +190,6 @@ public:
   void StartThread();
   void StopThread();
   void SetScanMode(WiimoteScanMode scan_mode);
-  void PopulateDevices();
 
   bool IsReady() const;
 
@@ -201,8 +202,8 @@ private:
 
   std::thread m_scan_thread;
   Common::Flag m_scan_thread_running;
-  Common::Flag m_populate_devices;
-  Common::Event m_scan_mode_changed_or_population_event;
+
+  Common::Event m_scan_mode_changed;
   std::atomic<WiimoteScanMode> m_scan_mode{WiimoteScanMode::DO_NOT_SCAN};
 };
 
@@ -223,7 +224,7 @@ void InitAdapterClass();
 #endif
 
 void HandleWiimotesInControllerInterfaceSettingChange();
-void PopulateDevices();
 void ProcessWiimotePool();
 bool IsScannerReady();
+
 }  // namespace WiimoteReal
