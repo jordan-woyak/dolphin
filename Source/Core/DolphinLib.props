@@ -136,6 +136,7 @@
     <ClInclude Include="Common\Lazy.h" />
     <ClInclude Include="Common\LdrWatcher.h" />
     <ClInclude Include="Common\LinearDiskCache.h" />
+    <ClInclude Include="Common\LockProtected.h" />
     <ClInclude Include="Common\Logging\ConsoleListener.h" />
     <ClInclude Include="Common\Logging\Log.h" />
     <ClInclude Include="Common\Logging\LogManager.h" />
