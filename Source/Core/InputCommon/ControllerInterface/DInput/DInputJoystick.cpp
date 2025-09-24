@@ -46,7 +46,7 @@ void InitJoystick(IDirectInput8* const idi8, HWND hwnd)
     // Skip XInput Devices
     if (xinput_guids.contains(joystick.guidProduct.Data1))
     {
-      continue;
+      // continue;
     }
 
     // Skip devices we are already using.
