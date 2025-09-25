@@ -8,6 +8,7 @@
 #ifndef XINPUT_GAMEPAD_GUIDE
 #define XINPUT_GAMEPAD_GUIDE 0x0400
 #endif
+#include <Common/TypeUtils.h>
 
 namespace ciface::XInput
 {
@@ -25,16 +26,25 @@ public:
     if (!hXInput)
       return;
 
-    m_notification.Unregister();
-    RecreateAllGamepads();
-    m_notification.Register(std::bind(&InputBackend::RecreateAllGamepads, this));
+    DisableHotplugNotification();
+    RemoveAllDevices();
+    PruneAndDiscoverGamepads();
+    EnableHotplugNotification();
   }
 
 private:
-  void RecreateAllGamepads();
+  void PruneAndDiscoverGamepads();
 
   HMODULE hXInput = nullptr;
-  Win32::DeviceChangeNotification m_notification;
+
+  Win32::DeviceChangeNotifactionHandle m_notification;
+
+  void DisableHotplugNotification() { m_notification.reset(); }
+  void EnableHotplugNotification()
+  {
+    m_notification = Win32::CreateDeviceChangeNotification(
+        [this](Win32::DeviceChangeEvent) { PruneAndDiscoverGamepads(); });
+  }
 };
 
 struct ButtonDef
@@ -201,16 +211,23 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
   }
 }
 
-void InputBackend::RecreateAllGamepads()
+void InputBackend::PruneAndDiscoverGamepads()
 {
   if (!hXInput)
     return;
 
-  RemoveAllDevices();
+  std::array<bool, XUSER_MAX_COUNT> in_use_slots{};
+
+  RemoveDevices([&](const auto* dev) {
+    return !(dev->IsValid() && (in_use_slots[static_cast<const Device*>(dev)->GetIndex()] = true));
+  });
 
   XINPUT_CAPABILITIES caps;
-  for (int i = 0; i != 4; ++i)
+  for (int i = 0; i != XUSER_MAX_COUNT; ++i)
   {
+    if (in_use_slots[i])
+      continue;
+
     if (ERROR_SUCCESS == PXInputGetCapabilities(i, 0, &caps))
       AddDevice(std::make_shared<Device>(caps, i));
   }
@@ -221,8 +238,7 @@ InputBackend::~InputBackend()
   if (!hXInput)
     return;
 
-  m_notification.Unregister();
-
+  DisableHotplugNotification();
   RemoveAllDevices();
 
   ::FreeLibrary(hXInput);
@@ -324,9 +340,20 @@ void Device::UpdateMotors()
   PXInputSetState(m_index, &m_state_out);
 }
 
-std::optional<int> Device::GetPreferredId() const
+bool Device::IsValid() const
+{
+  XINPUT_CAPABILITIES caps;
+  return PXInputGetCapabilities(m_index, 0, &caps) == ERROR_SUCCESS;
+}
+
+int Device::GetIndex() const
 {
   return m_index;
+}
+
+std::optional<int> Device::GetPreferredId() const
+{
+  return GetIndex();
 }
 
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)

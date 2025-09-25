@@ -81,10 +81,8 @@ void EnumerateJoysticks(IDirectInput8* const idi8, HWND hwnd,
         // only add if it has some inputs/outputs.
         if (js->Inputs().size() || js->Outputs().size())
         {
-          std::lock_guard lk(s_guids_mutex);
-          s_guids_in_use.insert(joystick.guidInstance);
-
-          s_guids_in_use.erase(joystick.guidInstance);
+          if (std::lock_guard lk(s_guids_mutex); true)
+            s_guids_in_use.insert(joystick.guidInstance);
 
           callback(std::move(js));
         }

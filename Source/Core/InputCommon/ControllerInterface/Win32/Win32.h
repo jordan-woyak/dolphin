@@ -5,41 +5,31 @@
 
 #include "InputCommon/ControllerInterface/InputBackend.h"
 
+#include "Common/Functional.h"
+
 #include <functional>
 #include <memory>
 #include <vector>
 
 namespace ciface::Win32
 {
-
-class DeviceChangeNotification
+enum class DeviceChangeEvent : bool
 {
-public:
-  enum class Event : bool
-  {
-    DeviceArrival,
-    DeviceRemoval,
-  };
-
-  DeviceChangeNotification();
-  ~DeviceChangeNotification();
-
-  using CallbackType = std::function<void(Event)>;
-
-  void Register(CallbackType);
-  void Unregister();
-
-  bool IsRegistered() const;
-
-  void InvokeCallback(Event);
-
-  struct Handle;
-
-private:
-  std::unique_ptr<Handle> m_handle;
+  Arrival,
+  Removal,
 };
 
-// TODO: A simplier CreateDeviceChangeNotification interface
+// Opaque type to avoid inclusion of Windows headers here.
+class OpaqueHandle
+{
+public:
+  virtual ~OpaqueHandle() = default;
+};
+using DeviceChangeNotifactionHandle = std::unique_ptr<OpaqueHandle>;
+
+// Returns a handle that unregisters the notification on destruction.
+DeviceChangeNotifactionHandle
+    CreateDeviceChangeNotification(Common::MoveOnlyFunction<void(DeviceChangeEvent)>);
 
 std::vector<std::unique_ptr<ciface::InputBackend>>
 CreateInputBackends(ControllerInterface* controller_interface);

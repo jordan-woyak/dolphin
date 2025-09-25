@@ -476,8 +476,7 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
     Config::SetBase(Settings::SERVER_PORT, 0);
   }
 
-  m_config_change_callback_id =
-      Config::AddConfigChangedCallback(std::bind(&InputBackend::ConfigChanged, this));
+  m_config_change_callback_id = Config::AddConfigChangedCallback([this] { ConfigChanged(); });
   // Call it immediately to load settings
   ConfigChanged();
 }

@@ -66,13 +66,15 @@ public:
     if (!m_idi8)
       return;
 
-    m_notification.Unregister();
-    RefreshJoysticks();
-    m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
+    DisableHotplugNotification();
+    // Remove everything except the KeyboardMouse Device.
+    RemoveDevices([](const auto* dev) { return !dev->IsVirtualDevice(); });
+    PruneAndDiscoverJoysticks();
+    EnableHotplugNotification();
   }
 
 private:
-  void RefreshJoysticks();
+  void PruneAndDiscoverJoysticks();
 
   HWND GetHWND()
   {
@@ -81,7 +83,15 @@ private:
 
   HMODULE hXInput = nullptr;
   IDirectInput8* m_idi8 = nullptr;
-  Win32::DeviceChangeNotification m_notification;
+
+  Win32::DeviceChangeNotifactionHandle m_notification;
+
+  void DisableHotplugNotification() { m_notification.reset(); }
+  void EnableHotplugNotification()
+  {
+    m_notification = Win32::CreateDeviceChangeNotification(
+        [this](Win32::DeviceChangeEvent) { PruneAndDiscoverJoysticks(); });
+  }
 };
 
 // Assumes hwnd had not changed from the previous call
@@ -104,12 +114,11 @@ void InputBackend::PopulateDevices()
   if (auto kbm = CreateKeyboardMouse(m_idi8, GetHWND()))
     AddDevice(std::move(kbm));
 
-  RefreshJoysticks();
-
-  m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
+  PruneAndDiscoverJoysticks();
+  EnableHotplugNotification();
 }
 
-void InputBackend::RefreshJoysticks()
+void InputBackend::PruneAndDiscoverJoysticks()
 {
   // Remove old (invalid) devices. No need to ever remove the KeyboardMouse device.
   // Note that if we have 2+ DInput controllers, not fully repopulating devices
@@ -117,7 +126,6 @@ void InputBackend::RefreshJoysticks()
   // This is slightly inconsistent as when we refresh all devices, they will instead reset, and
   // that happens a lot (for uncontrolled reasons, like starting/stopping the emulation).
   RemoveDevices([](const auto* dev) { return !dev->IsValid(); });
-
   EnumerateJoysticks(m_idi8, GetHWND(), std::bind_front(&InputBackend::AddDevice, this));
 }
 
@@ -126,22 +134,17 @@ void InputBackend::HandleWindowChange()
   if (!m_idi8)
     return;
 
-  m_notification.Unregister();
-
-  // Remove all DInput Device objects except the KeyboardMouse.
-  RemoveDevices([](const auto* dev) { return !dev->IsVirtualDevice(); });
+  DisableHotplugNotification();
 
   SetKeyboardMouseWindow(GetHWND());
+  PruneAndDiscoverJoysticks();
 
-  RefreshJoysticks();
-
-  m_notification.Register(std::bind(&InputBackend::RefreshJoysticks, this));
+  EnableHotplugNotification();
 }
 
 InputBackend::~InputBackend()
 {
-  m_notification.Unregister();
-
+  DisableHotplugNotification();
   RemoveAllDevices();
 
   if (!m_idi8)

@@ -33,6 +33,9 @@ public:
 
   void UpdateMotors();
 
+  bool IsValid() const;
+  int GetIndex() const;
+
 private:
   XINPUT_STATE m_state_in{};
   XINPUT_VIBRATION m_state_out{};

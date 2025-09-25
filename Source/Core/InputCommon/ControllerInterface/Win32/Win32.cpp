@@ -19,18 +19,12 @@
 
 namespace ciface::Win32
 {
-struct DeviceChangeNotification::Handle
+struct HCMNotificationHandle final : OpaqueHandle
 {
+  Common::MoveOnlyFunction<void(DeviceChangeEvent)> callback;
   HCMNOTIFICATION notify_handle{nullptr};
-  DeviceChangeNotification::CallbackType callback;
-
-  ~Handle();
+  ~HCMNotificationHandle() override;
 };
-
-void DeviceChangeNotification::InvokeCallback(Event event)
-{
-  m_handle->callback(event);
-}
 
 }  // namespace ciface::Win32
 
@@ -40,16 +34,17 @@ _Pre_satisfies_(EventDataSize >= sizeof(CM_NOTIFY_EVENT_DATA)) static DWORD CALL
                      _In_reads_bytes_(EventDataSize) PCM_NOTIFY_EVENT_DATA EventData,
                      _In_ DWORD EventDataSize)
 {
-  using ciface::Win32::DeviceChangeNotification;
-  auto* const ptr = static_cast<DeviceChangeNotification*>(Context);
+  auto* const ptr = static_cast<ciface::Win32::HCMNotificationHandle*>(Context);
+
+  using ciface::Win32::DeviceChangeEvent;
 
   switch (Action)
   {
   case CM_NOTIFY_ACTION_DEVICEINTERFACEARRIVAL:
-    ptr->InvokeCallback(DeviceChangeNotification::Event::DeviceArrival);
+    ptr->callback(DeviceChangeEvent::Arrival);
     break;
   case CM_NOTIFY_ACTION_DEVICEINTERFACEREMOVAL:
-    ptr->InvokeCallback(DeviceChangeNotification::Event::DeviceRemoval);
+    ptr->callback(DeviceChangeEvent::Removal);
     break;
   }
   return ERROR_SUCCESS;
@@ -67,37 +62,28 @@ CreateInputBackends(ControllerInterface* controller_interface)
   return results;
 }
 
-DeviceChangeNotification::DeviceChangeNotification() = default;
-DeviceChangeNotification::~DeviceChangeNotification() = default;
-
-void DeviceChangeNotification::Register(CallbackType func)
+DeviceChangeNotifactionHandle
+CreateDeviceChangeNotification(Common::MoveOnlyFunction<void(DeviceChangeEvent)> func)
 {
   DEBUG_LOG_FMT(CONTROLLERINTERFACE, "CM_Register_Notification");
-  HCMNOTIFICATION notify_handle{nullptr};
+
+  auto result = std::make_unique<HCMNotificationHandle>();
+  result->callback = std::move(func);
+
   CM_NOTIFY_FILTER notify_filter{.cbSize = sizeof(notify_filter),
                                  .FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE,
                                  .u{.DeviceInterface{.ClassGuid = GUID_DEVINTERFACE_HID}}};
-  const CONFIGRET cfg_rv =
-      CM_Register_Notification(&notify_filter, this, OnDevicesChanged, &notify_handle);
+  const CONFIGRET cfg_rv = CM_Register_Notification(&notify_filter, result.get(), OnDevicesChanged,
+                                                    &result->notify_handle);
   if (cfg_rv != CR_SUCCESS)
   {
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "CM_Register_Notification failed: {:x}", cfg_rv);
   }
 
-  m_handle = std::make_unique<Handle>(notify_handle, std::move(func));
+  return result;
 }
 
-void DeviceChangeNotification::Unregister()
-{
-  m_handle.reset();
-}
-
-bool DeviceChangeNotification::IsRegistered() const
-{
-  return m_handle != nullptr;
-}
-
-DeviceChangeNotification::Handle::~Handle()
+HCMNotificationHandle::~HCMNotificationHandle()
 {
   if (notify_handle != nullptr)
   {
