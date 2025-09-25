@@ -28,6 +28,10 @@ public:
   void RefreshDevices() override
   {
     ReleaseWiimotes(std::nullopt);
+    // TODO: deadlock with the scanning thread?
+    //  host refresh -> process pool (waiting on wiimote lock)
+    // meanwhile:
+    //  scanning thread -> process pool (with wiimote lock) -> release wiimotes -> remove devices -> waiting on host thread callbacks
     WiimoteReal::ProcessWiimotePool();
   }
 

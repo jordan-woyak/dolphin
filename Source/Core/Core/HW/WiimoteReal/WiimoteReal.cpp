@@ -685,7 +685,7 @@ void WiimoteScanner::ThreadFunc()
   {
     m_scan_mode_changed.WaitFor(std::chrono::milliseconds(500));
 
-    // TODO: this is happening after ciface shutdown !
+    // TODO: this is happening after ciface shutdown ! ?
     ProcessWiimotePool();
 
     // Does stuff needed to detect disconnects on Windows

@@ -123,7 +123,7 @@ void ControllerInterface::Shutdown()
 
 void ControllerInterface::ChangeWindow(void* hwnd)
 {
-  assert(m_is_init);
+  ASSERT(m_is_init);
 
   std::lock_guard lk{m_update_mutex};
 
@@ -136,7 +136,7 @@ void ControllerInterface::ChangeWindow(void* hwnd)
 
 void ControllerInterface::RefreshDevices()
 {
-  assert(m_is_init);
+  ASSERT(m_is_init);
 
   std::lock_guard lk{m_update_mutex};
 
@@ -148,7 +148,7 @@ void ControllerInterface::RefreshDevices()
 void ControllerInterface::AddDevice(ciface::InputBackend* backend,
                                     std::shared_ptr<ciface::Core::Device> device)
 {
-  assert(m_is_init);
+  ASSERT(m_is_init);
 
   {
     auto locked_devices = GetLockedDevices();
@@ -192,9 +192,9 @@ void ControllerInterface::AddDevice(ciface::InputBackend* backend,
     // profile, it will automatically select the first device in the list as its default. It would
     // be nice to sort devices by Source then Name then ID, but it's better to leave them sorted by
     // the add order. This also avoids breaking the order on other platforms that are less tested.
-    std::ranges::stable_sort(
-        devices, std::ranges::greater{},
-        Common::Compose(&ciface::Core::Device::GetSortPriority, &DeviceEntry::device));
+    std::ranges::stable_sort(devices, std::ranges::greater{}, [](const DeviceEntry& entry) {
+      return entry.device->GetSortPriority();
+    });
   }
 
   InvokeDevicesChangedCallbacks();
@@ -204,7 +204,7 @@ void ControllerInterface::AddDevice(ciface::InputBackend* backend,
 void ControllerInterface::RemoveDevices(ciface::InputBackend* backend,
                                         RemoveDevicesCallback callback)
 {
-  assert(m_is_init);
+  ASSERT(m_is_init);
 
   ContainerType devices_to_remove;
   {
@@ -249,7 +249,7 @@ void ControllerInterface::PerformDeviceRemoval(ContainerType&& devices_to_remove
 
 void ControllerInterface::UpdateInput()
 {
-  assert(m_is_init);
+  ASSERT(m_is_init);
 
   // TODO: is this fighting with hotkey scheduler or what ?
   std::unique_lock lk{m_update_mutex, std::try_to_lock};
