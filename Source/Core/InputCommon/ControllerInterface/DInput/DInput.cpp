@@ -126,7 +126,7 @@ void InputBackend::PruneAndDiscoverJoysticks()
   // This is slightly inconsistent as when we refresh all devices, they will instead reset, and
   // that happens a lot (for uncontrolled reasons, like starting/stopping the emulation).
   RemoveDevices([](const auto* dev) { return !dev->IsValid(); });
-  EnumerateJoysticks(m_idi8, GetHWND(), std::bind_front(&InputBackend::AddDevice, this));
+  EnumerateNewJoysticks(m_idi8, GetHWND(), std::bind_front(&InputBackend::AddDevice, this));
 }
 
 void InputBackend::HandleWindowChange()

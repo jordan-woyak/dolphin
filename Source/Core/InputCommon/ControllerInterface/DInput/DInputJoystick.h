@@ -10,8 +10,8 @@
 
 namespace ciface::DInput
 {
-void EnumerateJoysticks(IDirectInput8* const idi8, HWND hwnd,
-                        const std::function<void(std::shared_ptr<ciface::Core::Device>)>&);
+void EnumerateNewJoysticks(IDirectInput8* const idi8, HWND hwnd,
+                           const std::function<void(std::shared_ptr<ciface::Core::Device>)>&);
 
 class Joystick : public ForceFeedback::ForceFeedbackDevice
 {

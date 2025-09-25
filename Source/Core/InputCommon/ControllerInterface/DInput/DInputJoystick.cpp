@@ -34,8 +34,9 @@ struct GUIDComparator
 static std::set<GUID, GUIDComparator> s_guids_in_use;
 static std::mutex s_guids_mutex;
 
-void EnumerateJoysticks(IDirectInput8* const idi8, HWND hwnd,
-                        const std::function<void(std::shared_ptr<ciface::Core::Device>)>& callback)
+void EnumerateNewJoysticks(
+    IDirectInput8* const idi8, HWND hwnd,
+    const std::function<void(std::shared_ptr<ciface::Core::Device>)>& callback)
 {
   std::list<DIDEVICEINSTANCE> joysticks;
   idi8->EnumDevices(DI8DEVCLASS_GAMECTRL, DIEnumDevicesCallback, (LPVOID)&joysticks,
