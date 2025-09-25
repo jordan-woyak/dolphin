@@ -93,7 +93,7 @@ private:
   using RemoveDevicesCallback = Common::MoveOnlyFunction<bool(ciface::Core::Device*)>;
   void RemoveDevices(ciface::InputBackend*, RemoveDevicesCallback callback);
 
-  void PerformDeviceRemoval(ContainerType&&);
+  static void PerformDeviceRemoval(ContainerType&&);
 
   bool m_is_init{};
 

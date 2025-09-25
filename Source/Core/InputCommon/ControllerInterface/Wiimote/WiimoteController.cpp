@@ -21,25 +21,27 @@ class InputBackend final : public ciface::InputBackend
 {
 public:
   using ciface::InputBackend::InputBackend;
-  ~InputBackend() override = default;
+  ~InputBackend() override
+  {
+    // TODO: This is really hacky..
+    WiimoteReal::StopScanningThread();
+  }
 
   void PopulateDevices() override {}
 
   void RefreshDevices() override
   {
-    ReleaseWiimotes(std::nullopt);
-    // TODO: deadlock with the scanning thread?
-    //  host refresh -> process pool (waiting on wiimote lock)
-    // meanwhile:
-    //  scanning thread -> process pool (with wiimote lock) -> release wiimotes -> remove devices -> waiting on host thread callbacks
+    std::lock_guard lk{WiimoteReal::g_wiimotes_mutex};
+    RemoveAllDevices();
     WiimoteReal::ProcessWiimotePool();
   }
 
   void AddWiimote(std::unique_ptr<WiimoteReal::Wiimote> wiimote);
 
-  void ReleaseWiimotes(std::optional<u32> count);
+  void ReleaseWiimotes(std::optional<u32> count = std::nullopt);
 };
 
+// TODO: This is really hacky..
 static InputBackend* s_input_backend{};
 
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)

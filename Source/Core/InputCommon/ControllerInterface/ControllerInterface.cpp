@@ -97,28 +97,25 @@ void ControllerInterface::Shutdown()
 {
   assert(m_is_init);
 
-  {
-    const auto devices = GetLockedDevices();
-
-    // Stop additional devices from being added.
-    // And prevent the current ones from being referenced by UI / ControllerInterface.
+  // Stop additional devices from being added.
+  // And prevent the current ones from being referenced by UI / ControllerInterface.
+  if (auto devices = GetLockedDevices(); true)
     devices->is_shutting_down = true;
-  }
 
   // Now that the Device objects are marked as unavailable, invoke callbacks.
-  // UI / ControllerInterface shall immediately release any Device pointers.
+  // UI / ControllerInterface shall immediately release all of their Device pointers.
   InvokeDevicesChangedCallbacks();
 
   // Destruct InputBackend objects to deinitialize them.
   // Some backends will remove their own Device objects as required.
   m_input_backends.clear();
 
-  // Remove remaining devices that the backends allowed to survive.
+  // Remove remaining devices that any backends allowed to survive.
   PerformDeviceRemoval(std::move(GetLockedDevices()->container));
 
-  GetLockedDevices()->is_shutting_down = false;
-
   m_is_init = false;
+
+  GetLockedDevices()->is_shutting_down = false;
 }
 
 void ControllerInterface::ChangeWindow(void* hwnd)
@@ -153,7 +150,7 @@ void ControllerInterface::AddDevice(ciface::InputBackend* backend,
   {
     auto locked_devices = GetLockedDevices();
 
-    // We don't need this device if we are shutting down.
+    // We don't need this new device if we are shutting down.
     if (locked_devices->is_shutting_down)
       return;
 

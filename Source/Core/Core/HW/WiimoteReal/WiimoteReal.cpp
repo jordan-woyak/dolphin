@@ -685,7 +685,6 @@ void WiimoteScanner::ThreadFunc()
   {
     m_scan_mode_changed.WaitFor(std::chrono::milliseconds(500));
 
-    // TODO: this is happening after ciface shutdown ! ?
     ProcessWiimotePool();
 
     // Does stuff needed to detect disconnects on Windows
@@ -881,12 +880,17 @@ void Stop()
       wiimote->EmuStop();
 }
 
+void StopScanningThread()
+{
+  s_wiimote_scanner.StopThread();
+}
+
 // called when the Dolphin app exits
 // FYI: happens after controller interface shutdown
 void Shutdown()
 {
   s_real_wiimotes_initialized = false;
-  s_wiimote_scanner.StopThread();
+  StopScanningThread();
 
   NOTICE_LOG_FMT(WIIMOTE, "WiimoteReal::Shutdown");
 

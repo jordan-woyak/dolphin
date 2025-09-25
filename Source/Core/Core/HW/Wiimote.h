@@ -105,5 +105,6 @@ void Shutdown();
 void Resume();
 void Pause();
 void Refresh();
+void StopScanningThread();
 
 }  // namespace WiimoteReal
