@@ -174,12 +174,31 @@ class WiimoteScannerBackend
 {
 public:
   virtual ~WiimoteScannerBackend() = default;
+
   virtual bool IsReady() const = 0;
-  virtual void FindWiimotes(std::vector<Wiimote*>&, Wiimote*&) = 0;
+
   // function called when not looking for more Wiimotes
   virtual void Update() = 0;
+
   // requests the backend to stop scanning if FindWiimotes is blocking
   virtual void RequestStopSearching() = 0;
+
+  struct FindResults
+  {
+    std::vector<std::unique_ptr<Wiimote>> wii_remotes;
+    std::vector<std::unique_ptr<Wiimote>> balance_boards;
+  };
+
+  // Implementations not supporting AttachedDevices will return nothing.
+  // Implementations not supporting NewInquiry may operate as if with AttachedDevices.
+  enum class QueryType : bool
+  {
+    AttachedDevices,  // Quickly return already attached remotes.
+    NewInquiry,       // Perform a blocking multi-second inquiry.
+  };
+
+  // Only not-yet-in-use remotes shall be returned.
+  virtual FindResults FindWiimotes(QueryType) = 0;
 };
 
 enum class WiimoteScanMode
