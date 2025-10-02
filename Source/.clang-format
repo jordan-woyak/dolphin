@@ -31,6 +31,8 @@ BraceWrapping:
   BeforeCatch:     true
   BeforeElse:      true
   IndentBraces:    false
+  BeforeLambdaBody: true
+LambdaBodyIndentation: OuterScope
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: false
