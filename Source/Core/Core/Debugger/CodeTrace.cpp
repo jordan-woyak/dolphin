@@ -52,7 +52,7 @@ u32 GetMemoryTargetSize(std::string_view instr)
 }
 
 bool CompareMemoryTargetToTracked(const std::string& instr, const u32 mem_target,
-                                  const std::set<u32>& mem_tracked)
+    const std::set<u32>& mem_tracked)
 {
   const auto it_lower = mem_tracked.lower_bound(mem_target);
 
@@ -141,7 +141,7 @@ TraceOutput CodeTrace::SaveCurrentInstruction(const Core::CPUThreadGuard& guard)
 }
 
 AutoStepResults CodeTrace::AutoStepping(const Core::CPUThreadGuard& guard, bool continue_previous,
-                                        AutoStop stop_on)
+    AutoStop stop_on)
 {
   AutoStepResults results;
 
@@ -238,7 +238,7 @@ HitType CodeTrace::TraceLogic(const TraceOutput& current_instr, bool first_hit)
   if (current_instr.memory_target && !m_mem_autotrack.empty())
   {
     mem_hit = CompareMemoryTargetToTracked(current_instr.instruction, *current_instr.memory_target,
-                                           m_mem_autotrack);
+        m_mem_autotrack);
   }
 
   // Optimization for tracking a memory target when no registers are being tracked.
@@ -264,9 +264,10 @@ HitType CodeTrace::TraceLogic(const TraceOutput& current_instr, bool first_hit)
     return HitType::SKIP;
 
   // Checks if the intstruction is a type that needs special handling.
-  const auto CompareInstruction = [](std::string_view instruction, const auto& type_compare) {
-    return std::ranges::any_of(
-        type_compare, [&instruction](std::string_view s) { return instruction.starts_with(s); });
+  const auto CompareInstruction = [](std::string_view instruction, const auto& type_compare)
+  {
+    return std::ranges::any_of(type_compare,
+        [&instruction](std::string_view s) { return instruction.starts_with(s); });
   };
 
   // Exclusions from updating tracking logic. mt operations are too complex and specialized.

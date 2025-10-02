@@ -16,7 +16,7 @@ MemoryPatch::MemoryPatch(u32 address_, std::vector<u8> value_)
 
 MemoryPatch::MemoryPatch(u32 address_, u32 value_)
     : MemoryPatch(address_, {static_cast<u8>(value_ >> 24), static_cast<u8>(value_ >> 16),
-                             static_cast<u8>(value_ >> 8), static_cast<u8>(value_)})
+                                static_cast<u8>(value_ >> 8), static_cast<u8>(value_)})
 {
 }
 
@@ -47,7 +47,7 @@ void MemoryPatches::SetFramePatch(const Core::CPUThreadGuard& guard, u32 address
 }
 
 void MemoryPatches::SetFramePatch(const Core::CPUThreadGuard& guard, u32 address,
-                                  std::vector<u8> value)
+    std::vector<u8> value)
 {
   UnsetPatch(guard, address);
   const std::size_t index = m_patches.size();
@@ -90,9 +90,8 @@ void MemoryPatches::DisablePatch(const Core::CPUThreadGuard& guard, std::size_t 
 
 bool MemoryPatches::HasEnabledPatch(u32 address) const
 {
-  return std::ranges::any_of(m_patches, [address](const MemoryPatch& patch) {
-    return patch.address == address && patch.is_enabled == MemoryPatch::State::Enabled;
-  });
+  return std::ranges::any_of(m_patches, [address](const MemoryPatch& patch)
+      { return patch.address == address && patch.is_enabled == MemoryPatch::State::Enabled; });
 }
 
 void MemoryPatches::RemovePatch(const Core::CPUThreadGuard& guard, std::size_t index)

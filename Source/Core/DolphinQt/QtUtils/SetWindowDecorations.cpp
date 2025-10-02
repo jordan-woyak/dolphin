@@ -25,7 +25,7 @@ void SetQWidgetWindowDecorations(QWidget* widget)
   constexpr BOOL use_dark_title_bar = TRUE;
 
   DwmSetWindowAttribute(HWND(widget->winId()), attribute, &use_dark_title_bar,
-                        DWORD(sizeof(use_dark_title_bar)));
+      DWORD(sizeof(use_dark_title_bar)));
 }
 
 class WindowDecorationFilter final : public QObject

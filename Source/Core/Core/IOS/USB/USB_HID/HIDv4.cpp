@@ -61,7 +61,7 @@ std::optional<IPCReply> USB_HIDv4::IOCtl(const IOCtlRequest& request)
     if (!device->Attach())
       return IPCReply(IPC_EINVAL);
     return HandleTransfer(device, request.request,
-                          [&, this] { return SubmitTransfer(*device, request); });
+        [&, this] { return SubmitTransfer(*device, request); });
   }
   default:
     request.DumpUnknown(GetSystem(), GetDeviceName(), Common::Log::LogType::IOS_USB);
@@ -122,15 +122,15 @@ s32 USB_HIDv4::SubmitTransfer(USB::Device& device, const IOCtlRequest& request)
   switch (request.request)
   {
   case USB::IOCTL_USBV4_CTRLMSG:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V4CtrlMessage>(GetEmulationKernel(), request));
+    return device.SubmitTransfer(std::make_unique<USB::V4CtrlMessage>(GetEmulationKernel(),
+        request));
   case USB::IOCTL_USBV4_GET_US_STRING:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V4GetUSStringMessage>(GetEmulationKernel(), request));
+    return device.SubmitTransfer(std::make_unique<USB::V4GetUSStringMessage>(GetEmulationKernel(),
+        request));
   case USB::IOCTL_USBV4_INTRMSG_IN:
   case USB::IOCTL_USBV4_INTRMSG_OUT:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V4IntrMessage>(GetEmulationKernel(), request));
+    return device.SubmitTransfer(std::make_unique<USB::V4IntrMessage>(GetEmulationKernel(),
+        request));
   default:
     return IPC_EINVAL;
   }
@@ -230,7 +230,7 @@ void USB_HIDv4::TriggerDeviceChangeReply()
   }
 
   GetEmulationKernel().EnqueueIPCReply(*m_devicechange_hook_request, IPC_SUCCESS, 0,
-                                       CoreTiming::FromThread::ANY);
+      CoreTiming::FromThread::ANY);
   m_devicechange_hook_request.reset();
 }
 
@@ -240,7 +240,7 @@ static void CopyDescriptorToBuffer(std::vector<u8>* buffer, T descriptor)
   const size_t size = sizeof(descriptor);
   descriptor.Swap();
   buffer->insert(buffer->end(), reinterpret_cast<const u8*>(&descriptor),
-                 reinterpret_cast<const u8*>(&descriptor) + size);
+      reinterpret_cast<const u8*>(&descriptor) + size);
   constexpr size_t number_of_padding_bytes = Common::AlignUp(size, 4) - size;
   buffer->insert(buffer->end(), number_of_padding_bytes, 0);
 }
@@ -258,8 +258,8 @@ static std::vector<u8> GetDescriptors(const USB::Device& device)
     for (size_t i = interfaces.size(); i-- > 0;)
     {
       CopyDescriptorToBuffer(&buffer, interfaces[i]);
-      for (const auto& endpoint_descriptor : device.GetEndpoints(
-               static_cast<u8>(c), interfaces[i].bInterfaceNumber, interfaces[i].bAlternateSetting))
+      for (const auto& endpoint_descriptor : device.GetEndpoints(static_cast<u8>(c),
+               interfaces[i].bInterfaceNumber, interfaces[i].bAlternateSetting))
       {
         CopyDescriptorToBuffer(&buffer, endpoint_descriptor);
       }

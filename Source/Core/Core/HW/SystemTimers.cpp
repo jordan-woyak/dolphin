@@ -76,7 +76,7 @@ void SystemTimersManager::DSPCallback(Core::System& system, u64 userdata, s64 cy
   auto& dsp = system.GetDSP();
   dsp.UpdateDSPSlice(static_cast<int>(dsp.GetDSPEmulator()->DSP_UpdateRate() - cycles_late));
   system.GetCoreTiming().ScheduleEvent(dsp.GetDSPEmulator()->DSP_UpdateRate() - cycles_late,
-                                       system.GetSystemTimers().m_event_type_dsp);
+      system.GetSystemTimers().m_event_type_dsp);
 }
 
 static int GetAudioDMACallbackPeriod(u32 cpu_core_clock, u32 aid_sample_rate_divisor)
@@ -90,21 +90,21 @@ void SystemTimersManager::AudioDMACallback(Core::System& system, u64 userdata, s
 {
   system.GetDSP().UpdateAudioDMA();  // Push audio to speakers.
   auto& system_timers = system.GetSystemTimers();
-  const int callback_period = GetAudioDMACallbackPeriod(
-      system_timers.m_cpu_core_clock, system.GetAudioInterface().GetAIDSampleRateDivisor());
+  const int callback_period = GetAudioDMACallbackPeriod(system_timers.m_cpu_core_clock,
+      system.GetAudioInterface().GetAIDSampleRateDivisor());
   system.GetCoreTiming().ScheduleEvent(callback_period - cycles_late,
-                                       system_timers.m_event_type_audio_dma);
+      system_timers.m_event_type_audio_dma);
 }
 
 void SystemTimersManager::IPC_HLE_UpdateCallback(Core::System& system, u64 userdata,
-                                                 s64 cycles_late)
+    s64 cycles_late)
 {
   if (system.IsWii())
   {
     system.GetIOS()->UpdateDevices();
     auto& system_timers = system.GetSystemTimers();
     system.GetCoreTiming().ScheduleEvent(system_timers.m_ipc_hle_period - cycles_late,
-                                         system_timers.m_event_type_ipc_hle);
+        system_timers.m_event_type_ipc_hle);
   }
 }
 
@@ -117,7 +117,7 @@ void SystemTimersManager::GPUSleepCallback(Core::System& system, u64 userdata, s
   // that the thread can sleep while not doing anything.
   auto& system_timers = system.GetSystemTimers();
   core_timing.ScheduleEvent(system_timers.GetTicksPerSecond() / 1000 - cycles_late,
-                            system_timers.m_event_type_gpu_sleeper);
+      system_timers.m_event_type_gpu_sleeper);
 }
 
 void SystemTimersManager::VICallback(Core::System& system, u64 userdata, s64 cycles_late)
@@ -126,7 +126,7 @@ void SystemTimersManager::VICallback(Core::System& system, u64 userdata, s64 cyc
   auto& vi = system.GetVideoInterface();
   vi.Update(core_timing.GetTicks() - cycles_late);
   core_timing.ScheduleEvent(vi.GetTicksPerHalfLine() - cycles_late,
-                            system.GetSystemTimers().m_event_type_vi);
+      system.GetSystemTimers().m_event_type_vi);
 }
 
 void SystemTimersManager::DecrementerCallback(Core::System& system, u64 userdata, s64 cycles_late)
@@ -158,8 +158,8 @@ void SystemTimersManager::PatchEngineCallback(Core::System& system, u64 userdata
     cycles_pruned += next_schedule;
   }
 
-  system.GetCoreTiming().ScheduleEvent(
-      next_schedule, system.GetSystemTimers().m_event_type_patch_engine, cycles_pruned);
+  system.GetCoreTiming().ScheduleEvent(next_schedule,
+      system.GetSystemTimers().m_event_type_patch_engine, cycles_pruned);
 }
 
 SystemTimersManager::SystemTimersManager(Core::System& system) : m_system(system)
@@ -282,8 +282,8 @@ void SystemTimersManager::Init()
   core_timing.ScheduleEvent(vi.GetTicksPerHalfLine(), m_event_type_vi);
   core_timing.ScheduleEvent(0, m_event_type_dsp);
 
-  const int audio_dma_callback_period = GetAudioDMACallbackPeriod(
-      m_cpu_core_clock, m_system.GetAudioInterface().GetAIDSampleRateDivisor());
+  const int audio_dma_callback_period = GetAudioDMACallbackPeriod(m_cpu_core_clock,
+      m_system.GetAudioInterface().GetAIDSampleRateDivisor());
   core_timing.ScheduleEvent(audio_dma_callback_period, m_event_type_audio_dma);
 
   core_timing.ScheduleEvent(vi.GetTicksPerField(), m_event_type_patch_engine);

@@ -31,8 +31,9 @@ class NumericSetting;
 template <typename T>
 class SettingValue;
 
-using InputOverrideFunction = std::function<std::optional<ControlState>(
-    const std::string_view group_name, const std::string_view control_name, ControlState state)>;
+using InputOverrideFunction =
+    std::function<std::optional<ControlState>(const std::string_view group_name,
+        const std::string_view control_name, ControlState state)>;
 
 enum class GroupType
 {
@@ -64,9 +65,9 @@ public:
   };
 
   explicit ControlGroup(const std::string& name, GroupType type = GroupType::Other,
-                        DefaultValue default_value = DefaultValue::AlwaysEnabled);
+      DefaultValue default_value = DefaultValue::AlwaysEnabled);
   ControlGroup(std::string name, std::string ui_name, GroupType type = GroupType::Other,
-               DefaultValue default_value = DefaultValue::AlwaysEnabled);
+      DefaultValue default_value = DefaultValue::AlwaysEnabled);
   virtual ~ControlGroup();
 
   virtual void LoadConfig(Common::IniFile::Section* sec, const std::string& base);
@@ -82,11 +83,11 @@ public:
 
   template <typename T>
   void AddSetting(SettingValue<T>* value, const NumericSettingDetails& details,
-                  std::common_type_t<T> default_value_, std::common_type_t<T> min_value = {},
-                  std::common_type_t<T> max_value = T(100))
+      std::common_type_t<T> default_value_, std::common_type_t<T> min_value = {},
+      std::common_type_t<T> max_value = T(100))
   {
-    numeric_settings.emplace_back(
-        std::make_unique<NumericSetting<T>>(value, details, default_value_, min_value, max_value));
+    numeric_settings.emplace_back(std::make_unique<NumericSetting<T>>(value, details,
+        default_value_, min_value, max_value));
   }
 
   void AddVirtualNotchSetting(SettingValue<double>* value, double max_virtual_notch_deg);

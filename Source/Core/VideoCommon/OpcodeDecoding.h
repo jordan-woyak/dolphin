@@ -95,7 +95,7 @@ public:
   virtual void OnIndexedLoad(CPArray array, u32 index, u16 address, u8 size) = 0;
   // Called on any primitive command.
   virtual void OnPrimitiveCommand(OpcodeDecoder::Primitive primitive, u8 vat, u32 vertex_size,
-                                  u16 num_vertices, const u8* vertex_data) = 0;
+      u16 num_vertices, const u8* vertex_data) = 0;
   // Called on a display list.
   virtual void OnDisplayList(u32 address, u32 size) = 0;
   // Called on any NOP commands (which are all merged into a single call).
@@ -123,7 +123,7 @@ namespace detail
 {
 // Main logic; split so that the main RunCommand can call OnCommand with the returned size.
 static DOLPHIN_FORCE_INLINE u32 RunCommand(const u8* data, u32 available,
-                                           std::derived_from<Callback> auto& callback)
+    std::derived_from<Callback> auto& callback)
 {
   if (available < 1)
     return 0;
@@ -232,8 +232,9 @@ static DOLPHIN_FORCE_INLINE u32 RunCommand(const u8* data, u32 available,
         return 0;
 
       const u8 cmdbyte = static_cast<u8>(cmd);
-      const OpcodeDecoder::Primitive primitive = static_cast<OpcodeDecoder::Primitive>(
-          (cmdbyte & OpcodeDecoder::GX_PRIMITIVE_MASK) >> OpcodeDecoder::GX_PRIMITIVE_SHIFT);
+      const OpcodeDecoder::Primitive primitive =
+          static_cast<OpcodeDecoder::Primitive>((cmdbyte & OpcodeDecoder::GX_PRIMITIVE_MASK) >>
+                                                OpcodeDecoder::GX_PRIMITIVE_SHIFT);
       const u8 vat = cmdbyte & OpcodeDecoder::GX_VAT_MASK;
 
       const u32 vertex_size = callback.GetVertexSize(vat);
@@ -254,7 +255,7 @@ static DOLPHIN_FORCE_INLINE u32 RunCommand(const u8* data, u32 available,
 }  // namespace detail
 
 DOLPHIN_FORCE_INLINE u32 RunCommand(const u8* data, u32 available,
-                                    std::derived_from<Callback> auto& callback)
+    std::derived_from<Callback> auto& callback)
 {
   const u32 size = detail::RunCommand(data, available, callback);
   if (size > 0)
@@ -265,7 +266,7 @@ DOLPHIN_FORCE_INLINE u32 RunCommand(const u8* data, u32 available,
 }
 
 DOLPHIN_FORCE_INLINE u32 Run(const u8* data, u32 available,
-                             std::derived_from<Callback> auto& callback)
+    std::derived_from<Callback> auto& callback)
 {
   u32 size = 0;
   while (size < available)
@@ -288,10 +289,14 @@ struct fmt::formatter<OpcodeDecoder::Primitive>
     : EnumFormatter<OpcodeDecoder::Primitive::GX_DRAW_POINTS>
 {
   static constexpr array_type names = {
-      "GX_DRAW_QUADS",        "GX_DRAW_QUADS_2 (nonstandard)",
-      "GX_DRAW_TRIANGLES",    "GX_DRAW_TRIANGLE_STRIP",
-      "GX_DRAW_TRIANGLE_FAN", "GX_DRAW_LINES",
-      "GX_DRAW_LINE_STRIP",   "GX_DRAW_POINTS",
+      "GX_DRAW_QUADS",
+      "GX_DRAW_QUADS_2 (nonstandard)",
+      "GX_DRAW_TRIANGLES",
+      "GX_DRAW_TRIANGLE_STRIP",
+      "GX_DRAW_TRIANGLE_FAN",
+      "GX_DRAW_LINES",
+      "GX_DRAW_LINE_STRIP",
+      "GX_DRAW_POINTS",
   };
   constexpr formatter() : EnumFormatter(names) {}
 };

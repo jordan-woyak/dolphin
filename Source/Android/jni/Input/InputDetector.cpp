@@ -18,8 +18,8 @@ constexpr auto INPUT_DETECT_MAXIMUM_TIME = std::chrono::seconds(5);
 
 static ciface::Core::InputDetector* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ciface::Core::InputDetector*>(
-      env->GetLongField(obj, IDCache::GetInputDetectorPointer()));
+  return reinterpret_cast<ciface::Core::InputDetector*>(env->GetLongField(obj,
+      IDCache::GetInputDetectorPointer()));
 }
 
 extern "C" {
@@ -52,19 +52,19 @@ JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_InputDetector_update(JNIEnv* env, jobject obj)
 {
   GetPointer(env, obj)->Update(INPUT_DETECT_INITIAL_TIME, INPUT_DETECT_CONFIRMATION_TIME,
-                               INPUT_DETECT_MAXIMUM_TIME);
+      INPUT_DETECT_MAXIMUM_TIME);
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_InputDetector_isComplete(JNIEnv* env,
-                                                                             jobject obj)
+    jobject obj)
 {
   return GetPointer(env, obj)->IsComplete();
 }
 
 JNIEXPORT jstring JNICALL
-Java_org_dolphinemu_dolphinemu_features_input_model_InputDetector_takeResults(
-    JNIEnv* env, jobject obj, jstring j_default_device)
+Java_org_dolphinemu_dolphinemu_features_input_model_InputDetector_takeResults(JNIEnv* env,
+    jobject obj, jstring j_default_device)
 {
   ciface::Core::DeviceQualifier default_device;
   default_device.FromString(GetJString(env, j_default_device));
@@ -74,6 +74,6 @@ Java_org_dolphinemu_dolphinemu_features_input_model_InputDetector_takeResults(
   ciface::MappingCommon::RemoveSpuriousTriggerCombinations(&detections);
 
   return ToJString(env, ciface::MappingCommon::BuildExpression(detections, default_device,
-                                                               ciface::MappingCommon::Quote::On));
+                            ciface::MappingCommon::Quote::On));
 }
 }

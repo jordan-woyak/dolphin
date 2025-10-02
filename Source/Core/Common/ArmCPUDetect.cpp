@@ -137,7 +137,7 @@ static bool Read_MIDR_EL1_Sysfs(u64* value)
 {
   std::ifstream file;
   File::OpenFStream(file, "/sys/devices/system/cpu/cpu0/regs/identification/midr_el1",
-                    std::ios_base::in);
+      std::ios_base::in);
   if (!file)
     return false;
 
@@ -204,7 +204,7 @@ static std::string MIDRToString(u64 midr)
   u16 part_num = (midr >> 4) & 0xfff;
   u8 revision = midr & 0xf;
   return fmt::format("{:02X}:{:X}:{:04b}:{:03X}:{:X}", implementer, variant, arch, part_num,
-                     revision);
+      revision);
 }
 
 #endif

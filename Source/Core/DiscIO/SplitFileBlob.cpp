@@ -61,8 +61,9 @@ std::unique_ptr<BlobReader> SplitPlainFileReader::CopyReader() const
   std::vector<SingleFile> new_files{};
   for (const SingleFile& file : m_files)
   {
-    new_files.push_back(
-        {.file = file.file.Duplicate("rb"), .offset = file.offset, .size = file.size});
+    new_files.push_back({.file = file.file.Duplicate("rb"),
+        .offset = file.offset,
+        .size = file.size});
   }
   return std::unique_ptr<SplitPlainFileReader>(new SplitPlainFileReader(std::move(new_files)));
 }

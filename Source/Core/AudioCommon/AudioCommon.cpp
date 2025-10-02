@@ -60,7 +60,7 @@ void InitSoundStream(Core::System& system)
   if (!sound_stream || !sound_stream->Init())
   {
     WARN_LOG_FMT(AUDIO, "Could not initialize backend {}, using {} instead.", backend,
-                 BACKEND_NULLSOUND);
+        BACKEND_NULLSOUND);
     sound_stream = std::make_unique<NullSound>();
     sound_stream->Init();
   }

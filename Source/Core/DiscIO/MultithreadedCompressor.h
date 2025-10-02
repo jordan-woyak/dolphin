@@ -56,7 +56,7 @@ public:
     {
       m_compress_threads[i].thread =
           std::thread(std::mem_fn(&MultithreadedCompressor::CompressThreadFunction), this,
-                      &m_compress_threads[i]);
+              &m_compress_threads[i]);
     }
 
     m_output_thread =

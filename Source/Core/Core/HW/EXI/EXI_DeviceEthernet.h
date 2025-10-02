@@ -386,7 +386,7 @@ private:
   {
   public:
     XLinkNetworkInterface(CEXIETHERNET* eth_ref, std::string dest_ip, int dest_port,
-                          std::string identifier, bool chat_osd_enabled)
+        std::string identifier, bool chat_osd_enabled)
         : NetworkInterface(eth_ref), m_dest_ip(std::move(dest_ip)), m_dest_port(dest_port),
           m_client_identifier(identifier), m_chat_osd_enabled(chat_osd_enabled)
     {

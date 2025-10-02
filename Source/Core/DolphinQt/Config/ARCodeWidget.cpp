@@ -96,19 +96,19 @@ void ARCodeWidget::CreateWidgets()
 void ARCodeWidget::ConnectWidgets()
 {
   connect(m_warning, &CheatWarningWidget::OpenCheatEnableSettings, this,
-          &ARCodeWidget::OpenGeneralSettings);
+      &ARCodeWidget::OpenGeneralSettings);
 #ifdef USE_RETRO_ACHIEVEMENTS
   connect(m_hc_warning, &HardcoreWarningWidget::OpenAchievementSettings, this,
-          &ARCodeWidget::OpenAchievementSettings);
+      &ARCodeWidget::OpenAchievementSettings);
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, &ARCodeWidget::UpdateList);
 #endif  // USE_RETRO_ACHIEVEMENTS
 
   connect(m_code_list, &QListWidget::itemChanged, this, &ARCodeWidget::OnItemChanged);
   connect(m_code_list, &QListWidget::itemSelectionChanged, this, &ARCodeWidget::OnSelectionChanged);
   connect(m_code_list->model(), &QAbstractItemModel::rowsMoved, this,
-          &ARCodeWidget::OnListReordered);
+      &ARCodeWidget::OnListReordered);
   connect(m_code_list, &QListWidget::customContextMenuRequested, this,
-          &ARCodeWidget::OnContextMenuRequested);
+      &ARCodeWidget::OnContextMenuRequested);
 
   connect(m_code_add, &QPushButton::clicked, this, &ARCodeWidget::OnCodeAddClicked);
   connect(m_code_edit, &QPushButton::clicked, this, &ARCodeWidget::OnCodeEditClicked);
@@ -202,8 +202,8 @@ void ARCodeWidget::UpdateList()
   {
     const auto& ar = m_ar_codes[i];
     auto* item = new QListWidgetItem(QString::fromStdString(ar.name)
-                                         .replace(QStringLiteral("&lt;"), QChar::fromLatin1('<'))
-                                         .replace(QStringLiteral("&gt;"), QChar::fromLatin1('>')));
+            .replace(QStringLiteral("&lt;"), QChar::fromLatin1('<'))
+            .replace(QStringLiteral("&gt;"), QChar::fromLatin1('>')));
 
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable |
                    Qt::ItemIsDragEnabled);

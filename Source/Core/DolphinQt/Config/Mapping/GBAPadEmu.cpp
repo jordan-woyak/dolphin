@@ -19,12 +19,12 @@ void GBAPadEmu::CreateMainLayout()
 {
   auto* layout = new QGridLayout;
 
-  layout->addWidget(
-      CreateControlsBox(tr("D-Pad"), Pad::GetGBAGroup(GetPort(), GBAPadGroup::DPad), 2), 0, 0, -1,
-      1);
-  layout->addWidget(
-      CreateControlsBox(tr("Buttons"), Pad::GetGBAGroup(GetPort(), GBAPadGroup::Buttons), 2), 0, 1,
-      -1, 1);
+  layout->addWidget(CreateControlsBox(tr("D-Pad"), Pad::GetGBAGroup(GetPort(), GBAPadGroup::DPad),
+                        2),
+      0, 0, -1, 1);
+  layout->addWidget(CreateControlsBox(tr("Buttons"),
+                        Pad::GetGBAGroup(GetPort(), GBAPadGroup::Buttons), 2),
+      0, 1, -1, 1);
 
   setLayout(layout);
 }

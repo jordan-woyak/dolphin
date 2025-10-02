@@ -134,7 +134,7 @@ std::string DSPDisassembler::DisassembleParameters(const DSPOPCTemplate& opc, u1
 
     default:
       ERROR_LOG_FMT(DSPLLE, "Unknown parameter type: {:x}",
-                    Common::ToUnderlying(opc.params[j].type));
+          Common::ToUnderlying(opc.params[j].type));
       break;
     }
   }
@@ -148,7 +148,7 @@ bool DSPDisassembler::DisassembleOpcode(const std::vector<u16>& code, u16* pc, s
 }
 
 bool DSPDisassembler::DisassembleOpcode(const u16* binbuf, size_t binbuf_size, u16* pc,
-                                        std::string& dest)
+    std::string& dest)
 {
   const u16 wrapped_pc = (*pc & 0x7fff);
   if (wrapped_pc >= binbuf_size)

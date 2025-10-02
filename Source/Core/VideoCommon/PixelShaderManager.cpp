@@ -75,7 +75,7 @@ void PixelShaderManager::Dirty()
   m_fog_range_adjusted_changed = true;
 
   SetEfbScaleChanged(g_framebuffer_manager->EFBToScaledXf(1),
-                     g_framebuffer_manager->EFBToScaledYf(1));
+      g_framebuffer_manager->EFBToScaledYf(1));
   SetFogParamChanged();
 
   dirty = true;
@@ -338,9 +338,9 @@ void PixelShaderManager::SetIndMatrixChanged(int matrixidx)
   dirty = true;
 
   PRIM_LOG("indmtx{}: scale={}, mat=({} {} {}; {} {} {})", matrixidx, scale,
-           bpmem.indmtx[matrixidx].col0.ma, bpmem.indmtx[matrixidx].col1.mc,
-           bpmem.indmtx[matrixidx].col2.me, bpmem.indmtx[matrixidx].col0.mb,
-           bpmem.indmtx[matrixidx].col1.md, bpmem.indmtx[matrixidx].col2.mf);
+      bpmem.indmtx[matrixidx].col0.ma, bpmem.indmtx[matrixidx].col1.mc,
+      bpmem.indmtx[matrixidx].col2.me, bpmem.indmtx[matrixidx].col0.mb,
+      bpmem.indmtx[matrixidx].col1.md, bpmem.indmtx[matrixidx].col2.mf);
 }
 
 void PixelShaderManager::SetZTextureTypeChanged()

@@ -46,19 +46,21 @@ WatchWidget::WatchWidget(QWidget* parent)
 
   ConnectWidgets();
 
-  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
-    UpdateButtonsEnabled();
-    if (state != Core::State::Starting)
-      Update();
-  });
+  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
+      [this](Core::State state)
+      {
+        UpdateButtonsEnabled();
+        if (state != Core::State::Starting)
+          Update();
+      });
 
   connect(Host::GetInstance(), &Host::UpdateDisasmDialog, this, &WatchWidget::Update);
 
   connect(&Settings::Instance(), &Settings::WatchVisibilityChanged, this,
-          [this](bool visible) { setHidden(!visible); });
+      [this](bool visible) { setHidden(!visible); });
 
   connect(&Settings::Instance(), &Settings::DebugModeToggled, this,
-          [this](bool enabled) { setHidden(!enabled || !Settings::Instance().IsWatchVisible()); });
+      [this](bool enabled) { setHidden(!enabled || !Settings::Instance().IsWatchVisible()); });
 
   connect(&Settings::Instance(), &Settings::ThemeChanged, this, &WatchWidget::UpdateIcons);
   UpdateIcons();
@@ -87,14 +89,13 @@ void WatchWidget::CreateWidgets()
   m_table->setContextMenuPolicy(Qt::CustomContextMenu);
   m_table->setSelectionMode(QAbstractItemView::ExtendedSelection);
   m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_table->setHorizontalHeaderLabels(
-      {tr("Label"), tr("Address"), tr("Hexadecimal"),
-       // i18n: The base 10 numeral system. Not related to non-integer numbers
-       tr("Decimal"),
-       // i18n: Data type used in computing
-       tr("String"),
-       // i18n: Floating-point (non-integer) number
-       tr("Float"), tr("Locked")});
+  m_table->setHorizontalHeaderLabels({tr("Label"), tr("Address"), tr("Hexadecimal"),
+      // i18n: The base 10 numeral system. Not related to non-integer numbers
+      tr("Decimal"),
+      // i18n: Data type used in computing
+      tr("String"),
+      // i18n: Floating-point (non-integer) number
+      tr("Float"), tr("Locked")});
   m_table->setRowCount(1);
   SetEmptyRow(0);
 
@@ -190,8 +191,8 @@ void WatchWidget::Update()
     auto* lockValue = new QTableWidgetItem;
     lockValue->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
 
-    std::array<QTableWidgetItem*, NUM_COLUMNS> items = {label,  address,    hex,      decimal,
-                                                        string, floatValue, lockValue};
+    std::array<QTableWidgetItem*, NUM_COLUMNS> items = {
+        label, address, hex, decimal, string, floatValue, lockValue};
 
     QBrush brush = QPalette().brush(QPalette::Text);
 
@@ -204,10 +205,10 @@ void WatchWidget::Update()
       if (PowerPC::MMU::HostIsRAMAddress(guard, entry.address))
       {
         hex->setText(QStringLiteral("%1").arg(PowerPC::MMU::HostRead_U32(guard, entry.address), 8,
-                                              16, QLatin1Char('0')));
+            16, QLatin1Char('0')));
         decimal->setText(QString::number(PowerPC::MMU::HostRead_U32(guard, entry.address)));
-        string->setText(
-            QString::fromStdString(PowerPC::MMU::HostGetString(guard, entry.address, 32)));
+        string->setText(QString::fromStdString(PowerPC::MMU::HostGetString(guard, entry.address,
+            32)));
         floatValue->setText(QString::number(PowerPC::MMU::HostRead_F32(guard, entry.address)));
         lockValue->setCheckState(entry.locked ? Qt::Checked : Qt::Unchecked);
       }
@@ -272,9 +273,8 @@ void WatchWidget::OnClear()
 
 void WatchWidget::OnNewWatch()
 {
-  const QString text =
-      QInputDialog::getText(this, tr("Input"), tr("Enter address to watch:"), QLineEdit::Normal,
-                            QString{}, nullptr, Qt::WindowCloseButtonHint);
+  const QString text = QInputDialog::getText(this, tr("Input"), tr("Enter address to watch:"),
+      QLineEdit::Normal, QString{}, nullptr, Qt::WindowCloseButtonHint);
   bool good;
   const uint address = text.toUInt(&good, 16);
 
@@ -295,7 +295,7 @@ void WatchWidget::OnLoad()
   std::vector<std::string> watches;
 
   if (!ini.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + SConfig::GetInstance().GetGameID() + ".ini",
-                false))
+          false))
   {
     return;
   }
@@ -320,7 +320,7 @@ void WatchWidget::OnSave()
 {
   Common::IniFile ini;
   ini.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + SConfig::GetInstance().GetGameID() + ".ini",
-           false);
+      false);
   ini.SetLines("Watches", m_system.GetPowerPC().GetDebugInterface().SaveWatchesToStrings());
   ini.Save(File::GetUserPath(D_GAMESETTINGS_IDX) + SConfig::GetInstance().GetGameID() + ".ini");
 }
@@ -360,7 +360,7 @@ void WatchWidget::ShowContextMenu()
           // It's not related to timekeeping devices.
           menu->addAction(tr("&Delete Watch"), this, [this, row] { DeleteWatchAndUpdate(row); });
           menu->addAction(tr("&Add Memory Breakpoint"), this,
-                          [this, row] { AddWatchBreakpoint(row); });
+              [this, row] { AddWatchBreakpoint(row); });
         }
       }
     }

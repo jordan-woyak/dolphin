@@ -78,16 +78,16 @@ void AchievementBox::UpdateData()
     if (!AchievementManager::GetInstance().IsGameLoaded())
       return;
 
-    const auto& badge = AchievementManager::GetInstance().GetAchievementBadge(
-        m_achievement->id, !m_achievement->unlocked);
+    const auto& badge = AchievementManager::GetInstance().GetAchievementBadge(m_achievement->id,
+        !m_achievement->unlocked);
     std::string_view color = AchievementManager::GRAY;
     if (m_achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_HARDCORE)
       color = AchievementManager::GOLD;
     else if (m_achievement->unlocked & RC_CLIENT_ACHIEVEMENT_UNLOCKED_SOFTCORE)
       color = AchievementManager::BLUE;
     QImage i_badge(badge.data.data(), badge.width, badge.height, QImage::Format_RGBA8888);
-    m_badge->setPixmap(
-        QPixmap::fromImage(i_badge).scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_badge->setPixmap(QPixmap::fromImage(i_badge).scaled(64, 64, Qt::KeepAspectRatio,
+        Qt::SmoothTransformation));
     m_badge->adjustSize();
     m_badge->setStyleSheet(
         QStringLiteral("border: 4px solid %1").arg(QtUtils::FromStdString(color)));
@@ -127,9 +127,8 @@ void AchievementBox::UpdateProgress()
     m_progress_bar->setRange(0, 100);
     m_progress_bar->setValue(m_achievement->unlocked ? 100 : m_achievement->measured_percent);
     m_progress_bar->setTextVisible(false);
-    m_progress_label->setText(
-        QString::fromUtf8(m_achievement->measured_progress,
-                          qstrnlen(m_achievement->measured_progress, PROGRESS_LENGTH)));
+    m_progress_label->setText(QString::fromUtf8(m_achievement->measured_progress,
+        qstrnlen(m_achievement->measured_progress, PROGRESS_LENGTH)));
     m_progress_label->setVisible(!m_achievement->unlocked);
     m_progress_bar->setVisible(true);
   }

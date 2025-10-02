@@ -62,11 +62,11 @@ Drums::Drums() : Extension1stParty("Drums", _trans("Drum Kit"))
   }
 
   m_pads->AddSetting(&m_hit_strength_setting,
-                     // i18n: Refers to how hard emulated drum pads are struck.
-                     {_trans("Hit Strength"),
-                      // i18n: The symbol for percent.
-                      _trans("%")},
-                     50);
+      // i18n: Refers to how hard emulated drum pads are struck.
+      {_trans("Hit Strength"),
+          // i18n: The symbol for percent.
+          _trans("%")},
+      50);
 
   // Buttons.
   groups.emplace_back(m_buttons = new ControllerEmu::Buttons(_trans("Buttons")));
@@ -144,7 +144,7 @@ void Drums::Update(const DesiredExtensionState& target_state)
 
   static_assert(std::tuple_size<decltype(m_pad_remaining_frames)>::value ==
                     drum_pad_bitmasks.size(),
-                "Array sizes do not match.");
+      "Array sizes do not match.");
 
   // Figure out which velocity id to send. (needs to be sent once for each newly hit drum-pad)
   for (std::size_t i = 0; i != drum_pad_bitmasks.size(); ++i)

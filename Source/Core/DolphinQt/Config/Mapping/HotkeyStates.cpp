@@ -17,10 +17,10 @@ void HotkeyStates::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Save"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_SAVE_STATE)));
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Load"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_LOAD_STATE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Save"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_SAVE_STATE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Load"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_LOAD_STATE)));
 
   setLayout(m_main_layout);
 }

@@ -17,7 +17,7 @@ class ConfigChoice final : public ConfigControl<ToolTipComboBox>
   Q_OBJECT
 public:
   ConfigChoice(const QStringList& options, const Config::Info<int>& setting,
-               Config::Layer* layer = nullptr);
+      Config::Layer* layer = nullptr);
 
 protected:
   void OnConfigChanged() override;
@@ -33,9 +33,9 @@ class ConfigStringChoice final : public ConfigControl<ToolTipComboBox>
   Q_OBJECT
 public:
   ConfigStringChoice(const std::vector<std::string>& options,
-                     const Config::Info<std::string>& setting, Config::Layer* layer = nullptr);
+      const Config::Info<std::string>& setting, Config::Layer* layer = nullptr);
   ConfigStringChoice(const std::vector<std::pair<QString, QString>>& options,
-                     const Config::Info<std::string>& setting, Config::Layer* layer = nullptr);
+      const Config::Info<std::string>& setting, Config::Layer* layer = nullptr);
   void Load();
 
 protected:
@@ -57,7 +57,7 @@ class ConfigComplexChoice final : public ToolTipComboBox
 
 public:
   ConfigComplexChoice(const InfoVariant setting1, const InfoVariant setting2,
-                      Config::Layer* layer = nullptr);
+      Config::Layer* layer = nullptr);
 
   void Add(const QString& name, const OptionVariant option1, const OptionVariant option2);
   void Refresh();

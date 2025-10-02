@@ -37,21 +37,21 @@ std::optional<IPCReply> USB_VEN::IOCtl(const IOCtlRequest& request)
     return Shutdown(request);
   case USB::IOCTL_USBV5_GETDEVPARAMS:
     return HandleDeviceIOCtl(request,
-                             [&](USBV5Device& device) { return GetDeviceInfo(device, request); });
+        [&](USBV5Device& device) { return GetDeviceInfo(device, request); });
   case USB::IOCTL_USBV5_ATTACHFINISH:
     return IPCReply(IPC_SUCCESS);
   case USB::IOCTL_USBV5_SETALTERNATE:
-    return HandleDeviceIOCtl(
-        request, [&](USBV5Device& device) { return SetAlternateSetting(device, request); });
+    return HandleDeviceIOCtl(request,
+        [&](USBV5Device& device) { return SetAlternateSetting(device, request); });
   case USB::IOCTL_USBV5_SUSPEND_RESUME:
     return HandleDeviceIOCtl(request,
-                             [&](USBV5Device& device) { return SuspendResume(device, request); });
+        [&](USBV5Device& device) { return SuspendResume(device, request); });
   case USB::IOCTL_USBV5_CANCELENDPOINT:
     return HandleDeviceIOCtl(request,
-                             [&](USBV5Device& device) { return CancelEndpoint(device, request); });
+        [&](USBV5Device& device) { return CancelEndpoint(device, request); });
   default:
     request.DumpUnknown(GetSystem(), GetDeviceName(), Common::Log::LogType::IOS_USB,
-                        Common::Log::LogLevel::LERROR);
+        Common::Log::LogLevel::LERROR);
     return IPCReply(IPC_SUCCESS);
   }
 }
@@ -85,7 +85,7 @@ std::optional<IPCReply> USB_VEN::IOCtlV(const IOCtlVRequest& request)
     else
       host_device->AttachAndChangeInterface(device->interface_number);
     return HandleTransfer(host_device, request.request,
-                          [&, this] { return SubmitTransfer(*host_device, request); });
+        [&, this] { return SubmitTransfer(*host_device, request); });
   }
   default:
     return IPCReply(IPC_EINVAL);
@@ -97,14 +97,14 @@ s32 USB_VEN::SubmitTransfer(USB::Device& device, const IOCtlVRequest& ioctlv)
   switch (ioctlv.request)
   {
   case USB::IOCTLV_USBV5_CTRLMSG:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V5CtrlMessage>(GetEmulationKernel(), ioctlv));
+    return device.SubmitTransfer(std::make_unique<USB::V5CtrlMessage>(GetEmulationKernel(),
+        ioctlv));
   case USB::IOCTLV_USBV5_INTRMSG:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V5IntrMessage>(GetEmulationKernel(), ioctlv));
+    return device.SubmitTransfer(std::make_unique<USB::V5IntrMessage>(GetEmulationKernel(),
+        ioctlv));
   case USB::IOCTLV_USBV5_BULKMSG:
-    return device.SubmitTransfer(
-        std::make_unique<USB::V5BulkMessage>(GetEmulationKernel(), ioctlv));
+    return device.SubmitTransfer(std::make_unique<USB::V5BulkMessage>(GetEmulationKernel(),
+        ioctlv));
   case USB::IOCTLV_USBV5_ISOMSG:
     return device.SubmitTransfer(std::make_unique<USB::V5IsoMessage>(GetEmulationKernel(), ioctlv));
   default:
@@ -149,10 +149,12 @@ IPCReply USB_VEN::GetDeviceInfo(USBV5Device& device, const IOCtlRequest& request
   memory.CopyToEmu(request.buffer_out + 40, &config_descriptor, sizeof(config_descriptor));
 
   std::vector<USB::InterfaceDescriptor> interfaces = host_device->GetInterfaces(0);
-  auto it = std::ranges::find_if(interfaces, [&](const USB::InterfaceDescriptor& interface) {
-    return interface.bInterfaceNumber == device.interface_number &&
-           interface.bAlternateSetting == alt_setting;
-  });
+  auto it = std::ranges::find_if(interfaces,
+      [&](const USB::InterfaceDescriptor& interface)
+      {
+        return interface.bInterfaceNumber == device.interface_number &&
+               interface.bAlternateSetting == alt_setting;
+      });
   if (it == interfaces.end())
     return IPCReply(IPC_EINVAL);
   it->Swap();
@@ -163,7 +165,7 @@ IPCReply USB_VEN::GetDeviceInfo(USBV5Device& device, const IOCtlRequest& request
   {
     endpoints[i].Swap();
     memory.CopyToEmu(request.buffer_out + 64 + 8 * static_cast<u8>(i), &endpoints[i],
-                     sizeof(endpoints[i]));
+        sizeof(endpoints[i]));
   }
 
   return IPCReply(IPC_SUCCESS);

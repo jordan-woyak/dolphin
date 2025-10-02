@@ -299,7 +299,7 @@ static void TexDecoder_DrawOverlay(u8* dst, int width, int height, TextureFormat
 }
 
 void TexDecoder_Decode(u8* dst, const u8* src, int width, int height, TextureFormat texformat,
-                       const u8* tlut, TLUTFormat tlutfmt)
+    const u8* tlut, TLUTFormat tlutfmt)
 {
   _TexDecoder_DecodeImpl((u32*)dst, src, width, height, texformat, tlut, tlutfmt);
 
@@ -360,7 +360,7 @@ static inline u32 DecodePixel_Paletted(u16 pixel, TLUTFormat tlutfmt)
 }
 
 void TexDecoder_DecodeTexel(u8* dst, std::span<const u8> src, int s, int t, int imageWidth,
-                            TextureFormat texformat, std::span<const u8> tlut_, TLUTFormat tlutfmt)
+    TextureFormat texformat, std::span<const u8> tlut_, TLUTFormat tlutfmt)
 {
   /* General formula for computing texture offset
   //
@@ -641,7 +641,7 @@ void TexDecoder_DecodeTexel(u8* dst, std::span<const u8> src, int s, int t, int 
 }
 
 void TexDecoder_DecodeTexelRGBA8FromTmem(u8* dst, std::span<const u8> src_ar,
-                                         std::span<const u8> src_gb, int s, int t, int imageWidth)
+    std::span<const u8> src_gb, int s, int t, int imageWidth)
 {
   u16 sBlk = s >> 2;
   u16 tBlk = t >> 2;
@@ -663,7 +663,7 @@ void TexDecoder_DecodeTexelRGBA8FromTmem(u8* dst, std::span<const u8> src_ar,
 }
 
 void TexDecoder_DecodeTexelRGBA8FromTmem(u8* dst, const u8* src_ar, const u8* src_gb, int s, int t,
-                                         int imageWidth)
+    int imageWidth)
 {
   u16 sBlk = s >> 2;
   u16 tBlk = t >> 2;
@@ -687,7 +687,7 @@ void TexDecoder_DecodeTexelRGBA8FromTmem(u8* dst, const u8* src_ar, const u8* sr
 }
 
 void TexDecoder_DecodeRGBA8FromTmem(u8* dst, const u8* src_ar, const u8* src_gb, int width,
-                                    int height)
+    int height)
 {
   // TODO for someone who cares: Make this less slow!
   for (int y = 0; y < height; ++y)

@@ -178,7 +178,7 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
     break;
   case CMD_LED_ON:
     Core::DisplayMessage("USBGecko: A piercing blue light is now shining in your general direction",
-                         3000);
+        3000);
     break;
 
   case CMD_INIT:

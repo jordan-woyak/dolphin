@@ -37,10 +37,10 @@ class NetPlayDialog : public QDialog, public NetPlay::NetPlayUI
   Q_OBJECT
 public:
   using StartGameCallback = std::function<void(const std::string& path,
-                                               std::unique_ptr<BootSessionData> boot_session_data)>;
+      std::unique_ptr<BootSessionData> boot_session_data)>;
 
   explicit NetPlayDialog(const GameListModel& game_list_model,
-                         StartGameCallback start_game_callback, QWidget* parent = nullptr);
+      StartGameCallback start_game_callback, QWidget* parent = nullptr);
   ~NetPlayDialog() override;
 
   void show(std::string nickname, bool use_traversal);
@@ -48,7 +48,7 @@ public:
 
   // NetPlayUI methods
   void BootGame(const std::string& filename,
-                std::unique_ptr<BootSessionData> boot_session_data) override;
+      std::unique_ptr<BootSessionData> boot_session_data) override;
   void StopGame() override;
   bool IsHosting() const override;
 
@@ -56,7 +56,7 @@ public:
   void AppendChat(const std::string& msg) override;
 
   void OnMsgChangeGame(const NetPlay::SyncIdentifier& sync_identifier,
-                       const std::string& netplay_name) override;
+      const std::string& netplay_name) override;
   void OnMsgChangeGBARom(int pad, const NetPlay::GBAConfig& config) override;
   void OnMsgStartGame() override;
   void OnMsgStopGame() override;
@@ -80,9 +80,9 @@ public:
   bool IsRecording() override;
   std::shared_ptr<const UICommon::GameFile>
   FindGameFile(const NetPlay::SyncIdentifier& sync_identifier,
-               NetPlay::SyncIdentifierComparison* found = nullptr) override;
+      NetPlay::SyncIdentifierComparison* found = nullptr) override;
   std::string FindGBARomPath(const std::array<u8, 20>& hash, std::string_view title,
-                             int device_number) override;
+      int device_number) override;
 
   void LoadSettings();
   void SaveSettings();
@@ -93,7 +93,7 @@ public:
   void AbortGameDigest() override;
 
   void ShowChunkedProgressDialog(const std::string& title, u64 data_size,
-                                 const std::vector<int>& players) override;
+      const std::vector<int>& players) override;
   void HideChunkedProgressDialog() override;
   void SetChunkedProgress(int pid, u64 progress) override;
 
@@ -110,7 +110,7 @@ private:
   void OnChat();
   void OnStart();
   void DisplayMessage(const QString& msg, const std::string& color,
-                      int duration = OSD::Duration::NORMAL);
+      int duration = OSD::Duration::NORMAL);
   void ResetExternalIP();
   void UpdateDiscordPresence();
   void UpdateGUI();

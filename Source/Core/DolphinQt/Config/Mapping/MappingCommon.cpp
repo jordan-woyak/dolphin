@@ -75,7 +75,7 @@ public:
         INPUT_DETECT_CONFIRMATION_TIME * (m_parent->IsWaitForAlternateMappingsEnabled() ? 1 : 0);
 
     m_input_detector->Update(INPUT_DETECT_INITIAL_TIME, confirmation_time,
-                             INPUT_DETECT_MAXIMUM_TIME);
+        INPUT_DETECT_MAXIMUM_TIME);
 
     if (!m_input_detector->IsComplete())
       return;
@@ -118,8 +118,8 @@ public:
 
     const auto& default_device = m_parent->GetController()->GetDefaultDevice();
     auto& button = m_clicked_mapping_buttons.front();
-    SetButtonExpression(
-        button, BuildExpression(detections, default_device, ciface::MappingCommon::Quote::On));
+    SetButtonExpression(button,
+        BuildExpression(detections, default_device, ciface::MappingCommon::Quote::On));
 
     UnQueueInputDetection(button);
     return true;
@@ -131,7 +131,7 @@ public:
     control_reference->SetExpression(expression);
     m_parent->Save();
     m_parent->GetController()->UpdateSingleControlReference(g_controller_interface,
-                                                            control_reference);
+        control_reference);
     m_parent->GetController()->GetConfig()->GenerateControllerTextures();
   }
 
@@ -167,8 +167,8 @@ public:
     {
       // Ignore the mouse-click that queued this new detection and finalize the current mapping.
       auto results = m_input_detector->TakeResults();
-      ciface::MappingCommon::RemoveDetectionsAfterTimePoint(
-          &results, Clock::now() - INPUT_DETECT_ENDING_IGNORE_TIME);
+      ciface::MappingCommon::RemoveDetectionsAfterTimePoint(&results,
+          Clock::now() - INPUT_DETECT_ENDING_IGNORE_TIME);
       FinalizeMapping(&results);
     }
     UpdateInputDetectionStartTimer();

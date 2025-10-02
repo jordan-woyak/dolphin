@@ -70,7 +70,7 @@ void ROMUCode::HandleMail(u32 mail)
       if (m_current_ucode.m_dmem_length)
       {
         NOTICE_LOG_FMT(DSPHLE, "m_current_ucode.m_dmem_length = {:#06x}.",
-                       m_current_ucode.m_dmem_length);
+            m_current_ucode.m_dmem_length);
       }
       break;
 
@@ -96,14 +96,14 @@ void ROMUCode::HandleMail(u32 mail)
 void ROMUCode::BootUCode()
 {
   auto& memory = m_dsphle->GetSystem().GetMemory();
-  const u32 ector_crc = Common::HashEctor(
-      static_cast<u8*>(HLEMemory_Get_Pointer(memory, m_current_ucode.m_ram_address)),
+  const u32 ector_crc = Common::HashEctor(static_cast<u8*>(HLEMemory_Get_Pointer(memory,
+                                              m_current_ucode.m_ram_address)),
       m_current_ucode.m_length);
 
   if (Config::Get(Config::MAIN_DUMP_UCODE))
   {
     DumpDSPCode(static_cast<u8*>(HLEMemory_Get_Pointer(memory, m_current_ucode.m_ram_address)),
-                m_current_ucode.m_length, ector_crc);
+        m_current_ucode.m_length, ector_crc);
   }
 
   INFO_LOG_FMT(DSPHLE, "CurrentUCode SOURCE Addr: {:#010x}", m_current_ucode.m_ram_address);

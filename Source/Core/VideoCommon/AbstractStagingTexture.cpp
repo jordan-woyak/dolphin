@@ -18,7 +18,7 @@ AbstractStagingTexture::AbstractStagingTexture(StagingTextureType type, const Te
 AbstractStagingTexture::~AbstractStagingTexture() = default;
 
 void AbstractStagingTexture::CopyFromTexture(const AbstractTexture* src, u32 src_layer,
-                                             u32 src_level)
+    u32 src_level)
 {
   MathUtil::Rectangle<int> src_rect = src->GetConfig().GetMipRect(src_level);
   MathUtil::Rectangle<int> dst_rect = m_config.GetRect();
@@ -33,7 +33,7 @@ void AbstractStagingTexture::CopyToTexture(AbstractTexture* dst, u32 dst_layer, 
 }
 
 void AbstractStagingTexture::ReadTexels(const MathUtil::Rectangle<int>& rect, void* out_ptr,
-                                        u32 out_stride)
+    u32 out_stride)
 {
   ASSERT(m_type != StagingTextureType::Upload);
   if (!PrepareForAccess())
@@ -78,7 +78,7 @@ void AbstractStagingTexture::ReadTexel(u32 x, u32 y, void* out_ptr)
 }
 
 void AbstractStagingTexture::WriteTexels(const MathUtil::Rectangle<int>& rect, const void* in_ptr,
-                                         u32 in_stride)
+    u32 in_stride)
 {
   ASSERT(m_type != StagingTextureType::Readback);
   if (!PrepareForAccess())

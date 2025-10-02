@@ -61,7 +61,7 @@ IPCReply ESDevice::GetTicketViewCount(const IOCtlVRequest& request)
   }
 
   INFO_LOG_FMT(IOS_ES, "IOCTL_ES_GETVIEWCNT for titleID: {:016x} (View Count = {})", TitleID,
-               view_count);
+      view_count);
 
   memory.Write_U32(view_count, request.io_vectors[0].address);
   return IPCReply(IPC_SUCCESS);
@@ -91,7 +91,7 @@ IPCReply ESDevice::GetTicketViews(const IOCtlVRequest& request)
     {
       const std::vector<u8> ticket_view = ticket.GetRawTicketView(view);
       memory.CopyToEmu(request.io_vectors[0].address + view * sizeof(ES::TicketView),
-                       ticket_view.data(), ticket_view.size());
+          ticket_view.data(), ticket_view.size());
     }
   }
   else if (ShouldReturnFakeViewsForIOSes(TitleID, m_core.m_title_context))
@@ -106,7 +106,7 @@ IPCReply ESDevice::GetTicketViews(const IOCtlVRequest& request)
 }
 
 ReturnCode ESCore::GetTicketFromView(const u8* ticket_view, u8* ticket, u32* ticket_size,
-                                     std::optional<u8> desired_version) const
+    std::optional<u8> desired_version) const
 {
   const u64 title_id = Common::swap64(&ticket_view[offsetof(ES::TicketView, title_id)]);
   const u64 ticket_id = Common::swap64(&ticket_view[offsetof(ES::TicketView, ticket_id)]);
@@ -162,8 +162,8 @@ IPCReply ESDevice::GetV0TicketFromView(const IOCtlVRequest& request)
 
   auto& system = GetSystem();
   auto& memory = system.GetMemory();
-  return IPCReply(m_core.GetTicketFromView(
-      memory.GetPointerForRange(request.in_vectors[0].address, sizeof(ES::TicketView)),
+  return IPCReply(m_core.GetTicketFromView(memory.GetPointerForRange(request.in_vectors[0].address,
+                                               sizeof(ES::TicketView)),
       memory.GetPointerForRange(request.io_vectors[0].address, sizeof(ES::Ticket)), nullptr, 0));
 }
 
@@ -179,9 +179,10 @@ IPCReply ESDevice::GetTicketSizeFromView(const IOCtlVRequest& request)
 
   auto& system = GetSystem();
   auto& memory = system.GetMemory();
-  const ReturnCode ret = m_core.GetTicketFromView(
-      memory.GetPointerForRange(request.in_vectors[0].address, sizeof(ES::TicketView)), nullptr,
-      &ticket_size, std::nullopt);
+  const ReturnCode ret =
+      m_core.GetTicketFromView(memory.GetPointerForRange(request.in_vectors[0].address,
+                                   sizeof(ES::TicketView)),
+          nullptr, &ticket_size, std::nullopt);
   memory.Write_U32(ticket_size, request.io_vectors[0].address);
   return IPCReply(ret);
 }
@@ -202,8 +203,8 @@ IPCReply ESDevice::GetTicketFromView(const IOCtlVRequest& request)
   if (ticket_size != request.io_vectors[0].size)
     return IPCReply(ES_EINVAL);
 
-  return IPCReply(m_core.GetTicketFromView(
-      memory.GetPointerForRange(request.in_vectors[0].address, sizeof(ES::TicketView)),
+  return IPCReply(m_core.GetTicketFromView(memory.GetPointerForRange(request.in_vectors[0].address,
+                                               sizeof(ES::TicketView)),
       memory.GetPointerForRange(request.io_vectors[0].address, ticket_size), &ticket_size,
       std::nullopt));
 }
@@ -403,7 +404,7 @@ IPCReply ESDevice::DIGetTMDSize(const IOCtlVRequest& request)
   auto& system = GetSystem();
   auto& memory = system.GetMemory();
   memory.Write_U32(static_cast<u32>(m_core.m_title_context.tmd.GetBytes().size()),
-                   request.io_vectors[0].address);
+      request.io_vectors[0].address);
   return IPCReply(IPC_SUCCESS);
 }
 

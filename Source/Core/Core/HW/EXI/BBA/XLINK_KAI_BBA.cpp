@@ -129,7 +129,7 @@ bool CEXIETHERNET::XLinkNetworkInterface::SendFrame(const u8* frame, u32 size)
       sf::Socket::Status::Done)
   {
     ERROR_LOG_FMT(SP1, "SendFrame(): expected to write {} bytes, but failed, errno {}", size,
-                  errno);
+        errno);
     return false;
   }
   else
@@ -154,7 +154,7 @@ void CEXIETHERNET::XLinkNetworkInterface::ReadThreadHandler(
     // *here* because XLink *could* send one
     std::size_t bytes_read = 0;
     if (self->m_sf_socket.receive(self->m_in_frame, std::size(self->m_in_frame), bytes_read, sender,
-                                  port) != sf::Socket::Status::Done &&
+            port) != sf::Socket::Status::Done &&
         self->m_bba_link_up)
     {
       ERROR_LOG_FMT(SP1, "Failed to read from BBA, err={}", bytes_read);
@@ -218,13 +218,13 @@ void CEXIETHERNET::XLinkNetworkInterface::ReadThreadHandler(
           memmove(buffer, cmd.data(), size);
 
           DEBUG_LOG_FMT(SP1, "SendCommandPayload {:x}\n{}", size,
-                        ArrayToString(buffer, size, 0x10));
+              ArrayToString(buffer, size, 0x10));
 
           if (self->m_sf_socket.send(buffer, size, self->m_sf_recipient_ip, self->m_dest_port) !=
               sf::Socket::Status::Done)
           {
-            ERROR_LOG_FMT(
-                SP1, "ReadThreadHandler(): failed to send setting message to XLink Kai client");
+            ERROR_LOG_FMT(SP1,
+                "ReadThreadHandler(): failed to send setting message to XLink Kai client");
           }
         }
       }
@@ -259,7 +259,7 @@ void CEXIETHERNET::XLinkNetworkInterface::ReadThreadHandler(
 
         // Reply (using the message that came in!)
         if (self->m_sf_socket.send(self->m_in_frame, 10, self->m_sf_recipient_ip,
-                                   self->m_dest_port) != sf::Socket::Status::Done)
+                self->m_dest_port) != sf::Socket::Status::Done)
         {
           ERROR_LOG_FMT(SP1, "ReadThreadHandler(): failed to reply to XLink Kai client keepalive");
         }

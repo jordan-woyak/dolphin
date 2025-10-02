@@ -84,7 +84,7 @@ private:
   struct CheckIdleOperands;
 
   static s32 StartProfiledBlock(PowerPC::PowerPCState& ppc_state,
-                                const StartProfiledBlockOperands& operands);
+      const StartProfiledBlockOperands& operands);
   static s32 StartProfiledBlock(std::ostream& stream, const StartProfiledBlockOperands& operands);
   template <bool profiled>
   static s32 EndBlock(PowerPC::PowerPCState& ppc_state, const EndBlockOperands<profiled>& operands);
@@ -96,14 +96,14 @@ private:
   static s32 Interpret(std::ostream& stream, const InterpretOperands& operands);
   template <bool write_pc>
   static s32 InterpretAndCheckExceptions(PowerPC::PowerPCState& ppc_state,
-                                         const InterpretAndCheckExceptionsOperands& operands);
+      const InterpretAndCheckExceptionsOperands& operands);
   template <bool write_pc>
   static s32 InterpretAndCheckExceptions(std::ostream& stream,
-                                         const InterpretAndCheckExceptionsOperands& operands);
+      const InterpretAndCheckExceptionsOperands& operands);
   static s32 HLEFunction(PowerPC::PowerPCState& ppc_state, const HLEFunctionOperands& operands);
   static s32 HLEFunction(std::ostream& stream, const HLEFunctionOperands& operands);
   static s32 WriteBrokenBlockNPC(PowerPC::PowerPCState& ppc_state,
-                                 const WriteBrokenBlockNPCOperands& operands);
+      const WriteBrokenBlockNPCOperands& operands);
   static s32 WriteBrokenBlockNPC(std::ostream& stream, const WriteBrokenBlockNPCOperands& operands);
   static s32 CheckFPU(PowerPC::PowerPCState& ppc_state, const CheckHaltOperands& operands);
   static s32 CheckFPU(std::ostream& stream, const CheckHaltOperands& operands);

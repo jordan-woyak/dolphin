@@ -54,7 +54,7 @@ void IniFile::Section::Set(const std::string& key, std::string new_value)
 }
 
 bool IniFile::Section::Get(std::string_view key, std::string* value,
-                           const std::string& default_value) const
+    const std::string& default_value) const
 {
   const auto it = values.find(key);
 
@@ -85,8 +85,8 @@ bool IniFile::Section::Delete(std::string_view key)
     return false;
 
   values.erase(it);
-  keys_order.erase(std::ranges::find_if(
-      keys_order, [&](std::string_view v) { return CaseInsensitiveEquals(key, v); }));
+  keys_order.erase(std::ranges::find_if(keys_order,
+      [&](std::string_view v) { return CaseInsensitiveEquals(key, v); }));
   return true;
 }
 
@@ -220,7 +220,7 @@ bool IniFile::GetKeys(std::string_view section_name, std::vector<std::string>* k
 
 // Return a list of all lines in a section
 bool IniFile::GetLines(std::string_view section_name, std::vector<std::string>* lines,
-                       const bool remove_comments) const
+    const bool remove_comments) const
 {
   lines->clear();
 

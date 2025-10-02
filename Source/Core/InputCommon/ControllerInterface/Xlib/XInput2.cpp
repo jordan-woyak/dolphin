@@ -83,8 +83,8 @@ std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* co
 
 void InputBackend::HandleWindowChange()
 {
-  GetControllerInterface().RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == SOURCE_NAME; }, true);
+  GetControllerInterface().RemoveDevice([](const auto* dev)
+      { return dev->GetSource() == SOURCE_NAME; }, true);
 
   PopulateDevices();
 }
@@ -148,9 +148,8 @@ void InputBackend::PopulateDevices()
       }
       // Since current_master is a master pointer, its attachment must
       // be a master keyboard.
-      GetControllerInterface().AddDevice(
-          std::make_shared<KeyboardMouse>((Window)hwnd, xi_opcode, current_master->deviceid,
-                                          current_master->attachment, scroll_increment));
+      GetControllerInterface().AddDevice(std::make_shared<KeyboardMouse>((Window)hwnd, xi_opcode,
+          current_master->deviceid, current_master->attachment, scroll_increment));
     }
   }
 
@@ -160,7 +159,7 @@ void InputBackend::PopulateDevices()
 }
 
 KeyboardMouse::KeyboardMouse(Window window, int opcode, int pointer, int keyboard,
-                             double scroll_increment_)
+    double scroll_increment_)
     : m_window(window), xi_opcode(opcode), pointer_deviceid(pointer), keyboard_deviceid(keyboard),
       scroll_increment(scroll_increment_)
 {
@@ -275,13 +274,13 @@ void KeyboardMouse::UpdateCursor(bool should_center_mouse)
 
     // Get the absolute position of the mouse pointer and the button state.
     XIQueryPointer(m_display, pointer_deviceid, m_window, &root, &child, &root_x, &root_y, &win_x,
-                   &win_y, &button_state, &mods, &group);
+        &win_y, &button_state, &mods, &group);
 
     // X buttons are 1-indexed, so to get 32 button bits we need a larger type
     // for the shift.
     u64 buttons_zero_indexed = 0;
     std::memcpy(&buttons_zero_indexed, button_state.mask,
-                std::min<size_t>(button_state.mask_len, sizeof(m_state.buttons)));
+        std::min<size_t>(button_state.mask_len, sizeof(m_state.buttons)));
     m_state.buttons = buttons_zero_indexed >> 1;
 
     free(button_state.mask);

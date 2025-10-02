@@ -83,7 +83,7 @@ void SurroundDecoder::ReceiveFrames(float* out, const size_t num_frames_out)
 {
   // Copy to output array with desired num_frames_out
   for (size_t i = 0, num_samples_output = num_frames_out * SURROUND_CHANNELS;
-       i < num_samples_output; ++i)
+      i < num_samples_output; ++i)
   {
     out[i] = m_decoded_fifo.pop_front();
   }

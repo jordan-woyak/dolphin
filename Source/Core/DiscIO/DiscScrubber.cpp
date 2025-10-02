@@ -100,7 +100,7 @@ u64 DiscScrubber::ToClusterOffset(u64 offset) const
 
 // Helper functions for reading the BE volume
 bool DiscScrubber::ReadFromVolume(const Volume& disc, u64 offset, u32& buffer,
-                                  const Partition& partition)
+    const Partition& partition)
 {
   std::optional<u32> value = disc.ReadSwapped<u32>(offset, partition);
   if (value)
@@ -109,7 +109,7 @@ bool DiscScrubber::ReadFromVolume(const Volume& disc, u64 offset, u32& buffer,
 }
 
 bool DiscScrubber::ReadFromVolume(const Volume& disc, u64 offset, u64& buffer,
-                                  const Partition& partition)
+    const Partition& partition)
 {
   std::optional<u64> value = disc.ReadSwappedAndShifted(offset, partition);
   if (value)
@@ -135,15 +135,15 @@ bool DiscScrubber::ParseDisc(const Volume& disc)
     // The H3 size is always 0x18000
 
     if (!ReadFromVolume(disc, partition.offset + WII_PARTITION_TMD_SIZE_ADDRESS, tmd_size,
-                        PARTITION_NONE) ||
+            PARTITION_NONE) ||
         !ReadFromVolume(disc, partition.offset + WII_PARTITION_TMD_OFFSET_ADDRESS, tmd_offset,
-                        PARTITION_NONE) ||
+            PARTITION_NONE) ||
         !ReadFromVolume(disc, partition.offset + WII_PARTITION_CERT_CHAIN_SIZE_ADDRESS,
-                        cert_chain_size, PARTITION_NONE) ||
+            cert_chain_size, PARTITION_NONE) ||
         !ReadFromVolume(disc, partition.offset + WII_PARTITION_CERT_CHAIN_OFFSET_ADDRESS,
-                        cert_chain_offset, PARTITION_NONE) ||
+            cert_chain_offset, PARTITION_NONE) ||
         !ReadFromVolume(disc, partition.offset + WII_PARTITION_H3_OFFSET_ADDRESS, h3_offset,
-                        PARTITION_NONE))
+            PARTITION_NONE))
     {
       return false;
     }
@@ -169,7 +169,7 @@ bool DiscScrubber::ParsePartitionData(const Volume& disc, const Partition& parti
   if (!filesystem)
   {
     ERROR_LOG_FMT(DISCIO, "Failed to read file system for the partition at {:#x}",
-                  partition.offset);
+        partition.offset);
     return false;
   }
 

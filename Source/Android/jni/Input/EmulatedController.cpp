@@ -22,25 +22,24 @@
 
 ControllerEmu::ControlGroupContainer* ControlGroupContainerFromJava(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::ControlGroupContainer*>(
-      env->GetLongField(obj, IDCache::GetControlGroupContainerPointer()));
+  return reinterpret_cast<ControllerEmu::ControlGroupContainer*>(env->GetLongField(obj,
+      IDCache::GetControlGroupContainerPointer()));
 }
 
 static jobject ControlGroupContainerToJava(JNIEnv* env,
-                                           ControllerEmu::ControlGroupContainer* container)
+    ControllerEmu::ControlGroupContainer* container)
 {
   if (!container)
     return nullptr;
 
   return env->NewObject(IDCache::GetControlGroupContainerClass(),
-                        IDCache::GetControlGroupContainerConstructor(),
-                        reinterpret_cast<jlong>(container));
+      IDCache::GetControlGroupContainerConstructor(), reinterpret_cast<jlong>(container));
 }
 
 ControllerEmu::EmulatedController* EmulatedControllerFromJava(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::EmulatedController*>(
-      env->GetLongField(obj, IDCache::GetEmulatedControllerPointer()));
+  return reinterpret_cast<ControllerEmu::EmulatedController*>(env->GetLongField(obj,
+      IDCache::GetEmulatedControllerPointer()));
 }
 
 static jobject EmulatedControllerToJava(JNIEnv* env, ControllerEmu::EmulatedController* controller)
@@ -49,8 +48,7 @@ static jobject EmulatedControllerToJava(JNIEnv* env, ControllerEmu::EmulatedCont
     return nullptr;
 
   return env->NewObject(IDCache::GetEmulatedControllerClass(),
-                        IDCache::GetEmulatedControllerConstructor(),
-                        reinterpret_cast<jlong>(controller));
+      IDCache::GetEmulatedControllerConstructor(), reinterpret_cast<jlong>(controller));
 }
 
 extern "C" {
@@ -80,8 +78,8 @@ JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_ControlGroupContainer_getGroup(
     JNIEnv* env, jobject obj, jint controller_index)
 {
-  return ControlGroupToJava(
-      env, ControlGroupContainerFromJava(env, obj)->groups[controller_index].get());
+  return ControlGroupToJava(env,
+      ControlGroupContainerFromJava(env, obj)->groups[controller_index].get());
 }
 
 JNIEXPORT void JNICALL
@@ -91,7 +89,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_EmulatedContro
   ControllerEmu::EmulatedController* controller = EmulatedControllerFromJava(env, obj);
   controller->GetConfig()->GenerateControllerTextures();
   return controller->UpdateSingleControlReference(g_controller_interface,
-                                                  ControlReferenceFromJava(env, control_reference));
+      ControlReferenceFromJava(env, control_reference));
 }
 
 JNIEXPORT void JNICALL
@@ -158,8 +156,8 @@ JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_EmulatedController_getUserProfileDirectoryPath(
     JNIEnv* env, jobject obj)
 {
-  return ToJString(
-      env, EmulatedControllerFromJava(env, obj)->GetConfig()->GetUserProfileDirectoryPath());
+  return ToJString(env,
+      EmulatedControllerFromJava(env, obj)->GetConfig()->GetUserProfileDirectoryPath());
 }
 
 JNIEXPORT jstring JNICALL
@@ -167,7 +165,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_EmulatedContro
     JNIEnv* env, jobject obj)
 {
   return ToJString(env,
-                   EmulatedControllerFromJava(env, obj)->GetConfig()->GetSysProfileDirectoryPath());
+      EmulatedControllerFromJava(env, obj)->GetConfig()->GetSysProfileDirectoryPath());
 }
 
 JNIEXPORT jobject JNICALL
@@ -195,8 +193,9 @@ JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_EmulatedController_getWiimoteAttachment(
     JNIEnv* env, jclass, jint controller_index, jint attachment_index)
 {
-  auto* attachments = static_cast<ControllerEmu::Attachments*>(
-      Wiimote::GetWiimoteGroup(controller_index, WiimoteEmu::WiimoteGroup::Attachments));
+  auto* attachments =
+      static_cast<ControllerEmu::Attachments*>(Wiimote::GetWiimoteGroup(controller_index,
+          WiimoteEmu::WiimoteGroup::Attachments));
   return ControlGroupContainerToJava(env, attachments->GetAttachmentList()[attachment_index].get());
 }
 
@@ -204,8 +203,9 @@ JNIEXPORT jint JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_EmulatedController_getSelectedWiimoteAttachment(
     JNIEnv* env, jclass, jint controller_index)
 {
-  auto* attachments = static_cast<ControllerEmu::Attachments*>(
-      Wiimote::GetWiimoteGroup(controller_index, WiimoteEmu::WiimoteGroup::Attachments));
+  auto* attachments =
+      static_cast<ControllerEmu::Attachments*>(Wiimote::GetWiimoteGroup(controller_index,
+          WiimoteEmu::WiimoteGroup::Attachments));
   return static_cast<jint>(attachments->GetSelectedAttachment());
 }
 

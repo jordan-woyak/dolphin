@@ -31,23 +31,25 @@ GameListModel::GameListModel(QObject* parent) : QAbstractTableModel(parent)
   connect(&Settings::Instance(), &Settings::PathAdded, &m_tracker, &GameTracker::AddDirectory);
   connect(&Settings::Instance(), &Settings::PathRemoved, &m_tracker, &GameTracker::RemoveDirectory);
   connect(&Settings::Instance(), &Settings::GameListRefreshRequested, &m_tracker,
-          &GameTracker::RefreshAll);
+      &GameTracker::RefreshAll);
   connect(&Settings::Instance(), &Settings::TitleDBReloadRequested,
-          [this] { m_title_database = Core::TitleDatabase(); });
+      [this] { m_title_database = Core::TitleDatabase(); });
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
-          &GameListModel::OnEmulationStateChanged);
+      &GameListModel::OnEmulationStateChanged);
 
   for (const QString& dir : Settings::Instance().GetPaths())
     m_tracker.AddDirectory(dir);
 
   m_tracker.Start();
 
-  connect(&Settings::Instance(), &Settings::ThemeChanged, [this] {
-    // Tell the view to repaint. The signal 'dataChanged' also seems like it would work here, but
-    // unfortunately it won't cause a repaint until the view is focused.
-    emit layoutAboutToBeChanged();
-    emit layoutChanged();
-  });
+  connect(&Settings::Instance(), &Settings::ThemeChanged,
+      [this]
+      {
+        // Tell the view to repaint. The signal 'dataChanged' also seems like it would work
+        // here, but unfortunately it won't cause a repaint until the view is focused.
+        emit layoutAboutToBeChanged();
+        emit layoutChanged();
+      });
 
   auto& settings = Settings::GetQSettings();
 
@@ -84,9 +86,9 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
       if (banner.isNull())
         banner = Resources::GetMisc(Resources::MiscID::BannerMissing).pixmap(GAMECUBE_BANNER_SIZE);
 
-      banner.setDevicePixelRatio(
-          std::max(static_cast<qreal>(banner.width()) / GAMECUBE_BANNER_SIZE.width(),
-                   static_cast<qreal>(banner.height()) / GAMECUBE_BANNER_SIZE.height()));
+      banner.setDevicePixelRatio(std::max(static_cast<qreal>(banner.width()) /
+                                              GAMECUBE_BANNER_SIZE.width(),
+          static_cast<qreal>(banner.height()) / GAMECUBE_BANNER_SIZE.height()));
 
       return banner;
     }
@@ -101,7 +103,7 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
       {
         // Add disc number to title if not present.
         if (!name.contains(QRegularExpression(QStringLiteral("disc ?%1").arg(disc_number),
-                                              QRegularExpression::CaseInsensitiveOption)))
+                QRegularExpression::CaseInsensitiveOption)))
         {
           name.append(tr(" (Disc %1)").arg(disc_number));
         }
@@ -119,7 +121,7 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
         {
           pos = match.capturedStart();
           name.replace(pos, match.capturedLength(),
-                       match.captured().rightJustified(MAX_NUMBER_LENGTH));
+              match.captured().rightJustified(MAX_NUMBER_LENGTH));
           pos += MAX_NUMBER_LENGTH;
         }
       }
@@ -135,7 +137,7 @@ QVariant GameListModel::data(const QModelIndex& index, int role) const
     if (role == Qt::DisplayRole || role == SORT_ROLE)
     {
       return QString::fromStdString(
-                 game.GetDescription(UICommon::GameFile::Variant::LongAndPossiblyCustom))
+          game.GetDescription(UICommon::GameFile::Variant::LongAndPossiblyCustom))
           .replace(QLatin1Char('\n'), QLatin1Char(' '));
     }
     break;
@@ -298,7 +300,8 @@ bool GameListModel::ShouldDisplayGameListItem(int index) const
     }
   }
 
-  const bool show_platform = [&game] {
+  const bool show_platform = [&game]
+  {
     switch (game.GetPlatform())
     {
     case DiscIO::Platform::GameCubeDisc:

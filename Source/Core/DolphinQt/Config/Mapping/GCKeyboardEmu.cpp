@@ -32,8 +32,8 @@ void GCKeyboardEmu::CreateMainLayout()
                     "If you are unsure, turn back now and configure a \"Standard Controller\"."));
   warning_text->setWordWrap(true);
 
-  vbox_layout->addWidget(
-      QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning, warning_text));
+  vbox_layout->addWidget(QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning,
+      warning_text));
 
   auto* const layout = new QHBoxLayout;
 

@@ -27,7 +27,7 @@ NetPlayIndex::~NetPlayIndex()
 static std::optional<picojson::value> ParseResponse(const std::vector<u8>& response)
 {
   const std::string response_string(reinterpret_cast<const char*>(response.data()),
-                                    response.size());
+      response.size());
 
   picojson::value json;
 
@@ -128,10 +128,11 @@ void NetPlayIndex::NotificationLoop()
   while (!m_session_thread_exit_event.WaitFor(std::chrono::seconds(5)))
   {
     Common::HttpRequest request;
-    auto response = request.Get(
-        Config::Get(Config::NETPLAY_INDEX_URL) + "/v0/session/active?secret=" + m_secret +
-            "&player_count=" + std::to_string(m_player_count) +
-            "&game=" + request.EscapeComponent(m_game) + "&in_game=" + std::to_string(m_in_game),
+    auto response = request.Get(Config::Get(Config::NETPLAY_INDEX_URL) +
+                                    "/v0/session/active?secret=" + m_secret +
+                                    "&player_count=" + std::to_string(m_player_count) +
+                                    "&game=" + request.EscapeComponent(m_game) +
+                                    "&in_game=" + std::to_string(m_in_game),
         {{"X-Is-Dolphin", "1"}}, Common::HttpRequest::AllowedReturnCodes::All);
 
     if (!response)
@@ -162,15 +163,16 @@ void NetPlayIndex::NotificationLoop()
 bool NetPlayIndex::Add(const NetPlaySession& session)
 {
   Common::HttpRequest request;
-  auto response = request.Get(
-      Config::Get(Config::NETPLAY_INDEX_URL) +
-          "/v0/session/add?name=" + request.EscapeComponent(session.name) +
-          "&region=" + request.EscapeComponent(session.region) +
-          "&game=" + request.EscapeComponent(session.game_id) +
-          "&password=" + std::to_string(session.has_password) + "&method=" + session.method +
-          "&server_id=" + session.server_id + "&in_game=" + std::to_string(session.in_game) +
-          "&port=" + std::to_string(session.port) + "&player_count=" +
-          std::to_string(session.player_count) + "&version=" + Common::GetScmDescStr(),
+  auto response = request.Get(Config::Get(Config::NETPLAY_INDEX_URL) +
+                                  "/v0/session/add?name=" + request.EscapeComponent(session.name) +
+                                  "&region=" + request.EscapeComponent(session.region) +
+                                  "&game=" + request.EscapeComponent(session.game_id) +
+                                  "&password=" + std::to_string(session.has_password) +
+                                  "&method=" + session.method + "&server_id=" + session.server_id +
+                                  "&in_game=" + std::to_string(session.in_game) +
+                                  "&port=" + std::to_string(session.port) +
+                                  "&player_count=" + std::to_string(session.player_count) +
+                                  "&version=" + Common::GetScmDescStr(),
       {{"X-Is-Dolphin", "1"}}, Common::HttpRequest::AllowedReturnCodes::All);
 
   if (!response.has_value())
@@ -238,7 +240,7 @@ void NetPlayIndex::Remove()
   // We don't really care whether this fails or not
   Common::HttpRequest request;
   request.Get(Config::Get(Config::NETPLAY_INDEX_URL) + "/v0/session/remove?secret=" + m_secret,
-              {{"X-Is-Dolphin", "1"}}, Common::HttpRequest::AllowedReturnCodes::All);
+      {{"X-Is-Dolphin", "1"}}, Common::HttpRequest::AllowedReturnCodes::All);
 
   m_secret.clear();
 }
@@ -246,8 +248,12 @@ void NetPlayIndex::Remove()
 std::vector<std::pair<std::string, std::string>> NetPlayIndex::GetRegions()
 {
   return {
-      {"EA", _trans("East Asia")},     {"CN", _trans("China")},         {"EU", _trans("Europe")},
-      {"NA", _trans("North America")}, {"SA", _trans("South America")}, {"OC", _trans("Oceania")},
+      {"EA", _trans("East Asia")},
+      {"CN", _trans("China")},
+      {"EU", _trans("Europe")},
+      {"NA", _trans("North America")},
+      {"SA", _trans("South America")},
+      {"OC", _trans("Oceania")},
       {"AF", _trans("Africa")},
   };
 }

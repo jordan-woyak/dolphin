@@ -44,7 +44,7 @@ class GekkoDisassembler final
 {
 public:
   static std::string Disassemble(u32 opcode, u32 current_instruction_address,
-                                 bool big_endian = true);
+      bool big_endian = true);
   static const char* GetGPRName(u32 index);
   static const char* GetFPRName(u32 index);
 

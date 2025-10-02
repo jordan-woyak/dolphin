@@ -54,7 +54,7 @@ void FileLogger::Log(const DiscIO::Volume& volume, const DiscIO::Partition& part
 {
   // Do nothing if the log isn't selected
   if (!Common::Log::LogManager::GetInstance()->IsEnabled(Common::Log::LogType::FILEMON,
-                                                         Common::Log::LogLevel::LWARNING))
+          Common::Log::LogLevel::LWARNING))
   {
     return;
   }

@@ -39,14 +39,38 @@ static constexpr int GetLoadSize(int load_bytes)
 }
 
 alignas(16) static const float scale_factors[] = {
-    1.0 / (1ULL << 0),  1.0 / (1ULL << 1),  1.0 / (1ULL << 2),  1.0 / (1ULL << 3),
-    1.0 / (1ULL << 4),  1.0 / (1ULL << 5),  1.0 / (1ULL << 6),  1.0 / (1ULL << 7),
-    1.0 / (1ULL << 8),  1.0 / (1ULL << 9),  1.0 / (1ULL << 10), 1.0 / (1ULL << 11),
-    1.0 / (1ULL << 12), 1.0 / (1ULL << 13), 1.0 / (1ULL << 14), 1.0 / (1ULL << 15),
-    1.0 / (1ULL << 16), 1.0 / (1ULL << 17), 1.0 / (1ULL << 18), 1.0 / (1ULL << 19),
-    1.0 / (1ULL << 20), 1.0 / (1ULL << 21), 1.0 / (1ULL << 22), 1.0 / (1ULL << 23),
-    1.0 / (1ULL << 24), 1.0 / (1ULL << 25), 1.0 / (1ULL << 26), 1.0 / (1ULL << 27),
-    1.0 / (1ULL << 28), 1.0 / (1ULL << 29), 1.0 / (1ULL << 30), 1.0 / (1ULL << 31),
+    1.0 / (1ULL << 0),
+    1.0 / (1ULL << 1),
+    1.0 / (1ULL << 2),
+    1.0 / (1ULL << 3),
+    1.0 / (1ULL << 4),
+    1.0 / (1ULL << 5),
+    1.0 / (1ULL << 6),
+    1.0 / (1ULL << 7),
+    1.0 / (1ULL << 8),
+    1.0 / (1ULL << 9),
+    1.0 / (1ULL << 10),
+    1.0 / (1ULL << 11),
+    1.0 / (1ULL << 12),
+    1.0 / (1ULL << 13),
+    1.0 / (1ULL << 14),
+    1.0 / (1ULL << 15),
+    1.0 / (1ULL << 16),
+    1.0 / (1ULL << 17),
+    1.0 / (1ULL << 18),
+    1.0 / (1ULL << 19),
+    1.0 / (1ULL << 20),
+    1.0 / (1ULL << 21),
+    1.0 / (1ULL << 22),
+    1.0 / (1ULL << 23),
+    1.0 / (1ULL << 24),
+    1.0 / (1ULL << 25),
+    1.0 / (1ULL << 26),
+    1.0 / (1ULL << 27),
+    1.0 / (1ULL << 28),
+    1.0 / (1ULL << 29),
+    1.0 / (1ULL << 30),
+    1.0 / (1ULL << 31),
 };
 
 VertexLoaderARM64::VertexLoaderARM64(const TVtxDesc& vtx_desc, const VAT& vtx_att)
@@ -63,7 +87,7 @@ VertexLoaderARM64::VertexLoaderARM64(const TVtxDesc& vtx_desc, const VAT& vtx_at
 // For indexed attributes, the index is read into scratch1_reg, and then scratch1_reg with no offset
 // is returned. For direct attributes, an offset from src_reg is returned.
 std::pair<Arm64Gen::ARM64Reg, u32> VertexLoaderARM64::GetVertexAddr(CPArray array,
-                                                                    VertexComponentFormat attribute)
+    VertexComponentFormat attribute)
 {
   if (IsIndexed(attribute))
   {
@@ -102,9 +126,8 @@ std::pair<Arm64Gen::ARM64Reg, u32> VertexLoaderARM64::GetVertexAddr(CPArray arra
 }
 
 void VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentFormat format,
-                                   int count_in, int count_out, bool dequantize,
-                                   u8 scaling_exponent, AttributeFormat* native_format,
-                                   ARM64Reg reg, u32 offset)
+    int count_in, int count_out, bool dequantize, u8 scaling_exponent,
+    AttributeFormat* native_format, ARM64Reg reg, u32 offset)
 {
   ARM64Reg coords = count_in == 3 ? ARM64Reg::Q31 : ARM64Reg::D31;
   ARM64Reg scale = count_in == 3 ? ARM64Reg::Q30 : ARM64Reg::D30;
@@ -198,7 +221,7 @@ void VertexLoaderARM64::ReadVertex(VertexComponentFormat attribute, ComponentFor
 }
 
 void VertexLoaderARM64::ReadColor(VertexComponentFormat attribute, ColorFormat format, ARM64Reg reg,
-                                  u32 offset)
+    u32 offset)
 {
   int load_bytes = 0;
   switch (format)
@@ -395,20 +418,19 @@ void VertexLoaderARM64::GenerateVertexLoader()
 
     const auto [reg, offset] = GetVertexAddr(CPArray::Position, m_VtxDesc.low.Position);
     ReadVertex(m_VtxDesc.low.Position, m_VtxAttr.g0.PosFormat, pos_elements, pos_elements,
-               m_VtxAttr.g0.ByteDequant, m_VtxAttr.g0.PosFrac, &m_native_vtx_decl.position, reg,
-               offset);
+        m_VtxAttr.g0.ByteDequant, m_VtxAttr.g0.PosFrac, &m_native_vtx_decl.position, reg, offset);
   }
 
   if (m_VtxDesc.low.Normal != VertexComponentFormat::NotPresent)
   {
-    static constexpr Common::EnumMap<u8, ComponentFormat::InvalidFloat7> SCALE_MAP = {7, 6, 15, 14,
-                                                                                      0, 0, 0,  0};
+    static constexpr Common::EnumMap<u8, ComponentFormat::InvalidFloat7> SCALE_MAP = {
+        7, 6, 15, 14, 0, 0, 0, 0};
     const u8 scaling_exponent = SCALE_MAP[m_VtxAttr.g0.NormalFormat];
 
     // Normal
     auto [reg, offset] = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal);
     ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
-               &m_native_vtx_decl.normals[0], reg, offset);
+        &m_native_vtx_decl.normals[0], reg, offset);
 
     if (m_VtxAttr.g0.NormalElements == NormalComponentCount::NTB)
     {
@@ -424,12 +446,12 @@ void VertexLoaderARM64::GenerateVertexLoader()
       // applied. Note that this is different from adding 1 to the index, as the stride for indices
       // may be different from the size of the tangent itself.
       ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
-                 &m_native_vtx_decl.normals[1], reg, offset + load_bytes);
+          &m_native_vtx_decl.normals[1], reg, offset + load_bytes);
       // Binormal
       if (index3)
         std::tie(reg, offset) = GetVertexAddr(CPArray::Normal, m_VtxDesc.low.Normal);
       ReadVertex(m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalFormat, 3, 3, true, scaling_exponent,
-                 &m_native_vtx_decl.normals[2], reg, offset + load_bytes * 2);
+          &m_native_vtx_decl.normals[2], reg, offset + load_bytes * 2);
     }
   }
 
@@ -464,8 +486,8 @@ void VertexLoaderARM64::GenerateVertexLoader()
       const auto [reg, offset] = GetVertexAddr(CPArray::TexCoord0 + i, m_VtxDesc.high.TexCoord[i]);
       u8 scaling_exponent = m_VtxAttr.GetTexFrac(i);
       ReadVertex(m_VtxDesc.high.TexCoord[i], m_VtxAttr.GetTexFormat(i), elements,
-                 m_VtxDesc.low.TexMatIdx[i] ? 2 : elements, m_VtxAttr.g0.ByteDequant,
-                 scaling_exponent, &m_native_vtx_decl.texcoords[i], reg, offset);
+          m_VtxDesc.low.TexMatIdx[i] ? 2 : elements, m_VtxAttr.g0.ByteDequant, scaling_exponent,
+          &m_native_vtx_decl.texcoords[i], reg, offset);
     }
     if (m_VtxDesc.low.TexMatIdx[i])
     {
@@ -520,10 +542,10 @@ void VertexLoaderARM64::GenerateVertexLoader()
   FlushIcache();
 
   ASSERT_MSG(VIDEO, m_vertex_size == m_src_ofs,
-             "Vertex size from vertex loader ({}) does not match expected vertex size ({})!\nVtx "
-             "desc: {:08x} {:08x}\nVtx attr: {:08x} {:08x} {:08x}",
-             m_src_ofs, m_vertex_size, m_VtxDesc.low.Hex, m_VtxDesc.high.Hex, m_VtxAttr.g0.Hex,
-             m_VtxAttr.g1.Hex, m_VtxAttr.g2.Hex);
+      "Vertex size from vertex loader ({}) does not match expected vertex size ({})!\nVtx "
+      "desc: {:08x} {:08x}\nVtx attr: {:08x} {:08x} {:08x}",
+      m_src_ofs, m_vertex_size, m_VtxDesc.low.Hex, m_VtxDesc.high.Hex, m_VtxAttr.g0.Hex,
+      m_VtxAttr.g1.Hex, m_VtxAttr.g2.Hex);
   m_native_vtx_decl.stride = m_dst_ofs;
 }
 

@@ -56,9 +56,11 @@ void JitBlockTableModel::PrefetchSymbols()
   {
     for (const JitBlock& block : m_jit_blocks)
     {
-      m_symbol_list.emplace_back([this, &block] {
-        return GetSymbolNameQVariant(m_ppc_symbol_db.GetSymbolFromAddr(block.effectiveAddress));
-      });
+      m_symbol_list.emplace_back(
+          [this, &block]
+          {
+            return GetSymbolNameQVariant(m_ppc_symbol_db.GetSymbolFromAddr(block.effectiveAddress));
+          });
     }
   }
 }
@@ -78,9 +80,8 @@ void JitBlockTableModel::Update(Core::State state)
   if (state == Core::State::Paused)
   {
     m_jit_blocks.reserve(m_jit_interface.GetBlockCount());
-    m_jit_interface.RunOnBlocks(Core::CPUThreadGuard{m_system}, [this](const JitBlock& block) {
-      m_jit_blocks.emplace_back(block);
-    });
+    m_jit_interface.RunOnBlocks(Core::CPUThreadGuard{m_system},
+        [this](const JitBlock& block) { m_jit_blocks.emplace_back(block); });
     SumOverallCosts();
   }
   PrefetchSymbols();
@@ -119,7 +120,7 @@ void JitBlockTableModel::ConnectSlots()
   connect(host, &Host::PPCBreakpointsChanged, this, &JitBlockTableModel::OnPPCBreakpointsChanged);
   auto* const settings = &Settings::Instance();
   connect(settings, &Settings::EmulationStateChanged, this,
-          &JitBlockTableModel::OnEmulationStateChanged);
+      &JitBlockTableModel::OnEmulationStateChanged);
 }
 
 void JitBlockTableModel::DisconnectSlots()
@@ -130,10 +131,10 @@ void JitBlockTableModel::DisconnectSlots()
   disconnect(host, &Host::UpdateDisasmDialog, this, &JitBlockTableModel::OnUpdateDisasmDialog);
   disconnect(host, &Host::PPCSymbolsChanged, this, &JitBlockTableModel::OnPPCSymbolsUpdated);
   disconnect(host, &Host::PPCBreakpointsChanged, this,
-             &JitBlockTableModel::OnPPCBreakpointsChanged);
+      &JitBlockTableModel::OnPPCBreakpointsChanged);
   auto* const settings = &Settings::Instance();
   disconnect(settings, &Settings::EmulationStateChanged, this,
-             &JitBlockTableModel::OnEmulationStateChanged);
+      &JitBlockTableModel::OnEmulationStateChanged);
 }
 
 void JitBlockTableModel::Show()
@@ -205,10 +206,14 @@ void JitBlockTableModel::OnEmulationStateChanged(Core::State state)
 static QString GetQStringDescription(const CPUEmuFeatureFlags flags)
 {
   static const std::array<QString, (FEATURE_FLAG_END_OF_ENUMERATION - 1) << 1> descriptions = {
-      QStringLiteral(""),           QStringLiteral("DR"),
-      QStringLiteral("IR"),         QStringLiteral("DR|IR"),
-      QStringLiteral("PERFMON"),    QStringLiteral("DR|PERFMON"),
-      QStringLiteral("IR|PERFMON"), QStringLiteral("DR|IR|PERFMON"),
+      QStringLiteral(""),
+      QStringLiteral("DR"),
+      QStringLiteral("IR"),
+      QStringLiteral("DR|IR"),
+      QStringLiteral("PERFMON"),
+      QStringLiteral("DR|PERFMON"),
+      QStringLiteral("IR|PERFMON"),
+      QStringLiteral("DR|IR|PERFMON"),
   };
   return descriptions[flags];
 }
@@ -254,13 +259,14 @@ QVariant JitBlockTableModel::DisplayRoleData(const QModelIndex& index) const
   case Column::CyclesAverage:
     if (profile_data->run_count == 0)
       return QStringLiteral(" --- ");
-    return QString::number(
-        static_cast<double>(profile_data->cycles_spent) / profile_data->run_count, 'f', 6);
+    return QString::number(static_cast<double>(profile_data->cycles_spent) /
+                               profile_data->run_count,
+        'f', 6);
   case Column::CyclesPercent:
     if (m_overall_cycles_spent == 0)
       return QStringLiteral(" --- ");
     return QStringLiteral("%1%").arg(100.0 * profile_data->cycles_spent / m_overall_cycles_spent,
-                                     10, 'f', 6);
+        10, 'f', 6);
   case Column::TimeSpent:
   {
     const auto cast_time =
@@ -279,8 +285,9 @@ QVariant JitBlockTableModel::DisplayRoleData(const QModelIndex& index) const
   {
     if (m_overall_time_spent == JitBlock::ProfileData::Clock::duration{})
       return QStringLiteral(" --- ");
-    return QStringLiteral("%1%").arg(
-        100.0 * profile_data->time_spent.count() / m_overall_time_spent.count(), 10, 'f', 6);
+    return QStringLiteral("%1%").arg(100.0 * profile_data->time_spent.count() /
+                                         m_overall_time_spent.count(),
+        10, 'f', 6);
   }
   }
   static_assert(Column::NumberOfColumns == 14);
@@ -434,7 +441,7 @@ bool JitBlockTableModel::removeRows(int row, int count, const QModelIndex& paren
 
   beginRemoveRows(parent, row, row + count - 1);  // Last is inclusive in Qt!
   for (const JitBlock& block :
-       std::span{m_jit_blocks.data() + row, static_cast<std::size_t>(count)})
+      std::span{m_jit_blocks.data() + row, static_cast<std::size_t>(count)})
   {
     m_jit_interface.EraseSingleBlock(block);
   }
@@ -445,7 +452,7 @@ bool JitBlockTableModel::removeRows(int row, int count, const QModelIndex& paren
 }
 
 JitBlockTableModel::JitBlockTableModel(Core::System& system, JitInterface& jit_interface,
-                                       PPCSymbolDB& ppc_symbol_db, QObject* parent)
+    PPCSymbolDB& ppc_symbol_db, QObject* parent)
     : QAbstractTableModel(parent), m_system(system), m_jit_interface(jit_interface),
       m_ppc_symbol_db(ppc_symbol_db)
 {

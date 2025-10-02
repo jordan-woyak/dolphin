@@ -17,10 +17,10 @@ void HotkeyTAS::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Frame Advance"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_FRAME_ADVANCE)));
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Movie"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_MOVIE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Frame Advance"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_FRAME_ADVANCE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Movie"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_MOVIE)));
 
   setLayout(m_main_layout);
 }

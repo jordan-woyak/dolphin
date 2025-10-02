@@ -96,7 +96,7 @@ public:
   void SetCalibrationFromGate(const StickGate& gate);
 
   static void UpdateCalibrationData(CalibrationData& data, Common::DVec2 point1,
-                                    Common::DVec2 point2);
+      Common::DVec2 point2);
   static ControlState GetCalibrationDataRadiusAtAngle(const CalibrationData& data, double angle);
 
   const CalibrationData& GetCalibrationData() const;
@@ -111,7 +111,7 @@ public:
 
 protected:
   ReshapeData Reshape(ControlState x, ControlState y, ControlState modifier = 0.0,
-                      ControlState clamp = 1.0) const;
+      ControlState clamp = 1.0) const;
 
   virtual Control* GetModifierInput() const;
 

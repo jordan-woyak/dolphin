@@ -119,7 +119,7 @@ KeyboardMouse::~KeyboardMouse()
 }
 
 KeyboardMouse::KeyboardMouse(const LPDIRECTINPUTDEVICE8 kb_device,
-                             const LPDIRECTINPUTDEVICE8 mo_device)
+    const LPDIRECTINPUTDEVICE8 mo_device)
     : m_kb_device(kb_device), m_mo_device(mo_device), m_last_update(GetTickCount()), m_state_in()
 {
   s_keyboard_mouse_exists = true;

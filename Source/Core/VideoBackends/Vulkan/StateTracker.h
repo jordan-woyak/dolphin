@@ -60,7 +60,7 @@ public:
 
   // Ends the current render pass if it was a clear render pass.
   void BeginClearRenderPass(const VkRect2D& area, const VkClearValue* clear_values,
-                            u32 num_clear_values);
+      u32 num_clear_values);
   void EndClearRenderPass();
 
   void SetViewport(const VkViewport& viewport);

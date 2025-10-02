@@ -10,7 +10,7 @@
 
 template <typename T>
 void ReadEnabledOrDisabled(const Common::IniFile& ini, const std::string& section, bool enabled,
-                           std::vector<T>* codes)
+    std::vector<T>* codes)
 {
   std::vector<std::string> lines;
   ini.GetLines(section, &lines, false);
@@ -31,7 +31,7 @@ void ReadEnabledOrDisabled(const Common::IniFile& ini, const std::string& sectio
 
 template <typename T>
 void ReadEnabledAndDisabled(const Common::IniFile& ini, const std::string& section,
-                            std::vector<T>* codes)
+    std::vector<T>* codes)
 {
   ReadEnabledOrDisabled(ini, section + "_Enabled", true, codes);
   ReadEnabledOrDisabled(ini, section + "_Disabled", false, codes);

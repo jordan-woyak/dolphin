@@ -73,7 +73,7 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
   while (true)
   {
     m_worker_thread_wake.wait(load_lock,
-                              [&] { return !m_assets_to_load.empty() || m_exit_flag.IsSet(); });
+        [&] { return !m_assets_to_load.empty() || m_exit_flag.IsSet(); });
 
     if (m_exit_flag.IsSet())
       return;
@@ -105,7 +105,7 @@ void CustomAssetLoader::WorkerThreadRun(u32 thread_index)
 
     {
       INFO_LOG_FMT(VIDEO, "CustomAssetLoader thread {} loaded: {} ({})", thread_index,
-                   item->GetAssetId(), UICommon::FormatSize(bytes_loaded));
+          item->GetAssetId(), UICommon::FormatSize(bytes_loaded));
 
       std::lock_guard lk{m_assets_loaded_lock};
       m_asset_handles_loaded.emplace_back(item->GetHandle(), bytes_loaded > 0);
@@ -126,7 +126,7 @@ auto CustomAssetLoader::TakeLoadResults() -> LoadResults
 }
 
 void CustomAssetLoader::ScheduleAssetsToLoad(std::list<CustomAsset*> assets_to_load,
-                                             u64 allowed_memory)
+    u64 allowed_memory)
 {
   if (assets_to_load.empty()) [[unlikely]]
     return;

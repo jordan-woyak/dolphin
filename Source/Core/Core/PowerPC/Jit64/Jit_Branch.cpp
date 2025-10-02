@@ -69,7 +69,7 @@ void Jit64::rfi(UGeckoInstruction inst)
 
 template <bool condition>
 void Jit64::WriteBranchWatch(u32 origin, u32 destination, UGeckoInstruction inst, X64Reg reg_a,
-                             X64Reg reg_b, BitSet32 caller_save)
+    X64Reg reg_b, BitSet32 caller_save)
 {
   MOV(64, R(reg_a), ImmPtr(&m_branch_watch));
   MOVZX(32, 8, reg_b, MDisp(reg_a, Core::BranchWatch::GetOffsetOfRecordingActive()));
@@ -100,7 +100,7 @@ template void Jit64::WriteBranchWatch<true>(u32, u32, UGeckoInstruction, X64Reg,
 template void Jit64::WriteBranchWatch<false>(u32, u32, UGeckoInstruction, X64Reg, X64Reg, BitSet32);
 
 void Jit64::WriteBranchWatchDestInRSCRATCH(u32 origin, UGeckoInstruction inst, X64Reg reg_a,
-                                           X64Reg reg_b, BitSet32 caller_save)
+    X64Reg reg_b, BitSet32 caller_save)
 {
   MOV(64, R(reg_a), ImmPtr(&m_branch_watch));
   MOVZX(32, 8, reg_b, MDisp(reg_a, Core::BranchWatch::GetOffsetOfRecordingActive()));
@@ -147,7 +147,7 @@ void Jit64::bx(UGeckoInstruction inst)
     if (IsDebuggingEnabled())
     {
       WriteBranchWatch<true>(js.compilerPC, js.op->branchTo, inst, RSCRATCH, RSCRATCH2,
-                             CallerSavedRegistersInUse());
+          CallerSavedRegistersInUse());
     }
     if (inst.LK && !js.op->skipLRStack)
     {
@@ -220,7 +220,7 @@ void Jit64::bcx(UGeckoInstruction inst)
     if (IsDebuggingEnabled())
     {
       WriteBranchWatch<true>(js.compilerPC, js.op->branchTo, inst, RSCRATCH, RSCRATCH2,
-                             CallerSavedRegistersInUse());
+          CallerSavedRegistersInUse());
     }
     if (inst.LK && !js.op->skipLRStack)
     {
@@ -272,7 +272,7 @@ void Jit64::bcx(UGeckoInstruction inst)
   else if (IsDebuggingEnabled())
   {
     WriteBranchWatch<false>(js.compilerPC, js.compilerPC + 4, inst, RSCRATCH, RSCRATCH2,
-                            CallerSavedRegistersInUse());
+        CallerSavedRegistersInUse());
   }
 }
 
@@ -283,7 +283,7 @@ void Jit64::bcctrx(UGeckoInstruction inst)
 
   // bcctrx doesn't decrement and/or test CTR
   DEBUG_ASSERT_MSG(POWERPC, inst.BO_2 & BO_DONT_DECREMENT_FLAG,
-                   "bcctrx with decrement and test CTR option is invalid!");
+      "bcctrx with decrement and test CTR option is invalid!");
 
   if (inst.BO_2 & BO_DONT_CHECK_CONDITION)
   {
@@ -301,7 +301,7 @@ void Jit64::bcctrx(UGeckoInstruction inst)
     {
       // ABI_PARAM1 is safe to use after a GPR flush for an optimization in this function.
       WriteBranchWatchDestInRSCRATCH(js.compilerPC, inst, ABI_PARAM1, RSCRATCH2,
-                                     BitSet32{RSCRATCH});
+          BitSet32{RSCRATCH});
     }
     WriteExitDestInRSCRATCH(inst.LK_3, js.compilerPC + 4);
   }
@@ -329,7 +329,7 @@ void Jit64::bcctrx(UGeckoInstruction inst)
       {
         // ABI_PARAM1 is safe to use after a GPR flush for an optimization in this function.
         WriteBranchWatchDestInRSCRATCH(js.compilerPC, inst, ABI_PARAM1, RSCRATCH2,
-                                       BitSet32{RSCRATCH});
+            BitSet32{RSCRATCH});
       }
       WriteExitDestInRSCRATCH(inst.LK_3, js.compilerPC + 4);
       // Would really like to continue the block here, but it ends. TODO.
@@ -350,7 +350,7 @@ void Jit64::bcctrx(UGeckoInstruction inst)
     else if (IsDebuggingEnabled())
     {
       WriteBranchWatch<false>(js.compilerPC, js.compilerPC + 4, inst, RSCRATCH, RSCRATCH2,
-                              CallerSavedRegistersInUse());
+          CallerSavedRegistersInUse());
     }
   }
 }
@@ -413,7 +413,7 @@ void Jit64::bclrx(UGeckoInstruction inst)
       {
         // ABI_PARAM1 is safe to use after a GPR flush for an optimization in this function.
         WriteBranchWatchDestInRSCRATCH(js.compilerPC, inst, ABI_PARAM1, RSCRATCH2,
-                                       BitSet32{RSCRATCH});
+            BitSet32{RSCRATCH});
       }
       WriteBLRExit();
     }
@@ -438,6 +438,6 @@ void Jit64::bclrx(UGeckoInstruction inst)
   else if (IsDebuggingEnabled())
   {
     WriteBranchWatch<false>(js.compilerPC, js.compilerPC + 4, inst, RSCRATCH, RSCRATCH2,
-                            CallerSavedRegistersInUse());
+        CallerSavedRegistersInUse());
   }
 }

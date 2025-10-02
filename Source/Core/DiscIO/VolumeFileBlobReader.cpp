@@ -12,8 +12,7 @@
 namespace DiscIO
 {
 std::unique_ptr<VolumeFileBlobReader> VolumeFileBlobReader::Create(const Volume& volume,
-                                                                   const Partition& partition,
-                                                                   std::string_view file_path)
+    const Partition& partition, std::string_view file_path)
 {
   const FileSystem* file_system = volume.GetFileSystem(partition);
   if (!file_system)
@@ -28,7 +27,7 @@ std::unique_ptr<VolumeFileBlobReader> VolumeFileBlobReader::Create(const Volume&
 }
 
 VolumeFileBlobReader::VolumeFileBlobReader(const Volume& volume, const Partition& partition,
-                                           std::unique_ptr<FileInfo> file_info)
+    std::unique_ptr<FileInfo> file_info)
     : m_volume(volume), m_partition(partition), m_file_info(std::move(file_info))
 {
 }

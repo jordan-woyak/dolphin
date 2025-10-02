@@ -37,13 +37,13 @@ public:
   void ThreadFunc();
   void SendAsync(sf::Packet&& packet, PlayerId pid, u8 channel_id = DEFAULT_CHANNEL);
   void SendAsyncToClients(sf::Packet&& packet, PlayerId skip_pid = 0,
-                          u8 channel_id = DEFAULT_CHANNEL);
+      u8 channel_id = DEFAULT_CHANNEL);
   void SendChunked(sf::Packet&& packet, PlayerId pid, const std::string& title = "");
   void SendChunkedToClients(sf::Packet&& packet, PlayerId skip_pid = 0,
-                            const std::string& title = "");
+      const std::string& title = "");
 
   NetPlayServer(u16 port, bool forward_port, NetPlayUI* dialog,
-                const NetTraversalConfig& traversal_config);
+      const NetTraversalConfig& traversal_config);
   ~NetPlayServer() override;
 
   bool ChangeGame(const SyncIdentifier& sync_identifier, const std::string& netplay_name);
@@ -131,11 +131,11 @@ private:
 
   template <typename... Data>
   void SendResponseToPlayer(const Client& player, const MessageID message_id,
-                            Data&&... data_to_send);
+      Data&&... data_to_send);
   template <typename... Data>
   void SendResponseToAllPlayers(const MessageID message_id, Data&&... data_to_send);
   void SendToClients(const sf::Packet& packet, PlayerId skip_pid = 0,
-                     u8 channel_id = DEFAULT_CHANNEL);
+      u8 channel_id = DEFAULT_CHANNEL);
   void Send(ENetPeer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
   ConnectionError OnConnect(ENetPeer* socket, sf::Packet& received_packet);
   unsigned int OnDisconnect(const Client& player);

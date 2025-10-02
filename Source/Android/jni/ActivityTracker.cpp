@@ -9,8 +9,8 @@
 extern "C" {
 
 JNIEXPORT void JNICALL
-Java_org_dolphinemu_dolphinemu_utils_ActivityTracker_setBackgroundExecutionAllowedNative(
-    JNIEnv*, jclass, jboolean allowed)
+Java_org_dolphinemu_dolphinemu_utils_ActivityTracker_setBackgroundExecutionAllowedNative(JNIEnv*,
+    jclass, jboolean allowed)
 {
   // This is called with allowed == false when the app goes into the background.
   // We use this to stop continuously running background threads so we don't waste battery.

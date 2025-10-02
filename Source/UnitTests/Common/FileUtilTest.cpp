@@ -57,7 +57,7 @@ static void DeleteShouldRemoveFile(const std::string& path, File::IfAbsentBehavi
 }
 
 static void DeleteShouldReturnTrueForInvalidPath(const std::string& path,
-                                                 File::IfAbsentBehavior behavior)
+    File::IfAbsentBehavior behavior)
 {
   EXPECT_TRUE(File::Delete(path, behavior));
 }
@@ -76,7 +76,7 @@ static void DeleteDirShouldNotRemoveFile(const std::string& path, File::IfAbsent
 }
 
 static void DeleteDirShouldReturnTrueForInvalidPath(const std::string& path,
-                                                    File::IfAbsentBehavior behavior)
+    File::IfAbsentBehavior behavior)
 {
   EXPECT_TRUE(File::DeleteDir(path, behavior));
 }

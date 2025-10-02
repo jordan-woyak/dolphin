@@ -300,7 +300,7 @@ std::string ValueToString(bool value)
 }
 
 bool SplitPath(std::string_view full_path, std::string* path, std::string* filename,
-               std::string* extension)
+    std::string* extension)
 {
   if (full_path.empty())
     return false;
@@ -418,7 +418,7 @@ static std::wstring CPToUTF16(u32 code_page, std::string_view input)
 
   if (size == 0 ||
       size != MultiByteToWideChar(code_page, 0, input.data(), static_cast<int>(input.size()),
-                                  &output[0], static_cast<int>(output.size())))
+                  &output[0], static_cast<int>(output.size())))
   {
     output.clear();
   }
@@ -433,16 +433,16 @@ static std::string UTF16ToCP(u32 code_page, std::wstring_view input)
 
   // "If cchWideChar [input buffer size] is set to 0, the function fails." -MSDN
   auto const size = WideCharToMultiByte(code_page, 0, input.data(), static_cast<int>(input.size()),
-                                        nullptr, 0, nullptr, nullptr);
+      nullptr, 0, nullptr, nullptr);
 
   std::string output(size, '\0');
 
   if (size != WideCharToMultiByte(code_page, 0, input.data(), static_cast<int>(input.size()),
-                                  output.data(), static_cast<int>(output.size()), nullptr, nullptr))
+                  output.data(), static_cast<int>(output.size()), nullptr, nullptr))
   {
     const DWORD error_code = GetLastError();
     ERROR_LOG_FMT(COMMON, "WideCharToMultiByte Error in String '{}': {}", WStringToUTF8(input),
-                  error_code);
+        error_code);
     return {};
   }
 
@@ -511,7 +511,7 @@ std::string CodeTo(const char* tocode, const char* fromcode, std::basic_string_v
     {
       size_t const iconv_result =
           iconv(conv_desc, const_cast<char**>(reinterpret_cast<const char**>(&src_buffer)),
-                &src_bytes, &dst_buffer, &dst_bytes);
+              &src_bytes, &dst_buffer, &dst_bytes);
       if ((size_t)-1 == iconv_result)
       {
         if (EILSEQ == errno || EINVAL == errno)
@@ -567,7 +567,7 @@ std::string UTF8ToSHIFTJIS(std::string_view input)
 std::string WStringToUTF8(std::wstring_view input)
 {
   using codecvt = std::conditional_t<sizeof(wchar_t) == 2, std::codecvt_utf8_utf16<wchar_t>,
-                                     std::codecvt_utf8<wchar_t>>;
+      std::codecvt_utf8<wchar_t>>;
 
   std::wstring_convert<codecvt, wchar_t> converter;
   return converter.to_bytes(input.data(), input.data() + input.size());
@@ -665,8 +665,8 @@ void ToUpper(std::string* str)
 
 bool CaseInsensitiveEquals(std::string_view a, std::string_view b)
 {
-  return std::ranges::equal(
-      a, b, [](char ca, char cb) { return Common::ToLower(ca) == Common::ToLower(cb); });
+  return std::ranges::equal(a, b,
+      [](char ca, char cb) { return Common::ToLower(ca) == Common::ToLower(cb); });
 }
 
 bool CaseInsensitiveContains(std::string_view haystack, std::string_view needle)
@@ -677,7 +677,7 @@ bool CaseInsensitiveContains(std::string_view haystack, std::string_view needle)
   for (size_t i = 0; i + needle.size() <= haystack.size(); ++i)
   {
     if (std::ranges::equal(needle, haystack.substr(i, needle.size()),
-                           [](char a, char b) { return Common::ToLower(a) == Common::ToLower(b); }))
+            [](char a, char b) { return Common::ToLower(a) == Common::ToLower(b); }))
     {
       return true;
     }
@@ -687,8 +687,8 @@ bool CaseInsensitiveContains(std::string_view haystack, std::string_view needle)
 
 bool CaseInsensitiveLess::operator()(std::string_view a, std::string_view b) const
 {
-  return std::ranges::lexicographical_compare(
-      a, b, [](char ca, char cb) { return Common::ToLower(ca) < Common::ToLower(cb); });
+  return std::ranges::lexicographical_compare(a, b,
+      [](char ca, char cb) { return Common::ToLower(ca) < Common::ToLower(cb); });
 }
 
 std::string BytesToHexString(std::span<const u8> bytes)

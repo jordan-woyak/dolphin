@@ -23,9 +23,8 @@ public:
   bool Initialize();
 
   const std::vector<GraphicsModAction*>& GetProjectionActions(ProjectionType projection_type) const;
-  const std::vector<GraphicsModAction*>&
-  GetProjectionTextureActions(ProjectionType projection_type,
-                              const std::string& texture_name) const;
+  const std::vector<GraphicsModAction*>& GetProjectionTextureActions(ProjectionType projection_type,
+      const std::string& texture_name) const;
   const std::vector<GraphicsModAction*>&
   GetDrawStartedActions(const std::string& texture_name) const;
   const std::vector<GraphicsModAction*>&

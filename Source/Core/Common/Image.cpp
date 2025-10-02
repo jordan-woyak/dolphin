@@ -28,7 +28,7 @@ static auto make_spng_ctx(int flags)
 }
 
 bool LoadPNG(std::span<const u8> input, Common::UniqueBuffer<u8>* data_out, u32* width_out,
-             u32* height_out)
+    u32* height_out)
 {
   auto ctx = make_spng_ctx(0);
   if (!ctx)
@@ -56,7 +56,7 @@ bool LoadPNG(std::span<const u8> input, Common::UniqueBuffer<u8>* data_out, u32*
 }
 
 bool SavePNG(const std::string& path, const u8* input, ImageByteFormat format, u32 width,
-             u32 height, u32 stride, int level)
+    u32 height, u32 stride, int level)
 {
   Common::Timer timer;
   timer.Start();
@@ -95,7 +95,7 @@ bool SavePNG(const std::string& path, const u8* input, ImageByteFormat format, u
     return false;
 
   if (spng_encode_image(ctx.get(), nullptr, 0, SPNG_FMT_PNG,
-                        SPNG_ENCODE_PROGRESSIVE | SPNG_ENCODE_FINALIZE))
+          SPNG_ENCODE_PROGRESSIVE | SPNG_ENCODE_FINALIZE))
   {
     return false;
   }
@@ -107,7 +107,7 @@ bool SavePNG(const std::string& path, const u8* input, ImageByteFormat format, u
     if (err)
     {
       ERROR_LOG_FMT(FRAMEDUMP, "Failed to save {} by {} image to {} at level {}: error {}", width,
-                    height, path, level, err);
+          height, path, level, err);
       return false;
     }
   }
@@ -115,7 +115,7 @@ bool SavePNG(const std::string& path, const u8* input, ImageByteFormat format, u
   size_t image_len = 0;
   spng_decoded_image_size(ctx.get(), SPNG_FMT_PNG, &image_len);
   INFO_LOG_FMT(FRAMEDUMP, "{} byte {} by {} image saved to {} at level {} in {} ms", image_len,
-               width, height, path, level, timer.ElapsedMs());
+      width, height, path, level, timer.ElapsedMs());
   return true;
 }
 
@@ -139,7 +139,7 @@ static Common::UniqueBuffer<u8> RGBAToRGB(const u8* input, u32 width, u32 height
 }
 
 bool ConvertRGBAToRGBAndSavePNG(const std::string& path, const u8* input, u32 width, u32 height,
-                                u32 stride, int level)
+    u32 stride, int level)
 {
   const auto data = RGBAToRGB(input, width, height, stride);
   return SavePNG(path, data.data(), ImageByteFormat::RGB, width, height, width * 3, level);

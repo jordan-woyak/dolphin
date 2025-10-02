@@ -108,7 +108,7 @@ void Accelerator::WriteRaw(u16 value)
   else
   {
     ERROR_LOG_FMT(DSPLLE, "WriteRaw() - tried to write to address {:#x} without high bit set",
-                  m_current_address);
+        m_current_address);
   }
 }
 
@@ -120,7 +120,7 @@ u16 Accelerator::ReadSample(const s16* coefs)
   if (m_sample_format.unk != 0)
   {
     WARN_LOG_FMT(DSPLLE, "ReadSample() format {:#x} has unknown upper bits set",
-                 m_sample_format.hex);
+        m_sample_format.hex);
   }
 
   u16 val = 0;

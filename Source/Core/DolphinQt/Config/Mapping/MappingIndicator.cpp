@@ -137,8 +137,8 @@ ButtonIndicator::ButtonIndicator(ControlReference* control_ref) : m_control_ref{
 
 QSize ButtonIndicator::sizeHint() const
 {
-  return QSize{INPUT_DOT_RADIUS + 2,
-               QFontMetrics(font()).boundingRect(QStringLiteral("[")).height()};
+  return QSize{
+      INPUT_DOT_RADIUS + 2, QFontMetrics(font()).boundingRect(QStringLiteral("[")).height()};
 }
 
 void ButtonIndicator::Draw()
@@ -204,7 +204,7 @@ QPolygonF GetPolygonFromRadiusGetter(F&& radius_getter)
 // Constructs a polygon by querying a radius at varying angles:
 template <typename F>
 QPolygonF GetPolygonSegmentFromRadiusGetter(F&& radius_getter, double direction,
-                                            double segment_size, double segment_depth)
+    double segment_size, double segment_depth)
 {
   constexpr int shape_point_count = 6;
   QPolygonF shape{shape_point_count};
@@ -224,18 +224,18 @@ QPolygonF GetPolygonSegmentFromRadiusGetter(F&& radius_getter, double direction,
   const double upper_radius_outer = radius_getter(upper_angle);
   const double upper_radius_inner = upper_radius_outer - segment_depth;
 
-  shape[0] = {std::cos(lower_angle) * (lower_radius_inner),
-              std::sin(lower_angle) * (lower_radius_inner)};
+  shape[0] = {
+      std::cos(lower_angle) * (lower_radius_inner), std::sin(lower_angle) * (lower_radius_inner)};
   shape[1] = {std::cos(center_angle) * (center_radius_inner),
-              std::sin(center_angle) * (center_radius_inner)};
-  shape[2] = {std::cos(upper_angle) * (upper_radius_inner),
-              std::sin(upper_angle) * (upper_radius_inner)};
-  shape[3] = {std::cos(upper_angle) * upper_radius_outer,
-              std::sin(upper_angle) * upper_radius_outer};
-  shape[4] = {std::cos(center_angle) * center_radius_outer,
-              std::sin(center_angle) * center_radius_outer};
-  shape[5] = {std::cos(lower_angle) * lower_radius_outer,
-              std::sin(lower_angle) * lower_radius_outer};
+      std::sin(center_angle) * (center_radius_inner)};
+  shape[2] = {
+      std::cos(upper_angle) * (upper_radius_inner), std::sin(upper_angle) * (upper_radius_inner)};
+  shape[3] = {
+      std::cos(upper_angle) * upper_radius_outer, std::sin(upper_angle) * upper_radius_outer};
+  shape[4] = {
+      std::cos(center_angle) * center_radius_outer, std::sin(center_angle) * center_radius_outer};
+  shape[5] = {
+      std::cos(lower_angle) * lower_radius_outer, std::sin(lower_angle) * lower_radius_outer};
 
   return shape;
 }
@@ -245,8 +245,9 @@ bool IsPointOutsideCalibration(Common::DVec2 point, ControllerEmu::ReshapableInp
 {
   const auto center = input.GetCenter();
   const double current_radius = (point - center).Length();
-  const double input_radius = input.GetInputRadiusAtAngle(
-      std::atan2(point.y - center.y, point.x - center.x) + MathUtil::TAU);
+  const double input_radius =
+      input.GetInputRadiusAtAngle(std::atan2(point.y - center.y, point.x - center.x) +
+                                  MathUtil::TAU);
 
   constexpr double ALLOWED_ERROR = 1.3;
 
@@ -265,9 +266,8 @@ void DrawVirtualNotches(QPainter& p, ControllerEmu::ReshapableInput& stick, QCol
     const double segment_depth = 1.0 - ControllerEmu::MINIMUM_NOTCH_DISTANCE;
     const double segment_gap = MathUtil::TAU / 8.0;
     const double direction = segment_gap * i;
-    p.drawPolygon(GetPolygonSegmentFromRadiusGetter(
-        [&stick](double ang) { return stick.GetGateRadiusAtAngle(ang); }, direction, segment_size,
-        segment_depth));
+    p.drawPolygon(GetPolygonSegmentFromRadiusGetter([&stick](double ang)
+        { return stick.GetGateRadiusAtAngle(ang); }, direction, segment_size, segment_depth));
   }
 }
 
@@ -329,9 +329,8 @@ void CursorIndicator::Draw()
   const auto adj_coord = m_cursor_group.GetState(true);
 
   DrawReshapableInput(m_cursor_group,
-                      adj_coord.IsVisible() ?
-                          std::make_optional(Common::DVec2(adj_coord.x, adj_coord.y)) :
-                          std::nullopt);
+      adj_coord.IsVisible() ? std::make_optional(Common::DVec2(adj_coord.x, adj_coord.y)) :
+                              std::nullopt);
 }
 
 qreal SquareIndicator::GetContentsScale() const
@@ -344,7 +343,7 @@ void SquareIndicator::DrawBoundingBox(QPainter& p)
   p.setBrush(GetBBoxBrush());
   p.setPen(GetBBoxPen());
   p.drawRect(QRectF{NORMAL_INDICATOR_PADDING + 0.5, NORMAL_INDICATOR_PADDING + 0.5,
-                    NORMAL_INDICATOR_WIDTH + 1.0, NORMAL_INDICATOR_HEIGHT + 1.0});
+      NORMAL_INDICATOR_WIDTH + 1.0, NORMAL_INDICATOR_HEIGHT + 1.0});
 }
 
 void SquareIndicator::TransformPainter(QPainter& p)
@@ -357,8 +356,7 @@ void SquareIndicator::TransformPainter(QPainter& p)
   p.scale(scale, scale);
 }
 
-void ReshapableInputIndicator::DrawReshapableInput(
-    ControllerEmu::ReshapableInput& stick,
+void ReshapableInputIndicator::DrawReshapableInput(ControllerEmu::ReshapableInput& stick,
     std::optional<ControllerEmu::ReshapableInput::ReshapeData> adj_coord)
 {
   QPainter p(this);
@@ -389,8 +387,8 @@ void ReshapableInputIndicator::DrawReshapableInput(
   // Input gate. (i.e. the octagon shape)
   p.setPen(QPen(gate_pen_color, 0));
   p.setBrush(gate_brush_color);
-  p.drawPolygon(
-      GetPolygonFromRadiusGetter([&stick](double ang) { return stick.GetGateRadiusAtAngle(ang); }));
+  p.drawPolygon(GetPolygonFromRadiusGetter([&stick](double ang)
+      { return stick.GetGateRadiusAtAngle(ang); }));
 
   DrawVirtualNotches(p, stick, gate_pen_color);
 
@@ -402,14 +400,14 @@ void ReshapableInputIndicator::DrawReshapableInput(
   // Deadzone.
   p.setPen(GetDeadZonePen());
   p.setBrush(GetDeadZoneBrush(p));
-  p.drawPolygon(GetPolygonFromRadiusGetter(
-      [&stick](double ang) { return stick.GetDeadzoneRadiusAtAngle(ang); }));
+  p.drawPolygon(GetPolygonFromRadiusGetter([&stick](double ang)
+      { return stick.GetDeadzoneRadiusAtAngle(ang); }));
 
   // Input shape.
   p.setPen(GetInputShapePen());
   p.setBrush(Qt::NoBrush);
-  p.drawPolygon(GetPolygonFromRadiusGetter(
-      [&stick](double ang) { return stick.GetInputRadiusAtAngle(ang); }));
+  p.drawPolygon(GetPolygonFromRadiusGetter([&stick](double ang)
+      { return stick.GetInputRadiusAtAngle(ang); }));
 
   // Center.
   if (center.x || center.y)
@@ -445,7 +443,7 @@ void AnalogStickIndicator::Draw()
   const auto adj_coord = m_group.GetReshapableState(true);
 
   DrawReshapableInput(m_group,
-                      (adj_coord.x || adj_coord.y) ? std::make_optional(adj_coord) : std::nullopt);
+      (adj_coord.x || adj_coord.y) ? std::make_optional(adj_coord) : std::nullopt);
 }
 
 void TiltIndicator::Update(float elapsed_seconds)
@@ -475,7 +473,7 @@ void TiltIndicator::Draw()
   adj_coord.y = std::fmod(adj_coord.y + norm_360_deg + norm_180_deg, norm_360_deg) - norm_180_deg;
 
   DrawReshapableInput(m_group,
-                      (adj_coord.x || adj_coord.y) ? std::make_optional(adj_coord) : std::nullopt);
+      (adj_coord.x || adj_coord.y) ? std::make_optional(adj_coord) : std::nullopt);
 }
 
 void MixedTriggersIndicator::Draw()
@@ -622,7 +620,7 @@ QColor SwingIndicator::GetGateBrushColor() const
 void SwingIndicator::Draw()
 {
   DrawReshapableInput(m_swing_group,
-                      Common::DVec2{-m_motion_state.position.x, m_motion_state.position.z});
+      Common::DVec2{-m_motion_state.position.x, m_motion_state.position.z});
 }
 
 void ShakeMappingIndicator::Update(float elapsed_seconds)
@@ -632,17 +630,16 @@ void ShakeMappingIndicator::Update(float elapsed_seconds)
   for (auto& sample : m_position_samples)
     sample.age += elapsed_seconds;
 
-  m_position_samples.erase(
-      std::ranges::find_if(m_position_samples,
-                           [](const ShakeSample& sample) { return sample.age > 1.f; }),
+  m_position_samples.erase(std::ranges::find_if(m_position_samples,
+                               [](const ShakeSample& sample) { return sample.age > 1.f; }),
       m_position_samples.end());
 
   constexpr float MAX_DISTANCE = 0.5f;
 
   m_position_samples.push_front(ShakeSample{m_motion_state.position / MAX_DISTANCE});
 
-  const bool any_non_zero_samples = std::ranges::any_of(
-      m_position_samples, [](const ShakeSample& s) { return s.state.LengthSquared() != 0.0; });
+  const bool any_non_zero_samples = std::ranges::any_of(m_position_samples,
+      [](const ShakeSample& s) { return s.state.LengthSquared() != 0.0; });
 
   // Only start moving the line if there's non-zero data.
   if (m_grid_line_position || any_non_zero_samples)
@@ -722,12 +719,14 @@ void AccelerometerMappingIndicator::Draw()
   // Draw sphere.
   p.setPen(GetCosmeticPen(QPen(GetRawInputColor(), 0.5)));
 
-  GenerateFibonacciSphere(SPHERE_POINT_COUNT, [&](const Common::Vec3& point) {
-    const auto pt = rotation * point;
+  GenerateFibonacciSphere(SPHERE_POINT_COUNT,
+      [&](const Common::Vec3& point)
+      {
+        const auto pt = rotation * point;
 
-    if (pt.y > 0)
-      p.drawPoint(QPointF(pt.x, pt.z) * SPHERE_SIZE);
-  });
+        if (pt.y > 0)
+          p.drawPoint(QPointF(pt.x, pt.z) * SPHERE_SIZE);
+      });
 
   // Sphere outline.
   p.setPen(QPen(GetRawInputColor(), 0));
@@ -760,12 +759,12 @@ void AccelerometerMappingIndicator::Draw()
   // Red dot upright target.
   p.setPen(GetAdjustedInputColor());
   p.drawEllipse(QPointF{0, -SPHERE_INDICATOR_DIST} * GetContentsScale(), INPUT_DOT_RADIUS,
-                INPUT_DOT_RADIUS);
+      INPUT_DOT_RADIUS);
 
   // Blue dot target.
   p.setPen(GetCenterColor());
   p.drawEllipse(QPointF{0, SPHERE_INDICATOR_DIST} * GetContentsScale(), INPUT_DOT_RADIUS,
-                INPUT_DOT_RADIUS);
+      INPUT_DOT_RADIUS);
 
   // Only draw g-force text if acceleration data is present.
   if (!accel_state.has_value())
@@ -774,10 +773,10 @@ void AccelerometerMappingIndicator::Draw()
   // G-force text:
   p.setPen(GetTextColor());
   p.drawText(QRect(0, 0, NORMAL_INDICATOR_WIDTH / 2 - 2, NORMAL_INDICATOR_HEIGHT / 2 - 1),
-             Qt::AlignBottom | Qt::AlignRight,
-             QString::fromStdString(
-                 // i18n: "g" is the symbol for "gravitational force equivalent" (g-force).
-                 fmt::format("{:.2f} g", state.Length() / WiimoteEmu::GRAVITY_ACCELERATION)));
+      Qt::AlignBottom | Qt::AlignRight,
+      QString::fromStdString(
+          // i18n: "g" is the symbol for "gravitational force equivalent" (g-force).
+          fmt::format("{:.2f} g", state.Length() / WiimoteEmu::GRAVITY_ACCELERATION)));
 }
 
 void GyroMappingIndicator::Update(float elapsed_seconds)
@@ -850,12 +849,14 @@ void GyroMappingIndicator::Draw()
   // Sphere dots.
   p.setPen(GetCosmeticPen(QPen(GetRawInputColor(), 0.5)));
 
-  GenerateFibonacciSphere(SPHERE_POINT_COUNT, [&](const Common::Vec3& point) {
-    const auto pt = rotation * point;
+  GenerateFibonacciSphere(SPHERE_POINT_COUNT,
+      [&](const Common::Vec3& point)
+      {
+        const auto pt = rotation * point;
 
-    if (pt.y > 0)
-      p.drawPoint(QPointF(pt.x, pt.z) * SPHERE_SIZE);
-  });
+        if (pt.y > 0)
+          p.drawPoint(QPointF(pt.x, pt.z) * SPHERE_SIZE);
+      });
 
   // Sphere outline.
   const auto outline_color =
@@ -890,7 +891,7 @@ void GyroMappingIndicator::Draw()
   // Red dot upright target.
   p.setPen(GetAdjustedInputColor());
   p.drawEllipse(QPointF{0, -SPHERE_INDICATOR_DIST} * GetContentsScale(), INPUT_DOT_RADIUS,
-                INPUT_DOT_RADIUS);
+      INPUT_DOT_RADIUS);
 
   // Blue dot target.
   p.setPen(GetCenterColor());
@@ -918,7 +919,7 @@ void IRPassthroughMappingIndicator::Draw()
 
     const auto point =
         (QPointF{m_ir_group.GetObjectPositionX(i), m_ir_group.GetObjectPositionY(i)} -
-         QPointF{0.5, 0.5}) *
+            QPointF{0.5, 0.5}) *
         2.0;
 
     pen.setWidth(size * NORMAL_INDICATOR_WIDTH / 2);
@@ -954,7 +955,7 @@ void CalibrationWidget::DrawInProgressMapping(QPainter& p)
 
   // Stick.
   DrawPushedStick(p, m_indicator,
-                  QEasingCurve(QEasingCurve::OutBounce).valueForProgress(ping_pong));
+      QEasingCurve(QEasingCurve::OutBounce).valueForProgress(ping_pong));
 
   // Arrow.
   p.save();
@@ -1000,8 +1001,8 @@ void CalibrationWidget::DrawInProgressCalibration(QPainter& p, Common::DVec2 poi
   // Input shape.
   p.setPen(m_indicator.GetInputShapePen());
   p.setBrush(Qt::NoBrush);
-  p.drawPolygon(GetPolygonFromRadiusGetter(
-      [this](double angle) { return m_calibrator->GetCalibrationRadiusAtAngle(angle); }));
+  p.drawPolygon(GetPolygonFromRadiusGetter([this](double angle)
+      { return m_calibrator->GetCalibrationRadiusAtAngle(angle); }));
 
   // Calibrated center.
   if (center.x || center.y)
@@ -1037,14 +1038,13 @@ void ReshapableInputIndicator::SetCalibrationWidget(CalibrationWidget* widget)
 }
 
 CalibrationWidget::CalibrationWidget(MappingWidget& mapping_widget,
-                                     ControllerEmu::ReshapableInput& input,
-                                     ReshapableInputIndicator& indicator)
+    ControllerEmu::ReshapableInput& input, ReshapableInputIndicator& indicator)
     : m_mapping_widget(mapping_widget), m_input(input), m_indicator(indicator)
 {
   connect(mapping_widget.GetParent(), &MappingWindow::CancelMapping, this,
-          &CalibrationWidget::ResetActions);
+      &CalibrationWidget::ResetActions);
   connect(mapping_widget.GetParent(), &MappingWindow::ConfigChanged, this,
-          &CalibrationWidget::ResetActions);
+      &CalibrationWidget::ResetActions);
 
   m_indicator.SetCalibrationWidget(this);
 
@@ -1080,14 +1080,16 @@ void CalibrationWidget::ResetActions()
   auto* const reset_action = new QAction(tr("Reset Calibration"), this);
 
   connect(map_and_calibrate_action, &QAction::triggered, this,
-          &CalibrationWidget::StartMappingAndCalibration);
+      &CalibrationWidget::StartMappingAndCalibration);
   connect(calibrate_action, &QAction::triggered, this, [this]() { StartCalibration(); });
   connect(center_action, &QAction::triggered, this, [this]() { StartCalibration(std::nullopt); });
-  connect(reset_action, &QAction::triggered, this, [this]() {
-    const auto lock = m_mapping_widget.GetController()->GetStateLock();
-    m_input.SetCalibrationToDefault();
-    m_input.SetCenter({});
-  });
+  connect(reset_action, &QAction::triggered, this,
+      [this]()
+      {
+        const auto lock = m_mapping_widget.GetController()->GetStateLock();
+        m_input.SetCalibrationToDefault();
+        m_input.SetCenter({});
+      });
 
   DeleteAllActions();
 
@@ -1121,7 +1123,7 @@ void CalibrationWidget::StartMappingAndCalibration()
 
   const auto lock = window->GetController()->GetStateLock();
   m_mapper = std::make_unique<ciface::MappingCommon::ReshapableInputMapper>(g_controller_interface,
-                                                                            device_strings);
+      device_strings);
 }
 
 void CalibrationWidget::StartCalibration(std::optional<Common::DVec2> center)

@@ -66,7 +66,7 @@ void DualShockUDPClientWidget::CreateWidgets()
 void DualShockUDPClientWidget::ConnectWidgets()
 {
   connect(m_servers_enabled, &QCheckBox::clicked, this,
-          &DualShockUDPClientWidget::OnServersToggled);
+      &DualShockUDPClientWidget::OnServersToggled);
   connect(m_add_server, &QPushButton::clicked, this, &DualShockUDPClientWidget::OnServerAdded);
   connect(m_remove_server, &QPushButton::clicked, this, &DualShockUDPClientWidget::OnServerRemoved);
 }
@@ -84,9 +84,8 @@ void DualShockUDPClientWidget::RefreshServerList()
   {
     const auto& servers_setting = Config::Get(ciface::DualShockUDPClient::Settings::SERVERS);
     Config::SetBaseOrCurrent(ciface::DualShockUDPClient::Settings::SERVERS,
-                             servers_setting + fmt::format("{}:{}:{};", "DS4",
-                                                           server_address_setting,
-                                                           server_port_setting));
+        servers_setting +
+            fmt::format("{}:{}:{};", "DS4", server_address_setting, server_port_setting));
     Config::SetBase(ciface::DualShockUDPClient::Settings::SERVER_ADDRESS, "");
     Config::SetBase(ciface::DualShockUDPClient::Settings::SERVER_PORT, 0);
   }
@@ -99,8 +98,9 @@ void DualShockUDPClientWidget::RefreshServerList()
     if (server_info.size() < 3)
       continue;
 
-    QListWidgetItem* list_item = new QListWidgetItem(QString::fromStdString(
-        fmt::format("{}:{} - {}", server_info[1], server_info[2], server_info[0])));
+    QListWidgetItem* list_item =
+        new QListWidgetItem(QString::fromStdString(fmt::format("{}:{} - {}", server_info[1],
+            server_info[2], server_info[0])));
     m_server_list->addItem(list_item);
   }
   emit ConfigChanged();
@@ -110,7 +110,7 @@ void DualShockUDPClientWidget::OnServerAdded()
 {
   DualShockUDPClientAddServerDialog add_server_dialog(this);
   connect(&add_server_dialog, &DualShockUDPClientAddServerDialog::accepted, this,
-          &DualShockUDPClientWidget::RefreshServerList);
+      &DualShockUDPClientWidget::RefreshServerList);
   add_server_dialog.exec();
 }
 

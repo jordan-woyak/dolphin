@@ -114,9 +114,9 @@
  */
 #pragma pack(1)
 template <std::size_t position, std::size_t bits, typename T,
-          // StorageType is T for non-enum or the underlying-type for an enum.
-          typename StorageType = std::conditional_t<std::is_enum_v<T>, std::underlying_type<T>,
-                                                    std::type_identity<T>>::type>
+    // StorageType is T for non-enum or the underlying-type for an enum.
+    typename StorageType =
+        std::conditional_t<std::is_enum_v<T>, std::underlying_type<T>, std::type_identity<T>>::type>
 struct BitField
 {
 public:
@@ -208,9 +208,9 @@ class BitFieldArrayIterator;
 
 #pragma pack(1)
 template <std::size_t position, std::size_t bits, std::size_t size, typename T,
-          // StorageType is T for non-enum or the underlying-type for an enum.
-          typename StorageType = std::conditional_t<std::is_enum_v<T>, std::underlying_type<T>,
-                                                    std::type_identity<T>>::type>
+    // StorageType is T for non-enum or the underlying-type for an enum.
+    typename StorageType =
+        std::conditional_t<std::is_enum_v<T>, std::underlying_type<T>, std::type_identity<T>>::type>
 struct BitFieldArray
 {
 public:
@@ -308,7 +308,7 @@ public:
 
 private:
   constexpr BitFieldArrayConstRef(const BitFieldArray<position, bits, size, T, S>* array,
-                                  size_t index)
+      size_t index)
       : m_array(array), m_index(index)
   {
   }
@@ -421,7 +421,7 @@ public:
 
 private:
   constexpr BitFieldArrayConstIterator(const BitFieldArray<position, bits, size, T, S>* array,
-                                       size_t index)
+      size_t index)
       : m_array(array), m_index(index)
   {
   }
@@ -483,7 +483,7 @@ struct fmt::formatter<BitFieldArrayConstRef<position, bits, size, T, S>>
   constexpr auto parse(format_parse_context& ctx) { return m_formatter.parse(ctx); }
   template <typename FormatContext>
   auto format(const BitFieldArrayConstRef<position, bits, size, T, S>& ref,
-              FormatContext& ctx) const
+      FormatContext& ctx) const
   {
     return m_formatter.format(ref.Value(), ctx);
   }

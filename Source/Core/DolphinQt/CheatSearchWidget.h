@@ -35,8 +35,7 @@ class CheatSearchWidget : public QWidget
   Q_OBJECT
 public:
   explicit CheatSearchWidget(Core::System& system,
-                             std::unique_ptr<Cheats::CheatSearchSessionBase> session,
-                             QWidget* parent = nullptr);
+      std::unique_ptr<Cheats::CheatSearchSessionBase> session, QWidget* parent = nullptr);
   ~CheatSearchWidget() override;
 
   enum class UpdateSource
@@ -68,7 +67,7 @@ private:
   void RefreshCurrentValueTableItem(QTableWidgetItem* current_value_table_item);
   void RefreshGUICurrentValues(size_t begin_index, size_t end_index);
   bool UpdateTableRows(const Core::CPUThreadGuard& guard, size_t begin_index, size_t end_index,
-                       UpdateSource source);
+      UpdateSource source);
   void RecreateGUITable();
   void GenerateARCodes();
   int GetVisibleRowsBeginIndex() const;

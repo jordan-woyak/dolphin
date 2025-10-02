@@ -48,7 +48,7 @@ private:
   void Update();
   void UpdateThreadContext(const Common::Debug::PartialContext& context);
   void UpdateThreadCallstack(const Core::CPUThreadGuard& guard,
-                             const Common::Debug::PartialContext& context);
+      const Common::Debug::PartialContext& context);
   void OnSelectionChanged(int row);
 
   QGroupBox* m_state;

@@ -138,10 +138,10 @@ void CPUCull::Init()
 }
 
 bool CPUCull::AreAllVerticesCulled(VertexLoaderBase* loader, OpcodeDecoder::Primitive primitive,
-                                   const u8* src, u32 count)
+    const u8* src, u32 count)
 {
   ASSERT_MSG(VIDEO, primitive < OpcodeDecoder::Primitive::GX_DRAW_LINES,
-             "CPUCull should not be called on lines or points");
+      "CPUCull should not be called on lines or points");
   const u32 stride = loader->m_native_vtx_decl.stride;
   const bool posHas3Elems = loader->m_native_vtx_decl.position.components >= 3;
   const bool perVertexPosMtx = loader->m_native_vtx_decl.posmtx.enable;

@@ -30,7 +30,7 @@ void CachedInterpreterBlockCache::ClearRangesToFree()
 }
 
 void CachedInterpreterBlockCache::WriteLinkBlock(const JitBlock::LinkData& source,
-                                                 const JitBlock* dest)
+    const JitBlock* dest)
 {
 }
 

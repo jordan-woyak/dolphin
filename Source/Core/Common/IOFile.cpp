@@ -64,7 +64,7 @@ void IOFile::Swap(IOFile& other) noexcept
 }
 
 bool IOFile::Open(const std::string& filename, const char openmode[],
-                  [[maybe_unused]] SharedAccess sh)
+    [[maybe_unused]] SharedAccess sh)
 {
   Close();
 

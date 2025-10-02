@@ -108,11 +108,11 @@ public:
 
   // Texture reinterpret pipelines
   const AbstractPipeline* GetTextureReinterpretPipeline(TextureFormat from_format,
-                                                        TextureFormat to_format);
+      TextureFormat to_format);
 
   // Texture decoding compute shaders
   const AbstractShader* GetTextureDecodingShader(TextureFormat format,
-                                                 std::optional<TLUTFormat> palette_format);
+      std::optional<TLUTFormat> palette_format);
 
 private:
   static constexpr size_t NUM_PALETTE_CONVERSION_SHADERS = 3;
@@ -134,13 +134,13 @@ private:
   std::unique_ptr<AbstractShader>
   CompilePixelUberShader(const UberShader::PixelShaderUid& uid) const;
   const AbstractShader* InsertVertexShader(const VertexShaderUid& uid,
-                                           std::unique_ptr<AbstractShader> shader);
+      std::unique_ptr<AbstractShader> shader);
   const AbstractShader* InsertVertexUberShader(const UberShader::VertexShaderUid& uid,
-                                               std::unique_ptr<AbstractShader> shader);
+      std::unique_ptr<AbstractShader> shader);
   const AbstractShader* InsertPixelShader(const PixelShaderUid& uid,
-                                          std::unique_ptr<AbstractShader> shader);
+      std::unique_ptr<AbstractShader> shader);
   const AbstractShader* InsertPixelUberShader(const UberShader::PixelShaderUid& uid,
-                                              std::unique_ptr<AbstractShader> shader);
+      std::unique_ptr<AbstractShader> shader);
   const AbstractShader* CreateGeometryShader(const GeometryShaderUid& uid);
   bool NeedsGeometryShader(const GeometryShaderUid& uid) const;
 
@@ -148,17 +148,17 @@ private:
   bool UseGeometryShaderForEFBCopies() const;
 
   // GX pipeline compiler methods
-  AbstractPipelineConfig
-  GetGXPipelineConfig(const NativeVertexFormat* vertex_format, const AbstractShader* vertex_shader,
-                      const AbstractShader* geometry_shader, const AbstractShader* pixel_shader,
-                      const RasterizationState& rasterization_state, const DepthState& depth_state,
-                      const BlendingState& blending_state, AbstractPipelineUsage usage);
+  AbstractPipelineConfig GetGXPipelineConfig(const NativeVertexFormat* vertex_format,
+      const AbstractShader* vertex_shader, const AbstractShader* geometry_shader,
+      const AbstractShader* pixel_shader, const RasterizationState& rasterization_state,
+      const DepthState& depth_state, const BlendingState& blending_state,
+      AbstractPipelineUsage usage);
   std::optional<AbstractPipelineConfig> GetGXPipelineConfig(const GXPipelineUid& uid);
   std::optional<AbstractPipelineConfig> GetGXPipelineConfig(const GXUberPipelineUid& uid);
   const AbstractPipeline* InsertGXPipeline(const GXPipelineUid& config,
-                                           std::unique_ptr<AbstractPipeline> pipeline);
+      std::unique_ptr<AbstractPipeline> pipeline);
   const AbstractPipeline* InsertGXUberPipeline(const GXUberPipelineUid& config,
-                                               std::unique_ptr<AbstractPipeline> pipeline);
+      std::unique_ptr<AbstractPipeline> pipeline);
   void AddSerializedGXPipelineUID(const SerializedGXPipelineUid& uid);
   void AppendGXPipelineUID(const GXPipelineUid& config);
 
@@ -177,7 +177,7 @@ private:
   void ClearShaderCache(T& cache);
   template <typename KeyType, typename DiskKeyType, typename T>
   void LoadPipelineCache(T& cache, Common::LinearDiskCache<DiskKeyType, u8>& disk_cache,
-                         APIType api_type, const char* type, bool include_gameid);
+      APIType api_type, const char* type, bool include_gameid);
   template <typename T, typename Y>
   void ClearPipelineCache(T& cache, Y& disk_cache);
 

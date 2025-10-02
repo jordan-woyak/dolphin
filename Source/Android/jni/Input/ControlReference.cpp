@@ -13,8 +13,8 @@
 
 ControlReference* ControlReferenceFromJava(JNIEnv* env, jobject control_reference)
 {
-  return reinterpret_cast<ControlReference*>(
-      env->GetLongField(control_reference, IDCache::GetControlReferencePointer()));
+  return reinterpret_cast<ControlReference*>(env->GetLongField(control_reference,
+      IDCache::GetControlReferencePointer()));
 }
 
 jobject ControlReferenceToJava(JNIEnv* env, ControlReference* control_reference)
@@ -23,8 +23,7 @@ jobject ControlReferenceToJava(JNIEnv* env, ControlReference* control_reference)
     return nullptr;
 
   return env->NewObject(IDCache::GetControlReferenceClass(),
-                        IDCache::GetControlReferenceConstructor(),
-                        reinterpret_cast<jlong>(control_reference));
+      IDCache::GetControlReferenceConstructor(), reinterpret_cast<jlong>(control_reference));
 }
 
 extern "C" {

@@ -23,12 +23,11 @@ enum class Quote
 };
 
 std::string GetExpressionForControl(const std::string& control_name,
-                                    const Core::DeviceQualifier& control_device,
-                                    const Core::DeviceQualifier& default_device,
-                                    Quote quote = Quote::On);
+    const Core::DeviceQualifier& control_device, const Core::DeviceQualifier& default_device,
+    Quote quote = Quote::On);
 
 std::string BuildExpression(const Core::InputDetector::Results&,
-                            const Core::DeviceQualifier& default_device, Quote quote);
+    const Core::DeviceQualifier& default_device, Quote quote);
 
 void RemoveSpuriousTriggerCombinations(Core::InputDetector::Results*);
 void RemoveDetectionsAfterTimePoint(Core::InputDetector::Results*, Clock::time_point after);
@@ -43,7 +42,7 @@ public:
 
   // Caller should hold the "StateLock".
   ReshapableInputMapper(const Core::DeviceContainer& container,
-                        std::span<const std::string> device_strings);
+      std::span<const std::string> device_strings);
 
   // Reads inputs and updates internal state.
   // Returns true if an input was detected in this call.

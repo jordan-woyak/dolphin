@@ -507,8 +507,8 @@ Gen::OpArg DSPEmitter::M_SDSP_r_st(size_t index)
 
 Gen::OpArg DSPEmitter::M_SDSP_reg_stack_ptrs(size_t index)
 {
-  return MDisp(R15, static_cast<int>(offsetof(SDSP, reg_stack_ptrs) +
-                                     sizeof(SDSP::reg_stack_ptrs[0]) * index));
+  return MDisp(R15,
+      static_cast<int>(offsetof(SDSP, reg_stack_ptrs) + sizeof(SDSP::reg_stack_ptrs[0]) * index));
 }
 #ifdef __GNUC__
 #pragma GCC diagnostic pop

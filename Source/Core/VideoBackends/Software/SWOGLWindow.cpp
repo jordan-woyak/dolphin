@@ -47,7 +47,7 @@ bool SWOGLWindow::Initialize(const WindowSystemInfo& wsi)
   else if (GLExtensions::Version() < 310)
   {
     ERROR_LOG_FMT(VIDEO, "OpenGL Version {} detected, but at least 3.1 is required.",
-                  GLExtensions::Version());
+        GLExtensions::Version());
     return false;
   }
 
@@ -85,7 +85,7 @@ bool SWOGLWindow::Initialize(const WindowSystemInfo& wsi)
 }
 
 void SWOGLWindow::ShowImage(const AbstractTexture* image,
-                            const MathUtil::Rectangle<int>& xfb_region)
+    const MathUtil::Rectangle<int>& xfb_region)
 {
   const SW::SWTexture* sw_image = static_cast<const SW::SWTexture*>(image);
   m_gl_context->Update();  // just updates the render window position and the backbuffer size
@@ -104,8 +104,8 @@ void SWOGLWindow::ShowImage(const AbstractTexture* image,
   glPixelStorei(GL_UNPACK_ROW_LENGTH, sw_image->GetConfig().width);
 
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, static_cast<GLsizei>(sw_image->GetConfig().width),
-               static_cast<GLsizei>(sw_image->GetConfig().height), 0, GL_RGBA, GL_UNSIGNED_BYTE,
-               sw_image->GetData(0, 0));
+      static_cast<GLsizei>(sw_image->GetConfig().height), 0, GL_RGBA, GL_UNSIGNED_BYTE,
+      sw_image->GetData(0, 0));
 
   glUseProgram(m_image_program);
 

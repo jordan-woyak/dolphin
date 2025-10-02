@@ -53,7 +53,7 @@ double RoundToIntegerMode(double number)
 // in Appendix C.4.2 in PowerPC Microprocessor Family:
 // The Programming Environments Manual for 32 and 64-bit Microprocessors
 void ConvertToInteger(PowerPC::PowerPCState& ppc_state, UGeckoInstruction inst,
-                      RoundingMode rounding_mode)
+    RoundingMode rounding_mode)
 {
   const double b = ppc_state.ps[inst.FB].PS0AsDouble();
   double rounded;
@@ -146,7 +146,7 @@ void ConvertToInteger(PowerPC::PowerPCState& ppc_state, UGeckoInstruction inst,
 }  // Anonymous namespace
 
 void Interpreter::Helper_FloatCompareOrdered(PowerPC::PowerPCState& ppc_state,
-                                             UGeckoInstruction inst, double fa, double fb)
+    UGeckoInstruction inst, double fa, double fb)
 {
   FPCC compare_result;
 
@@ -188,7 +188,7 @@ void Interpreter::Helper_FloatCompareOrdered(PowerPC::PowerPCState& ppc_state,
 }
 
 void Interpreter::Helper_FloatCompareUnordered(PowerPC::PowerPCState& ppc_state,
-                                               UGeckoInstruction inst, double fa, double fb)
+    UGeckoInstruction inst, double fa, double fb)
 {
   FPCC compare_result;
 
@@ -516,7 +516,8 @@ void Interpreter::fresx(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const double b = ppc_state.ps[inst.FB].PS0AsDouble();
 
-  const auto compute_result = [&ppc_state, inst](double value) {
+  const auto compute_result = [&ppc_state, inst](double value)
+  {
     const double result = Common::ApproximateReciprocal(value);
     ppc_state.ps[inst.FD].Fill(result);
     ppc_state.UpdateFPRFSingle(float(result));
@@ -555,7 +556,8 @@ void Interpreter::frsqrtex(Interpreter& interpreter, UGeckoInstruction inst)
   auto& ppc_state = interpreter.m_ppc_state;
   const double b = ppc_state.ps[inst.FB].PS0AsDouble();
 
-  const auto compute_result = [&ppc_state, inst](double value) {
+  const auto compute_result = [&ppc_state, inst](double value)
+  {
     const double result = Common::ApproximateReciprocalSquareRoot(value);
     ppc_state.ps[inst.FD].SetPS0(result);
     ppc_state.UpdateFPRFDouble(result);

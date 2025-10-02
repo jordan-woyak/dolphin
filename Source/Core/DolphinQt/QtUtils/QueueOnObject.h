@@ -23,5 +23,5 @@ static void QueueOnObjectBlocking(T* obj, F&& func)
 {
   QObject src;
   QObject::connect(&src, &QObject::destroyed, obj, std::forward<F>(func),
-                   Qt::BlockingQueuedConnection);
+      Qt::BlockingQueuedConnection);
 }

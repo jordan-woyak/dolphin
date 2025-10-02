@@ -62,7 +62,7 @@ public:
 
   // If returns false, call GetErrorString to get some text to present to the user.
   bool Assemble(const std::string& text, std::vector<u16>& code,
-                std::vector<int>* line_numbers = nullptr);
+      std::vector<int>* line_numbers = nullptr);
 
   std::string GetErrorString() const { return m_last_error_str; }
   AssemblerError GetError() const { return m_last_error; }

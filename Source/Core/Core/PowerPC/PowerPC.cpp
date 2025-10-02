@@ -56,7 +56,7 @@ void PairedSingle::SetPS1(double value)
 static void InvalidateCacheThreadSafe(Core::System& system, u64 userdata, s64 cyclesLate)
 {
   system.GetPPCState().iCache.Invalidate(system.GetMemory(), system.GetJitInterface(),
-                                         static_cast<u32>(userdata));
+      static_cast<u32>(userdata));
   Host_JitCacheInvalidation();
 }
 
@@ -208,7 +208,7 @@ void PowerPCManager::InitializeCPUCore(CPUCore cpu_core)
     if (!m_cpu_core_base)  // Handle Situations where JIT core isn't available
     {
       WARN_LOG_FMT(POWERPC, "CPU core {} not available. Falling back to default.",
-                   static_cast<int>(cpu_core));
+          static_cast<int>(cpu_core));
       m_cpu_core_base = m_system.GetJitInterface().InitJitCore(DefaultCPUCore());
     }
     break;
@@ -291,12 +291,12 @@ void PowerPCManager::ScheduleInvalidateCacheThreadSafe(u32 address)
   if (cpu.GetState() == CPU::State::Running && !Core::IsCPUThread())
   {
     m_system.GetCoreTiming().ScheduleEvent(0, m_invalidate_cache_thread_safe, address,
-                                           CoreTiming::FromThread::NON_CPU);
+        CoreTiming::FromThread::NON_CPU);
   }
   else
   {
     m_ppc_state.iCache.Invalidate(m_system.GetMemory(), m_system.GetJitInterface(),
-                                  static_cast<u32>(address));
+        static_cast<u32>(address));
     Host_JitCacheInvalidation();
   }
 }
@@ -399,7 +399,7 @@ void PowerPCManager::WriteFullTimeBaseValue(u64 value)
 }
 
 void UpdatePerformanceMonitor(u32 cycles, u32 num_load_stores, u32 num_fp_inst,
-                              PowerPCState& ppc_state)
+    PowerPCState& ppc_state)
 {
   switch (MMCR0(ppc_state).PMC1SELECT)
   {
@@ -620,7 +620,7 @@ void PowerPCManager::CheckExternalExceptions()
     {
       DEBUG_ASSERT_MSG(POWERPC, 0, "Unknown EXT interrupt: Exceptions == {:08x}", exceptions);
       ERROR_LOG_FMT(POWERPC, "Unknown EXTERNAL INTERRUPT exception: Exceptions == {:08x}",
-                    exceptions);
+          exceptions);
     }
     MSRUpdated(m_ppc_state);
   }
@@ -638,12 +638,12 @@ bool PowerPCManager::CheckBreakPoints()
   if (bp->log_on_hit)
   {
     NOTICE_LOG_FMT(MEMMAP,
-                   "BP {:08x} {}({:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} "
-                   "{:08x}) LR={:08x}",
-                   m_ppc_state.pc, m_symbol_db.GetDescription(m_ppc_state.pc), m_ppc_state.gpr[3],
-                   m_ppc_state.gpr[4], m_ppc_state.gpr[5], m_ppc_state.gpr[6], m_ppc_state.gpr[7],
-                   m_ppc_state.gpr[8], m_ppc_state.gpr[9], m_ppc_state.gpr[10], m_ppc_state.gpr[11],
-                   m_ppc_state.gpr[12], LR(m_ppc_state));
+        "BP {:08x} {}({:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} "
+        "{:08x}) LR={:08x}",
+        m_ppc_state.pc, m_symbol_db.GetDescription(m_ppc_state.pc), m_ppc_state.gpr[3],
+        m_ppc_state.gpr[4], m_ppc_state.gpr[5], m_ppc_state.gpr[6], m_ppc_state.gpr[7],
+        m_ppc_state.gpr[8], m_ppc_state.gpr[9], m_ppc_state.gpr[10], m_ppc_state.gpr[11],
+        m_ppc_state.gpr[12], LR(m_ppc_state));
   }
   if (bp->break_on_hit)
     return true;
@@ -695,15 +695,17 @@ void MSRUpdated(PowerPCState& ppc_state)
   static_assert(FEATURE_FLAG_MSR_DR == 1 << 0);
   static_assert(FEATURE_FLAG_MSR_IR == 1 << 1);
 
-  ppc_state.feature_flags = static_cast<CPUEmuFeatureFlags>(
-      (ppc_state.feature_flags & FEATURE_FLAG_PERFMON) | ((ppc_state.msr.Hex >> 4) & 0x3));
+  ppc_state.feature_flags =
+      static_cast<CPUEmuFeatureFlags>((ppc_state.feature_flags & FEATURE_FLAG_PERFMON) |
+                                      ((ppc_state.msr.Hex >> 4) & 0x3));
 }
 
 void MMCRUpdated(PowerPCState& ppc_state)
 {
   const bool perfmon = ppc_state.spr[SPR_MMCR0] || ppc_state.spr[SPR_MMCR1];
-  ppc_state.feature_flags = static_cast<CPUEmuFeatureFlags>(
-      (ppc_state.feature_flags & ~FEATURE_FLAG_PERFMON) | (perfmon ? FEATURE_FLAG_PERFMON : 0));
+  ppc_state.feature_flags =
+      static_cast<CPUEmuFeatureFlags>((ppc_state.feature_flags & ~FEATURE_FLAG_PERFMON) |
+                                      (perfmon ? FEATURE_FLAG_PERFMON : 0));
 }
 
 void RecalculateAllFeatureFlags(PowerPCState& ppc_state)

@@ -39,7 +39,7 @@ class VAList
 {
 public:
   explicit VAList(const Core::CPUThreadGuard& guard, u32 stack, u32 gpr = 3, u32 fpr = 1,
-                  u32 gpr_max = 10, u32 fpr_max = 8)
+      u32 gpr_max = 10, u32 fpr_max = 8)
       : m_guard(guard), m_gpr(gpr), m_fpr(fpr), m_gpr_max(gpr_max), m_fpr_max(fpr_max),
         m_stack(stack)
   {

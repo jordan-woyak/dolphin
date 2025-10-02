@@ -21,7 +21,7 @@ public:
   // Initiates a check for updates in the background. Calls the OnUpdateAvailable callback if an
   // update is available, does "nothing" otherwise.
   void CheckForUpdate(std::string_view update_track, std::string_view hash_override,
-                      CheckType check_type);
+      CheckType check_type);
 
   static bool SystemSupportsAutoUpdates();
 

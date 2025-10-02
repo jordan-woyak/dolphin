@@ -65,7 +65,7 @@ void StickWidget::paintEvent(QPaintEvent* event)
   painter.setBrush(Qt::blue);
   int neutral_radius = diameter / 30;
   painter.drawEllipse(x - neutral_radius, y - neutral_radius, neutral_radius * 2,
-                      neutral_radius * 2);
+      neutral_radius * 2);
 }
 
 void StickWidget::mousePressEvent(QMouseEvent* event)

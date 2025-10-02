@@ -20,7 +20,7 @@ void JitArm64BlockCache::Init()
 }
 
 void JitArm64BlockCache::WriteLinkBlock(Arm64Gen::ARM64XEmitter& emit,
-                                        const JitBlock::LinkData& source, const JitBlock* dest)
+    const JitBlock::LinkData& source, const JitBlock* dest)
 {
   const u8* start = emit.GetCodePtr();
 

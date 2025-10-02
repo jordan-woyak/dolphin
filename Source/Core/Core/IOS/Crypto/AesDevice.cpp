@@ -74,7 +74,7 @@ std::optional<IPCReply> AesDevice::IOCtlV(const IOCtlVRequest& request)
                                                    Common::AES::CreateContextDecrypt(key.data());
 
     context->Crypt(iv.data(), iv.data(), input.data(), output.data(),
-                   std::min(output.size(), input.size()));
+        std::min(output.size(), input.size()));
 
     memory.CopyToEmu(request.io_vectors[0].address, output.data(), output.size());
     memory.CopyToEmu(request.io_vectors[1].address, iv.data(), iv.size());

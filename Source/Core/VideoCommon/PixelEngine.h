@@ -197,7 +197,7 @@ private:
   void SetTokenFinish_OnMainThread(u64 userdata, s64 cycles_late);
 
   static void SetTokenFinish_OnMainThread_Static(Core::System& system, u64 userdata,
-                                                 s64 cycles_late);
+      s64 cycles_late);
 
   // STATE_TO_SAVE
   UPEZConfReg m_z_conf;

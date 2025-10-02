@@ -25,14 +25,14 @@
 
 namespace Common::Log
 {
-const Config::Info<bool> LOGGER_WRITE_TO_FILE{{Config::System::Logger, "Options", "WriteToFile"},
-                                              false};
+const Config::Info<bool> LOGGER_WRITE_TO_FILE{
+    {Config::System::Logger, "Options", "WriteToFile"}, false};
 const Config::Info<bool> LOGGER_WRITE_TO_CONSOLE{
     {Config::System::Logger, "Options", "WriteToConsole"}, true};
 const Config::Info<bool> LOGGER_WRITE_TO_WINDOW{
     {Config::System::Logger, "Options", "WriteToWindow"}, true};
-const Config::Info<LogLevel> LOGGER_VERBOSITY{{Config::System::Logger, "Options", "Verbosity"},
-                                              LogLevel::LNOTICE};
+const Config::Info<LogLevel> LOGGER_VERBOSITY{
+    {Config::System::Logger, "Options", "Verbosity"}, LogLevel::LNOTICE};
 
 class FileLogListener : public LogListener
 {
@@ -63,7 +63,7 @@ private:
 };
 
 void GenericLogFmtImpl(LogLevel level, LogType type, const char* file, int line,
-                       fmt::string_view format, const fmt::format_args& args)
+    fmt::string_view format, const fmt::format_args& args)
 {
   auto* instance = LogManager::GetInstance();
   if (instance == nullptr)
@@ -152,7 +152,7 @@ LogManager::LogManager()
   m_log[LogType::WII_IPC] = {"WII_IPC", "WII IPC"};
 
   RegisterListener(LogListener::FILE_LISTENER,
-                   std::make_unique<FileLogListener>(File::GetUserPath(F_MAINLOG_IDX)));
+      std::make_unique<FileLogListener>(File::GetUserPath(F_MAINLOG_IDX)));
   RegisterListener(LogListener::CONSOLE_LISTENER, std::make_unique<ConsoleListener>());
 
   // Set up log listeners
@@ -165,8 +165,8 @@ LogManager::LogManager()
 
   for (auto& container : m_log)
   {
-    container.m_enable = Config::Get(
-        Config::Info<bool>{{Config::System::Logger, "Logs", container.m_short_name}, false});
+    container.m_enable = Config::Get(Config::Info<bool>{
+        {Config::System::Logger, "Logs", container.m_short_name}, false});
   }
 
   m_path_cutoff_point = DeterminePathCutOffPoint();
@@ -180,9 +180,9 @@ void LogManager::SaveSettings()
 
   Config::SetBaseOrCurrent(LOGGER_WRITE_TO_FILE, IsListenerEnabled(LogListener::FILE_LISTENER));
   Config::SetBaseOrCurrent(LOGGER_WRITE_TO_CONSOLE,
-                           IsListenerEnabled(LogListener::CONSOLE_LISTENER));
+      IsListenerEnabled(LogListener::CONSOLE_LISTENER));
   Config::SetBaseOrCurrent(LOGGER_WRITE_TO_WINDOW,
-                           IsListenerEnabled(LogListener::LOG_WINDOW_LISTENER));
+      IsListenerEnabled(LogListener::LOG_WINDOW_LISTENER));
   Config::SetBaseOrCurrent(LOGGER_VERBOSITY, GetLogLevel());
 
   for (const auto& container : m_log)
@@ -215,11 +215,10 @@ std::string LogManager::GetTimestamp()
 }
 
 void LogManager::LogWithFullPath(LogLevel level, LogType type, const char* file, int line,
-                                 const char* message)
+    const char* message)
 {
-  const std::string msg =
-      fmt::format("{} {}:{} {}[{}]: {}\n", GetTimestamp(), file, line,
-                  LOG_LEVEL_TO_CHAR[static_cast<int>(level)], GetShortName(type), message);
+  const std::string msg = fmt::format("{} {}:{} {}[{}]: {}\n", GetTimestamp(), file, line,
+      LOG_LEVEL_TO_CHAR[static_cast<int>(level)], GetShortName(type), message);
 
   for (const auto listener_id : m_listener_ids)
   {

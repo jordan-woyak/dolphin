@@ -106,16 +106,16 @@ private:
     ConnectSignal(&ParallelProgressDialog::CancelSignal, &QProgressDialog::cancel);
     ConnectSignal(&ParallelProgressDialog::ResetSignal, &QProgressDialog::reset);
     ConnectSignal(&ParallelProgressDialog::SetCancelButtonTextSignal,
-                  &QProgressDialog::setCancelButtonText);
+        &QProgressDialog::setCancelButtonText);
     ConnectSignal(&ParallelProgressDialog::SetLabelTextSignal, &QProgressDialog::setLabelText);
     ConnectSignal(&ParallelProgressDialog::SetMaximumSignal, &QProgressDialog::setMaximum);
     ConnectSignal(&ParallelProgressDialog::SetMinimumSignal, &QProgressDialog::setMinimum);
     ConnectSignal(&ParallelProgressDialog::SetMinimumDurationSignal,
-                  &QProgressDialog::setMinimumDuration);
+        &QProgressDialog::setMinimumDuration);
     ConnectSignal(&ParallelProgressDialog::SetRangeSignal, &QProgressDialog::setRange);
 
     QObject::connect(this, &ParallelProgressDialog::SetValueSignal, this,
-                     &ParallelProgressDialog::SetValueSlot);
+        &ParallelProgressDialog::SetValueSlot);
 
     ConnectSlot(&QProgressDialog::canceled, &ParallelProgressDialog::OnCancelled);
 

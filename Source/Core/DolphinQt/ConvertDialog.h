@@ -29,7 +29,7 @@ class ConvertDialog final : public QDialog
 
 public:
   explicit ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> files,
-                         QWidget* parent = nullptr);
+      QWidget* parent = nullptr);
 
 private slots:
   void OnFormatChanged();

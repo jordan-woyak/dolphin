@@ -54,8 +54,7 @@ void PatchInstructionDialog::OnEditChanged()
 
   m_button_box->button(QDialogButtonBox::Ok)->setEnabled(good);
 
-  m_preview_label->setText(
-      tr("Instruction: %1")
+  m_preview_label->setText(tr("Instruction: %1")
           .arg(QString::fromStdString(Common::GekkoDisassembler::Disassemble(m_code, m_address))));
 }
 

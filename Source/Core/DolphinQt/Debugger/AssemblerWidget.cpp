@@ -139,8 +139,7 @@ void DeserializeToAr(const std::vector<CodeBlock>& blocks, std::ostringstream& o
       // type=NormalCode, subtype=SUB_RAM_WRITE, size=32bit
       const u32 ar_addr = ((blk.block_address + i) & 0x1ffffff) | 0x04000000;
       out_str << fmt::format("{:08x} {:02x}{:02x}{:02x}{:02x}\n", ar_addr, blk.instructions[i],
-                             blk.instructions[i + 1], blk.instructions[i + 2],
-                             blk.instructions[i + 3]);
+          blk.instructions[i + 1], blk.instructions[i + 2], blk.instructions[i + 3]);
     }
 
     for (; i < blk.instructions.size(); i++)
@@ -245,25 +244,26 @@ AssemblerWidget::AssemblerWidget(QWidget* parent)
   setFloating(Settings::GetQSettings().value(QStringLiteral("assemblerwidget/floating")).toBool());
 
   connect(&Settings::Instance(), &Settings::AssemblerVisibilityChanged, this,
-          [this](bool visible) { setHidden(!visible); });
+      [this](bool visible) { setHidden(!visible); });
 
-  connect(&Settings::Instance(), &Settings::DebugModeToggled, this, [this](bool enabled) {
-    setHidden(!enabled || !Settings::Instance().IsAssemblerVisible());
-  });
+  connect(&Settings::Instance(), &Settings::DebugModeToggled, this,
+      [this](bool enabled) { setHidden(!enabled || !Settings::Instance().IsAssemblerVisible()); });
 
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
-          &AssemblerWidget::OnEmulationStateChanged);
+      &AssemblerWidget::OnEmulationStateChanged);
   connect(&Settings::Instance(), &Settings::ThemeChanged, this, &AssemblerWidget::UpdateIcons);
   connect(m_asm_tabs, &QTabWidget::tabCloseRequested, this, &AssemblerWidget::OnTabClose);
 
   auto* save_shortcut = new QShortcut(QKeySequence::Save, this);
   // Save should only activate if the active tab is in focus
-  save_shortcut->connect(save_shortcut, &QShortcut::activated, this, [this] {
-    if (m_asm_tabs->currentIndex() != -1 && m_asm_tabs->currentWidget()->hasFocus())
-    {
-      OnSave();
-    }
-  });
+  save_shortcut->connect(save_shortcut, &QShortcut::activated, this,
+      [this]
+      {
+        if (m_asm_tabs->currentIndex() != -1 && m_asm_tabs->currentWidget()->hasFocus())
+        {
+          OnSave();
+        }
+      });
 
   auto* zoom_in_shortcut = new QShortcut(QKeySequence::ZoomIn, this);
   zoom_in_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
@@ -305,8 +305,7 @@ bool AssemblerWidget::ApplicationCloseRequest()
 
   if (num_unsaved > 0)
   {
-    const int result = ModalMessageBox::question(
-        this, tr("Unsaved Changes"),
+    const int result = ModalMessageBox::question(this, tr("Unsaved Changes"),
         tr("You have %1 unsaved assembly tabs open\n\n"
            "Do you want to save all and exit?")
             .arg(num_unsaved),
@@ -363,10 +362,12 @@ void AssemblerWidget::CreateWidgets()
 
   m_open = m_toolbar->addAction(tr("Open"), this, &AssemblerWidget::OnOpen);
   m_new = m_toolbar->addAction(tr("New"), this, &AssemblerWidget::OnNew);
-  m_assemble = m_toolbar->addAction(tr("Assemble"), this, [this] {
-    std::vector<CodeBlock> unused;
-    OnAssemble(&unused);
-  });
+  m_assemble = m_toolbar->addAction(tr("Assemble"), this,
+      [this]
+      {
+        std::vector<CodeBlock> unused;
+        OnAssemble(&unused);
+      });
   m_inject = m_toolbar->addAction(tr("Inject"), this, &AssemblerWidget::OnInject);
   m_save = m_toolbar->addAction(tr("Save"), this, &AssemblerWidget::OnSave);
 
@@ -449,8 +450,8 @@ void AssemblerWidget::CreateWidgets()
     layout->addWidget(m_output_box, 0, 0);
     layout->addWidget(output_extra_box, 1, 0);
     assembler_layout->addWidget(output_group, 1, 1, 1, 1);
-    output_group->setSizePolicy(
-        QSizePolicy(QSizePolicy::Policy::Fixed, QSizePolicy::Policy::Expanding));
+    output_group->setSizePolicy(QSizePolicy(QSizePolicy::Policy::Fixed,
+        QSizePolicy::Policy::Expanding));
   }
   {
     auto* error_group = new QGroupBox(tr("Error Log"));
@@ -458,8 +459,8 @@ void AssemblerWidget::CreateWidgets()
     error_group->setLayout(layout);
     layout->addWidget(m_error_box);
     assembler_layout->addWidget(error_group, 2, 0, 1, 2);
-    error_group->setSizePolicy(
-        QSizePolicy(QSizePolicy::Policy::Expanding, QSizePolicy::Policy::Fixed));
+    error_group->setSizePolicy(QSizePolicy(QSizePolicy::Policy::Expanding,
+        QSizePolicy::Policy::Fixed));
   }
 
   QWidget* widget = new QWidget;
@@ -469,23 +470,25 @@ void AssemblerWidget::CreateWidgets()
 
 void AssemblerWidget::ConnectWidgets()
 {
-  m_output_box->connect(m_output_box, &QPlainTextEdit::updateRequest, this, [this] {
-    if (m_output_box->verticalScrollBar()->isVisible())
-    {
-      m_output_box->setFixedWidth(m_output_box->fontMetrics().horizontalAdvance(QLatin1Char('0')) *
-                                      OUTPUT_BOX_WIDTH +
-                                  m_output_box->style()->pixelMetric(QStyle::PM_ScrollBarExtent));
-    }
-    else
-    {
-      m_output_box->setFixedWidth(m_output_box->fontMetrics().horizontalAdvance(QLatin1Char('0')) *
-                                  OUTPUT_BOX_WIDTH);
-    }
-  });
+  m_output_box->connect(m_output_box, &QPlainTextEdit::updateRequest, this,
+      [this]
+      {
+        if (m_output_box->verticalScrollBar()->isVisible())
+        {
+          m_output_box->setFixedWidth(
+              m_output_box->fontMetrics().horizontalAdvance(QLatin1Char('0')) * OUTPUT_BOX_WIDTH +
+              m_output_box->style()->pixelMetric(QStyle::PM_ScrollBarExtent));
+        }
+        else
+        {
+          m_output_box->setFixedWidth(
+              m_output_box->fontMetrics().horizontalAdvance(QLatin1Char('0')) * OUTPUT_BOX_WIDTH);
+        }
+      });
   m_copy_output_button->connect(m_copy_output_button, &QPushButton::released, this,
-                                &AssemblerWidget::OnCopyOutput);
+      &AssemblerWidget::OnCopyOutput);
   m_address_line->connect(m_address_line, &QLineEdit::textChanged, this,
-                          &AssemblerWidget::OnBaseAddressChanged);
+      &AssemblerWidget::OnBaseAddressChanged);
   m_asm_tabs->connect(m_asm_tabs, &QTabWidget::currentChanged, this, &AssemblerWidget::OnTabChange);
 }
 
@@ -579,8 +582,8 @@ void AssemblerWidget::OnCopyOutput()
 void AssemblerWidget::OnOpen()
 {
   const std::string default_dir = File::GetUserPath(D_ASM_ROOT_IDX);
-  const QStringList paths = DolphinFileDialog::getOpenFileNames(
-      this, tr("Select a File"), QString::fromStdString(default_dir),
+  const QStringList paths = DolphinFileDialog::getOpenFileNames(this, tr("Select a File"),
+      QString::fromStdString(default_dir),
       QStringLiteral("%1 (*.s *.S *.asm);;%2 (*)")
           .arg(tr("All Assembly files"))
           .arg(tr("All Files")));
@@ -729,21 +732,23 @@ void AssemblerWidget::NewEditor(const QString& path)
   if (!path.isEmpty() && !new_editor->LoadFromPath())
   {
     ModalMessageBox::warning(this, tr("Failed to open file"),
-                             tr("Failed to read the contents of file:\n%1").arg(path));
+        tr("Failed to read the contents of file:\n%1").arg(path));
     delete new_editor;
     return;
   }
 
   const int tab_idx = m_asm_tabs->addTab(new_editor, QStringLiteral());
-  new_editor->connect(new_editor, &AsmEditor::PathChanged, this, [this] {
-    AsmEditor* updated_tab = qobject_cast<AsmEditor*>(sender());
-    DisambiguateTabTitles(updated_tab);
-    UpdateTabText(updated_tab);
-  });
+  new_editor->connect(new_editor, &AsmEditor::PathChanged, this,
+      [this]
+      {
+        AsmEditor* updated_tab = qobject_cast<AsmEditor*>(sender());
+        DisambiguateTabTitles(updated_tab);
+        UpdateTabText(updated_tab);
+      });
   new_editor->connect(new_editor, &AsmEditor::DirtyChanged, this,
-                      [this] { UpdateTabText(qobject_cast<AsmEditor*>(sender())); });
+      [this] { UpdateTabText(qobject_cast<AsmEditor*>(sender())); });
   new_editor->connect(new_editor, &AsmEditor::ZoomRequested, this,
-                      &AssemblerWidget::ZoomAllEditors);
+      &AssemblerWidget::ZoomAllEditors);
   new_editor->Zoom(m_net_zoom_delta);
 
   DisambiguateTabTitles(new_editor);
@@ -769,8 +774,8 @@ bool AssemblerWidget::SaveEditor(AsmEditor* editor)
     const QString all_filter = QStringLiteral("%2 (*)").arg(tr("All Files"));
 
     QString selected_filter;
-    save_path = DolphinFileDialog::getSaveFileName(
-        this, tr("Save File To"), QString::fromStdString(default_dir),
+    save_path = DolphinFileDialog::getSaveFileName(this, tr("Save File To"),
+        QString::fromStdString(default_dir),
         QStringLiteral("%1;;%2").arg(asm_filter).arg(all_filter), &selected_filter);
 
     if (save_path.isEmpty())
@@ -801,8 +806,7 @@ void AssemblerWidget::OnTabClose(int index)
 
   if (editor->IsDirty())
   {
-    const int result = ModalMessageBox::question(
-        this, tr("Unsaved Changes"),
+    const int result = ModalMessageBox::question(this, tr("Unsaved Changes"),
         tr("There are unsaved changes in \"%1\".\n\n"
            "Do you want to save before closing?")
             .arg(TabTextForEditor(editor, false)),

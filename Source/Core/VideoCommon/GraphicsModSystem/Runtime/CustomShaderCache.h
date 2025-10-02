@@ -47,14 +47,10 @@ public:
   void Reload();
 
   // The optional will be empty if this pipeline is now background compiling.
-  std::optional<const AbstractPipeline*>
-  GetPipelineAsync(const VideoCommon::GXPipelineUid& uid,
-                   const CustomShaderInstance& custom_shaders,
-                   const AbstractPipelineConfig& pipeline_config);
-  std::optional<const AbstractPipeline*>
-  GetPipelineAsync(const VideoCommon::GXUberPipelineUid& uid,
-                   const CustomShaderInstance& custom_shaders,
-                   const AbstractPipelineConfig& pipeline_config);
+  std::optional<const AbstractPipeline*> GetPipelineAsync(const VideoCommon::GXPipelineUid& uid,
+      const CustomShaderInstance& custom_shaders, const AbstractPipelineConfig& pipeline_config);
+  std::optional<const AbstractPipeline*> GetPipelineAsync(const VideoCommon::GXUberPipelineUid& uid,
+      const CustomShaderInstance& custom_shaders, const AbstractPipelineConfig& pipeline_config);
 
 private:
   // Configuration bits.
@@ -64,11 +60,9 @@ private:
   std::unique_ptr<VideoCommon::AsyncShaderCompiler> m_async_uber_shader_compiler;
 
   void AsyncCreatePipeline(const VideoCommon::GXPipelineUid& uid,
-                           const CustomShaderInstance& custom_shaders,
-                           const AbstractPipelineConfig& pipeline_config);
+      const CustomShaderInstance& custom_shaders, const AbstractPipelineConfig& pipeline_config);
   void AsyncCreatePipeline(const VideoCommon::GXUberPipelineUid& uid,
-                           const CustomShaderInstance& custom_shaders,
-                           const AbstractPipelineConfig& pipeline_config);
+      const CustomShaderInstance& custom_shaders, const AbstractPipelineConfig& pipeline_config);
 
   // Shader/Pipeline cache helper
   template <typename Uid, typename ValueType>
@@ -100,7 +94,7 @@ private:
     }
 
     typename CacheList::iterator InsertElement(const Uid& uid,
-                                               const CustomShaderInstance& custom_shaders)
+        const CustomShaderInstance& custom_shaders)
     {
       CacheList& cachelist = uid_to_cachelist[uid];
       CacheElement e{custom_shaders, CacheHolder{}};
@@ -121,24 +115,23 @@ private:
       Cache<UberShader::PixelShaderUid, AbstractShader>::CacheList::iterator;
 
   void NotifyPipelineFinished(PipelineIterator iterator,
-                              std::unique_ptr<AbstractPipeline> pipeline);
+      std::unique_ptr<AbstractPipeline> pipeline);
   void NotifyPipelineFinished(UberPipelineIterator iterator,
-                              std::unique_ptr<AbstractPipeline> pipeline);
+      std::unique_ptr<AbstractPipeline> pipeline);
 
-  std::unique_ptr<AbstractShader>
-  CompilePixelShader(const PixelShaderUid& uid, const CustomShaderInstance& custom_shaders) const;
+  std::unique_ptr<AbstractShader> CompilePixelShader(const PixelShaderUid& uid,
+      const CustomShaderInstance& custom_shaders) const;
   void NotifyPixelShaderFinished(PixelShaderIterator iterator,
-                                 std::unique_ptr<AbstractShader> shader);
-  std::unique_ptr<AbstractShader>
-  CompilePixelShader(const UberShader::PixelShaderUid& uid,
-                     const CustomShaderInstance& custom_shaders) const;
+      std::unique_ptr<AbstractShader> shader);
+  std::unique_ptr<AbstractShader> CompilePixelShader(const UberShader::PixelShaderUid& uid,
+      const CustomShaderInstance& custom_shaders) const;
   void NotifyPixelShaderFinished(UberPixelShaderIterator iterator,
-                                 std::unique_ptr<AbstractShader> shader);
+      std::unique_ptr<AbstractShader> shader);
 
   void QueuePixelShaderCompile(const PixelShaderUid& uid,
-                               const CustomShaderInstance& custom_shaders);
+      const CustomShaderInstance& custom_shaders);
   void QueuePixelShaderCompile(const UberShader::PixelShaderUid& uid,
-                               const CustomShaderInstance& custom_shaders);
+      const CustomShaderInstance& custom_shaders);
 
   Common::EventHook m_frame_end_handler;
 };

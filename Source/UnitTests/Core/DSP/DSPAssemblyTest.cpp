@@ -100,7 +100,7 @@ static bool AssembleAndCompare(const char* asm_code, const std::vector<u16>& cod
   }
 
   fmt::print("AssembleAndCompare: Produced {} words; padding to {} words\n", code2.size(),
-             code1.size());
+      code1.size());
   while (code2.size() < code1.size())
     code2.push_back(0);
 

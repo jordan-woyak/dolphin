@@ -24,8 +24,8 @@ void NetPlayChatUI::Display()
   const float scale = ImGui::GetIO().DisplayFramebufferScale.x;
 
   ImGui::SetNextWindowPos(ImVec2(10.0f * scale, 10.0f * scale), ImGuiCond_FirstUseEver);
-  ImGui::SetNextWindowSizeConstraints(
-      ImVec2(DEFAULT_WINDOW_WIDTH * scale, DEFAULT_WINDOW_HEIGHT * scale),
+  ImGui::SetNextWindowSizeConstraints(ImVec2(DEFAULT_WINDOW_WIDTH * scale,
+                                          DEFAULT_WINDOW_HEIGHT * scale),
       ImGui::GetIO().DisplaySize);
 
   if (!ImGui::Begin("Chat", nullptr, ImGuiWindowFlags_None))
@@ -57,7 +57,7 @@ void NetPlayChatUI::Display()
   ImGui::PushItemWidth(-50.0f * scale);
 
   if (ImGui::InputText("##NetplayMessageBuffer", m_message_buf, IM_ARRAYSIZE(m_message_buf),
-                       ImGuiInputTextFlags_EnterReturnsTrue))
+          ImGuiInputTextFlags_EnterReturnsTrue))
   {
     SendMessage();
   }

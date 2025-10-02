@@ -50,7 +50,7 @@ class RegisterColumn : public QTableWidgetItem
 {
 public:
   explicit RegisterColumn(RegisterType type, std::function<u64()> get,
-                          std::function<void(u64)> set);
+      std::function<void(u64)> set);
 
   void RefreshValue();
 

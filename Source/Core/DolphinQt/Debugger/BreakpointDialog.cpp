@@ -225,9 +225,9 @@ void BreakpointDialog::ConnectWidgets()
   connect(m_memory_bp, &QRadioButton::toggled, this, &BreakpointDialog::OnBPTypeChanged);
 
   connect(m_memory_use_address, &QRadioButton::toggled, this,
-          &BreakpointDialog::OnAddressTypeChanged);
+      &BreakpointDialog::OnAddressTypeChanged);
   connect(m_memory_use_range, &QRadioButton::toggled, this,
-          &BreakpointDialog::OnAddressTypeChanged);
+      &BreakpointDialog::OnAddressTypeChanged);
 }
 
 void BreakpointDialog::OnBPTypeChanged()
@@ -248,9 +248,10 @@ void BreakpointDialog::OnAddressTypeChanged()
 
 void BreakpointDialog::accept()
 {
-  auto invalid_input = [this](const QString& field) {
+  auto invalid_input = [this](const QString& field)
+  {
     ModalMessageBox::critical(this, tr("Error"),
-                              tr("Invalid input for the field \"%1\"").arg(field));
+        tr("Invalid input for the field \"%1\"").arg(field));
   };
 
   bool instruction = m_instruction_bp->isChecked();

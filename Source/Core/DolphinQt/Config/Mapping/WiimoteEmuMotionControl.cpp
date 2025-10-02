@@ -22,14 +22,14 @@ void WiimoteEmuMotionControl::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Shake)));
-  m_main_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Point)));
-  m_main_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Tilt)));
-  m_main_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::Swing)));
+  m_main_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::Shake)));
+  m_main_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::Point)));
+  m_main_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::Tilt)));
+  m_main_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::Swing)));
 
   setLayout(m_main_layout);
 }

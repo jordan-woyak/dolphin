@@ -130,7 +130,7 @@ NetPlayClient::~NetPlayClient()
 
 // called from ---GUI--- thread
 NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlayUI* dialog,
-                             const std::string& name, const NetTraversalConfig& traversal_config)
+    const std::string& name, const NetTraversalConfig& traversal_config)
     : m_dialog(dialog), m_player_name(name)
 {
   ClearBuffers();
@@ -189,7 +189,7 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
     }
 
     if (!Common::EnsureTraversalClient(traversal_config.traversal_host,
-                                       traversal_config.traversal_port))
+            traversal_config.traversal_port))
     {
       return;
     }
@@ -664,10 +664,9 @@ void NetPlayClient::OnGBAConfig(sf::Packet& packet)
         std::tie(old_config.has_rom, old_config.title, old_config.hash))
     {
       m_dialog->OnMsgChangeGBARom(static_cast<int>(i), config);
-      m_net_settings.gba_rom_paths[i] =
-          config.has_rom ?
-              m_dialog->FindGBARomPath(config.hash, config.title, static_cast<int>(i)) :
-              "";
+      m_net_settings.gba_rom_paths[i] = config.has_rom ? m_dialog->FindGBARomPath(config.hash,
+                                                             config.title, static_cast<int>(i)) :
+                                                         "";
     }
   }
 
@@ -1064,7 +1063,7 @@ void NetPlayClient::OnSyncSaveDataRaw(sf::Packet& packet)
   packet >> is_slot_a >> region >> size_override;
 
   INFO_LOG_FMT(NETPLAY, "Received raw memcard data for slot {}: region {}, size override {}.",
-               is_slot_a ? 'A' : 'B', region, size_override);
+      is_slot_a ? 'A' : 'B', region, size_override);
 
   // This check is mainly intended to filter out characters which have special meanings in paths
   if (region != JAP_DIR && region != USA_DIR && region != EUR_DIR)
@@ -1077,8 +1076,8 @@ void NetPlayClient::OnSyncSaveDataRaw(sf::Packet& packet)
   std::string size_suffix;
   if (size_override >= 0 && size_override <= 4)
   {
-    size_suffix = fmt::format(
-        ".{}", Memcard::MbitToFreeBlocks(Memcard::MBIT_SIZE_MEMORY_CARD_59 << size_override));
+    size_suffix = fmt::format(".{}",
+        Memcard::MbitToFreeBlocks(Memcard::MBIT_SIZE_MEMORY_CARD_59 << size_override));
   }
 
   const std::string path = File::GetUserPath(D_GCUSER_IDX) + GC_MEMCARD_NETPLAY +
@@ -1104,7 +1103,7 @@ void NetPlayClient::OnSyncSaveDataGCI(sf::Packet& packet)
                            fmt::format("Card {}", is_slot_a ? 'A' : 'B');
 
   INFO_LOG_FMT(NETPLAY, "Received GCI memcard data for slot {}: {}, {} files.",
-               is_slot_a ? 'A' : 'B', path, file_count);
+      is_slot_a ? 'A' : 'B', path, file_count);
 
   if ((File::Exists(path) && !File::DeleteDirRecursively(path + DIR_SEP)) ||
       !File::CreateFullPath(path + DIR_SEP))
@@ -1170,9 +1169,9 @@ void NetPlayClient::OnSyncSaveDataWii(sf::Packet& packet)
     auto buffer = DecompressPacketIntoBuffer(packet);
 
     temp_fs->CreateFullPath(IOS::PID_KERNEL, IOS::PID_KERNEL, "/shared2/menu/FaceLib/", 0,
-                            fs_modes);
+        fs_modes);
     auto file = temp_fs->CreateAndOpenFile(IOS::PID_KERNEL, IOS::PID_KERNEL,
-                                           Common::GetMiiDatabasePath(), fs_modes);
+        Common::GetMiiDatabasePath(), fs_modes);
 
     if (!buffer || !file || !file->Write(buffer->data(), buffer->size()))
     {
@@ -1191,7 +1190,7 @@ void NetPlayClient::OnSyncSaveDataWii(sf::Packet& packet)
     u64 title_id = Common::PacketReadU64(packet);
     titles.push_back(title_id);
     temp_fs->CreateFullPath(IOS::PID_KERNEL, IOS::PID_KERNEL,
-                            Common::GetTitleDataPath(title_id) + '/', 0, fs_modes);
+        Common::GetTitleDataPath(title_id) + '/', 0, fs_modes);
     auto save = WiiSave::MakeNandStorage(temp_fs.get(), title_id);
 
     bool exists;
@@ -1242,7 +1241,7 @@ void NetPlayClient::OnSyncSaveDataWii(sf::Packet& packet)
       packet >> file.path;
 
       INFO_LOG_FMT(NETPLAY, "Received Wii save data of type {} at {}", static_cast<u8>(file.type),
-                   file.path);
+          file.path);
 
       if (file.type == WiiSave::Storage::SaveFile::Type::File)
       {
@@ -1296,7 +1295,7 @@ void NetPlayClient::OnSyncSaveDataGBA(sf::Packet& packet)
   if (File::Exists(path) && !File::Delete(path))
   {
     PanicAlertFmtT("Failed to delete NetPlay GBA{0} save file. Verify your write permissions.",
-                   slot + 1);
+        slot + 1);
     SyncSaveDataResponse(false);
     return;
   }
@@ -1537,7 +1536,7 @@ void NetPlayClient::DisplayPlayersPing()
     return;
 
   OSD::AddTypedMessage(OSD::MessageType::NetPlayPing, fmt::format("Ping: {}", GetPlayersMaxPing()),
-                       OSD::Duration::SHORT, OSD::Color::CYAN);
+      OSD::Duration::SHORT, OSD::Color::CYAN);
 }
 
 u32 NetPlayClient::GetPlayersMaxPing() const
@@ -1701,7 +1700,7 @@ void NetPlayClient::SendChatMessage(const std::string& msg)
 
 // called from ---CPU--- thread
 void NetPlayClient::AddPadStateToPacket(const int in_game_pad, const GCPadStatus& pad,
-                                        sf::Packet& packet)
+    sf::Packet& packet)
 {
   packet << static_cast<PadIndex>(in_game_pad);
   packet << pad.button;
@@ -1714,8 +1713,7 @@ void NetPlayClient::AddPadStateToPacket(const int in_game_pad, const GCPadStatus
 
 // called from ---CPU--- thread
 void NetPlayClient::AddWiimoteStateToPacket(int in_game_pad,
-                                            const WiimoteEmu::SerializedWiimoteState& state,
-                                            sf::Packet& packet)
+    const WiimoteEmu::SerializedWiimoteState& state, sf::Packet& packet)
 {
   packet << static_cast<PadIndex>(in_game_pad);
   packet << state.length;
@@ -1789,30 +1787,31 @@ bool NetPlayClient::StartGame(const std::string& path)
   for (unsigned int i = 0; i < 4; ++i)
   {
     Config::SetCurrent(Config::GetInfoForWiimoteSource(i),
-                       m_wiimote_map[i] > 0 ? WiimoteSource::Emulated : WiimoteSource::None);
+        m_wiimote_map[i] > 0 ? WiimoteSource::Emulated : WiimoteSource::None);
   }
 
   // boot game
   auto boot_session_data = std::make_unique<BootSessionData>();
 
   INFO_LOG_FMT(NETPLAY,
-               "Setting Wii sync data: has FS {}, sync_titles = {:016x}, redirect folder = {}",
-               !!m_wii_sync_fs, fmt::join(m_wii_sync_titles, ", "), m_wii_sync_redirect_folder);
+      "Setting Wii sync data: has FS {}, sync_titles = {:016x}, redirect folder = {}",
+      !!m_wii_sync_fs, fmt::join(m_wii_sync_titles, ", "), m_wii_sync_redirect_folder);
 
   boot_session_data->SetWiiSyncData(std::move(m_wii_sync_fs), std::move(m_wii_sync_titles),
-                                    std::move(m_wii_sync_redirect_folder), [] {
-                                      // on emulation end clean up the Wii save sync directory --
-                                      // see OnSyncSaveDataWii()
-                                      const std::string wii_path = File::GetUserPath(D_USER_IDX) +
-                                                                   "Wii" GC_MEMCARD_NETPLAY DIR_SEP;
-                                      if (File::Exists(wii_path))
-                                        File::DeleteDirRecursively(wii_path);
-                                      const std::string redirect_path =
-                                          File::GetUserPath(D_USER_IDX) +
-                                          "Redirect" GC_MEMCARD_NETPLAY DIR_SEP;
-                                      if (File::Exists(redirect_path))
-                                        File::DeleteDirRecursively(redirect_path);
-                                    });
+      std::move(m_wii_sync_redirect_folder),
+      []
+      {
+        // on emulation end clean up the Wii save sync directory --
+        // see OnSyncSaveDataWii()
+        const std::string wii_path =
+            File::GetUserPath(D_USER_IDX) + "Wii" GC_MEMCARD_NETPLAY DIR_SEP;
+        if (File::Exists(wii_path))
+          File::DeleteDirRecursively(wii_path);
+        const std::string redirect_path =
+            File::GetUserPath(D_USER_IDX) + "Redirect" GC_MEMCARD_NETPLAY DIR_SEP;
+        if (File::Exists(redirect_path))
+          File::DeleteDirRecursively(redirect_path);
+      });
   boot_session_data->SetNetplaySettings(std::make_unique<NetPlay::NetSettings>(m_net_settings));
 
   m_dialog->BootGame(path, std::move(boot_session_data));
@@ -2145,9 +2144,8 @@ bool NetPlayClient::WiimoteUpdate(const std::span<WiimoteDataBatchEntry>& entrie
   {
     const int local_wiimote = InGameWiimoteToLocalWiimote(entry.wiimote);
     DEBUG_LOG_FMT(NETPLAY,
-                  "Entering WiimoteUpdate() with wiimote {}, local_wiimote {}, state [{:02x}]",
-                  entry.wiimote, local_wiimote,
-                  fmt::join(std::span(entry.state->data.data(), entry.state->length), ", "));
+        "Entering WiimoteUpdate() with wiimote {}, local_wiimote {}, state [{:02x}]", entry.wiimote,
+        local_wiimote, fmt::join(std::span(entry.state->data.data(), entry.state->length), ", "));
     if (local_wiimote < 4)
     {
       sf::Packet packet;
@@ -2171,7 +2169,7 @@ bool NetPlayClient::WiimoteUpdate(const std::span<WiimoteDataBatchEntry>& entrie
     m_wiimote_buffer[entry.wiimote].Pop(*entry.state);
 
     DEBUG_LOG_FMT(NETPLAY, "Exiting WiimoteUpdate() with wiimote {}, state [{:02x}]", entry.wiimote,
-                  fmt::join(std::span(entry.state->data.data(), entry.state->length), ", "));
+        fmt::join(std::span(entry.state->data.data(), entry.state->length), ", "));
   }
 
   return true;
@@ -2231,8 +2229,7 @@ bool NetPlayClient::PollLocalPad(const int local_pad, sf::Packet& packet)
 }
 
 bool NetPlayClient::AddLocalWiimoteToBuffer(const int local_wiimote,
-                                            const WiimoteEmu::SerializedWiimoteState& state,
-                                            sf::Packet& packet)
+    const WiimoteEmu::SerializedWiimoteState& state, sf::Packet& packet)
 {
   const int ingame_pad = LocalWiimoteToInGameWiimote(local_wiimote);
   bool data_added = false;
@@ -2406,7 +2403,7 @@ bool NetPlayClient::LocalPlayerHasControllerMapped() const
 bool NetPlayClient::IsFirstInGamePad(int ingame_pad) const
 {
   return std::none_of(m_pad_map.begin(), m_pad_map.begin() + ingame_pad,
-                      [](auto mapping) { return mapping > 0; });
+      [](auto mapping) { return mapping > 0; });
 }
 
 int NetPlayClient::NumLocalPads() const
@@ -2537,9 +2534,8 @@ bool NetPlayClient::DoAllPlayersHaveGame()
 {
   std::lock_guard lkp(m_crit.players);
 
-  return std::ranges::all_of(m_players, [](const auto& entry) {
-    return entry.second.game_status == SyncIdentifierComparison::SameGame;
-  });
+  return std::ranges::all_of(m_players, [](const auto& entry)
+      { return entry.second.game_status == SyncIdentifierComparison::SameGame; });
 }
 
 static std::string SHA1Sum(const std::string& file_path, std::function<bool(int)> report_progress)
@@ -2596,21 +2592,25 @@ void NetPlayClient::ComputeGameDigest(const SyncIdentifier& sync_identifier)
 
   if (m_game_digest_thread.joinable())
     m_game_digest_thread.join();
-  m_game_digest_thread = std::thread([this, file] {
-    std::string sum = SHA1Sum(file, [&](int progress) {
-      sf::Packet packet;
-      packet << MessageID::GameDigestProgress;
-      packet << progress;
-      SendAsync(std::move(packet));
+  m_game_digest_thread = std::thread(
+      [this, file]
+      {
+        std::string sum = SHA1Sum(file,
+            [&](int progress)
+            {
+              sf::Packet packet;
+              packet << MessageID::GameDigestProgress;
+              packet << progress;
+              SendAsync(std::move(packet));
 
-      return m_should_compute_game_digest;
-    });
+              return m_should_compute_game_digest;
+            });
 
-    sf::Packet packet;
-    packet << MessageID::GameDigestResult;
-    packet << sum;
-    SendAsync(std::move(packet));
-  });
+        sf::Packet packet;
+        packet << MessageID::GameDigestResult;
+        packet << sum;
+        SendAsync(std::move(packet));
+      });
 }
 
 const PadMappingArray& NetPlayClient::GetPadMapping() const
@@ -2635,7 +2635,7 @@ void NetPlayClient::AdjustPadBufferSize(const unsigned int size)
 }
 
 void NetPlayClient::SetWiiSyncData(std::unique_ptr<IOS::HLE::FS::FileSystem> fs,
-                                   std::vector<u64> titles, std::string redirect_folder)
+    std::vector<u64> titles, std::string redirect_folder)
 {
   m_wii_sync_fs = std::move(fs);
   m_wii_sync_titles = std::move(titles);
@@ -2648,8 +2648,7 @@ SyncIdentifier NetPlayClient::GetSDCardIdentifier()
 }
 
 std::string GetPlayerMappingString(PlayerId pid, const PadMappingArray& pad_map,
-                                   const GBAConfigArray& gba_config,
-                                   const PadMappingArray& wiimote_map)
+    const GBAConfigArray& gba_config, const PadMappingArray& wiimote_map)
 {
   std::vector<size_t> gc_slots, gba_slots, wiimote_slots;
   for (size_t i = 0; i < pad_map.size(); ++i)

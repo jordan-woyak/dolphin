@@ -14,10 +14,10 @@ extern "C" {
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getSkylanderMap(JNIEnv* env,
-                                                                                   jclass clazz)
+    jclass clazz)
 {
   jobject hash_map_obj = env->NewObject(IDCache::GetHashMapClass(), IDCache::GetHashMapInit(),
-                                        static_cast<u16>(IOS::HLE::USB::list_skylanders.size()));
+      static_cast<u16>(IOS::HLE::USB::list_skylanders.size()));
 
   jclass skylander_class =
       env->FindClass("org/dolphinemu/dolphinemu/features/skylanders/model/SkylanderPair");
@@ -30,7 +30,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getSkylanderM
     jobject skylander_obj =
         env->NewObject(skylander_class, skylander_init, it.first.first, it.first.second);
     env->CallObjectMethod(hash_map_obj, IDCache::GetHashMapPut(), skylander_obj,
-                          ToJString(env, name));
+        ToJString(env, name));
     env->DeleteLocalRef(skylander_obj);
   }
 
@@ -42,7 +42,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getInverseSky
     JNIEnv* env, jclass clazz)
 {
   jobject hash_map_obj = env->NewObject(IDCache::GetHashMapClass(), IDCache::GetHashMapInit(),
-                                        static_cast<u16>(IOS::HLE::USB::list_skylanders.size()));
+      static_cast<u16>(IOS::HLE::USB::list_skylanders.size()));
 
   jclass skylander_class =
       env->FindClass("org/dolphinemu/dolphinemu/features/skylanders/model/SkylanderPair");
@@ -55,7 +55,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getInverseSky
     jobject skylander_obj =
         env->NewObject(skylander_class, skylander_init, it.first.first, it.first.second);
     env->CallObjectMethod(hash_map_obj, IDCache::GetHashMapPut(), ToJString(env, name),
-                          skylander_obj);
+        skylander_obj);
     env->DeleteLocalRef(skylander_obj);
   }
 
@@ -64,8 +64,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getInverseSky
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_removeSkylander(JNIEnv* env,
-                                                                                   jclass clazz,
-                                                                                   jint slot)
+    jclass clazz, jint slot)
 {
   auto& system = Core::System::GetInstance();
   return static_cast<jboolean>(system.GetSkylanderPortal().RemoveSkylander(slot));
@@ -73,9 +72,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_removeSkyland
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_loadSkylander(JNIEnv* env,
-                                                                                 jclass clazz,
-                                                                                 jint slot,
-                                                                                 jstring file_name)
+    jclass clazz, jint slot, jstring file_name)
 {
   File::IOFile sky_file(GetJString(env, file_name), "r+b");
   if (!sky_file)
@@ -107,17 +104,16 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_loadSkylander
     name = it->second.name;
   }
 
-  return env->NewObject(
-      pair_class, pair_init,
+  return env->NewObject(pair_class, pair_init,
       env->NewObject(integer_class, int_init,
-                     system.GetSkylanderPortal().LoadSkylander(
-                         std::make_unique<IOS::HLE::USB::SkylanderFigure>(std::move(sky_file)))),
+          system.GetSkylanderPortal().LoadSkylander(
+              std::make_unique<IOS::HLE::USB::SkylanderFigure>(std::move(sky_file)))),
       ToJString(env, name));
 }
 
 JNIEXPORT jobject JNICALL
-Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_createSkylander(
-    JNIEnv* env, jclass clazz, jint id, jint var, jstring fileName, jint slot)
+Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_createSkylander(JNIEnv* env,
+    jclass clazz, jint id, jint var, jstring fileName, jint slot)
 {
   u16 sky_id = static_cast<u16>(id);
   u16 sky_var = static_cast<u16>(var);
@@ -159,11 +155,10 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_createSkyland
     name = it->second.name;
   }
 
-  return env->NewObject(
-      pair_class, pair_init,
+  return env->NewObject(pair_class, pair_init,
       env->NewObject(integer_class, integer_init,
-                     system.GetSkylanderPortal().LoadSkylander(
-                         std::make_unique<IOS::HLE::USB::SkylanderFigure>(std::move(sky_file)))),
+          system.GetSkylanderPortal().LoadSkylander(
+              std::make_unique<IOS::HLE::USB::SkylanderFigure>(std::move(sky_file)))),
       ToJString(env, name));
 }
 }

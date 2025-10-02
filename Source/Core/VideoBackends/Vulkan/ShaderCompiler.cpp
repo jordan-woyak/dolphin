@@ -124,24 +124,24 @@ static glslang::EShTargetLanguageVersion GetLanguageVersion()
 std::optional<SPIRVCodeVector> CompileVertexShader(std::string_view source_code)
 {
   return SPIRV::CompileVertexShader(GetShaderCode(source_code, SHADER_HEADER), APIType::Vulkan,
-                                    GetLanguageVersion());
+      GetLanguageVersion());
 }
 
 std::optional<SPIRVCodeVector> CompileGeometryShader(std::string_view source_code)
 {
   return SPIRV::CompileGeometryShader(GetShaderCode(source_code, SHADER_HEADER), APIType::Vulkan,
-                                      GetLanguageVersion());
+      GetLanguageVersion());
 }
 
 std::optional<SPIRVCodeVector> CompileFragmentShader(std::string_view source_code)
 {
   return SPIRV::CompileFragmentShader(GetShaderCode(source_code, SHADER_HEADER), APIType::Vulkan,
-                                      GetLanguageVersion());
+      GetLanguageVersion());
 }
 
 std::optional<SPIRVCodeVector> CompileComputeShader(std::string_view source_code)
 {
   return SPIRV::CompileComputeShader(GetShaderCode(source_code, COMPUTE_SHADER_HEADER),
-                                     APIType::Vulkan, GetLanguageVersion());
+      APIType::Vulkan, GetLanguageVersion());
 }
 }  // namespace Vulkan::ShaderCompiler

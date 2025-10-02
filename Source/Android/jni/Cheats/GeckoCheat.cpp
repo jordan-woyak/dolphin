@@ -20,14 +20,14 @@
 
 static Gecko::GeckoCode* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<Gecko::GeckoCode*>(
-      env->GetLongField(obj, IDCache::GetGeckoCheatPointer()));
+  return reinterpret_cast<Gecko::GeckoCode*>(env->GetLongField(obj,
+      IDCache::GetGeckoCheatPointer()));
 }
 
 jobject GeckoCheatToJava(JNIEnv* env, const Gecko::GeckoCode& code)
 {
   return env->NewObject(IDCache::GetGeckoCheatClass(), IDCache::GetGeckoCheatConstructor(),
-                        reinterpret_cast<jlong>(new Gecko::GeckoCode(code)));
+      reinterpret_cast<jlong>(new Gecko::GeckoCode(code)));
 }
 
 extern "C" {
@@ -84,7 +84,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_getCode(JNIEnv* 
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_getUserDefined(JNIEnv* env,
-                                                                               jobject obj)
+    jobject obj)
 {
   return static_cast<jboolean>(GetPointer(env, obj)->user_defined);
 }
@@ -97,7 +97,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_getEnabled(JNIEn
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_equalsImpl(JNIEnv* env, jobject obj,
-                                                                           jobject other)
+    jobject other)
 {
   return *GetPointer(env, obj) == *GetPointer(env, other);
 }
@@ -137,16 +137,14 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_features_cheats_model_Geck
 
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_setEnabledImpl(JNIEnv* env,
-                                                                               jobject obj,
-                                                                               jboolean enabled)
+    jobject obj, jboolean enabled)
 {
   GetPointer(env, obj)->enabled = static_cast<bool>(enabled);
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_loadCodes(JNIEnv* env, jclass,
-                                                                          jstring jGameID,
-                                                                          jint revision)
+    jstring jGameID, jint revision)
 {
   const std::string game_id = GetJString(env, jGameID);
   Common::IniFile game_ini_local;
@@ -186,7 +184,7 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_features_cheats_model_Geck
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GeckoCheat_downloadCodes(JNIEnv* env, jclass,
-                                                                              jstring jGameTdbId)
+    jstring jGameTdbId)
 {
   const std::string gametdb_id = GetJString(env, jGameTdbId);
 

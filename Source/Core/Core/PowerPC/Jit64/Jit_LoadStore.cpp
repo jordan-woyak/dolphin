@@ -399,12 +399,12 @@ void Jit64::dcbx(UGeckoInstruction inst)
   if (make_loop)
   {
     ABI_CallFunctionPRR(JitInterface::InvalidateICacheLinesFromJIT, &m_system.GetJitInterface(),
-                        effective_address, loop_counter);
+        effective_address, loop_counter);
   }
   else
   {
     ABI_CallFunctionPR(JitInterface::InvalidateICacheLineFromJIT, &m_system.GetJitInterface(),
-                       effective_address);
+        effective_address);
   }
   ABI_PopRegistersAndAdjustStack(registersInUse, 0);
   asm_routines.ResetStack(*this);
@@ -535,7 +535,8 @@ void Jit64::stX(UGeckoInstruction inst)
   if (!a || gpr.IsImm(a))
   {
     const u32 addr = (a ? gpr.Imm32(a) : 0) + offset;
-    const bool exception = [&] {
+    const bool exception = [&]
+    {
       RCOpArg Rs = gpr.Use(s, RCMode::Read);
       RegCache::Realize(Rs);
       return WriteToConstAddress(accessSize, Rs, addr, CallerSavedRegistersInUse());
@@ -572,7 +573,7 @@ void Jit64::stX(UGeckoInstruction inst)
     }
     RegCache::Realize(Ra, reg_value);
     SafeWriteRegToReg(reg_value, Ra, accessSize, offset, CallerSavedRegistersInUse(),
-                      SAFE_LOADSTORE_CLOBBER_RSCRATCH_INSTEAD_OF_ADDR);
+        SAFE_LOADSTORE_CLOBBER_RSCRATCH_INSTEAD_OF_ADDR);
 
     if (update)
       ADD(32, Ra, Imm32((u32)offset));
@@ -629,7 +630,7 @@ void Jit64::stXx(UGeckoInstruction inst)
   if (update)
     registersInUse[RSCRATCH2] = true;
   SafeWriteRegToReg(Rs, RSCRATCH2, accessSize, 0, registersInUse,
-                    byte_reverse ? SAFE_LOADSTORE_NO_SWAP : 0);
+      byte_reverse ? SAFE_LOADSTORE_NO_SWAP : 0);
 
   if (update)
     MOV(32, Ra, R(RSCRATCH2));
@@ -654,7 +655,7 @@ void Jit64::lmw(UGeckoInstruction inst)
   for (int i = d; i < 32; i++)
   {
     SafeLoadToReg(RSCRATCH, R(RSCRATCH2), 32, (i - d) * 4,
-                  CallerSavedRegistersInUse() | BitSet32{RSCRATCH2}, false);
+        CallerSavedRegistersInUse() | BitSet32{RSCRATCH2}, false);
     RCOpArg Ri = gpr.Bind(i, RCMode::Write);
     RegCache::Realize(Ri);
     MOV(32, Ri, R(RSCRATCH));
@@ -687,7 +688,7 @@ void Jit64::stmw(UGeckoInstruction inst)
       Ri = RCOpArg::R(RSCRATCH2);
     }
     SafeWriteRegToReg(Ri, RSCRATCH, 32, (i - d) * 4 + (u32)(s32)inst.SIMM_16,
-                      CallerSavedRegistersInUse());
+        CallerSavedRegistersInUse());
   }
 }
 

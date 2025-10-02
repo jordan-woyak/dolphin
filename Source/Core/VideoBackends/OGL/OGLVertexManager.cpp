@@ -41,7 +41,7 @@ VertexManager::~VertexManager()
   if (g_backend_info.bSupportsPaletteConversion)
   {
     glDeleteTextures(static_cast<GLsizei>(m_texel_buffer_views.size()),
-                     m_texel_buffer_views.data());
+        m_texel_buffer_views.data());
   }
 
   // VAO must be found when destroying the index buffer.
@@ -70,8 +70,8 @@ bool VertexManager::Initialize()
     // texture decoding is enabled, in which case the requested size is 32MB.
     GLint max_buffer_size;
     glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE, &max_buffer_size);
-    m_texel_buffer = StreamBuffer::Create(
-        GL_TEXTURE_BUFFER, std::min(max_buffer_size, static_cast<GLint>(TEXEL_STREAM_BUFFER_SIZE)));
+    m_texel_buffer = StreamBuffer::Create(GL_TEXTURE_BUFFER,
+        std::min(max_buffer_size, static_cast<GLint>(TEXEL_STREAM_BUFFER_SIZE)));
 
     // Allocate texture views backed by buffer.
     static constexpr std::array<std::pair<TexelBufferFormat, GLenum>, NUM_TEXEL_BUFFER_FORMATS>
@@ -100,7 +100,7 @@ void VertexManager::UploadUtilityUniforms(const void* uniforms, u32 uniforms_siz
 }
 
 bool VertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
-                                      u32* out_offset)
+    u32* out_offset)
 {
   if (data_size > m_texel_buffer->GetSize())
     return false;
@@ -120,8 +120,8 @@ bool VertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBuff
 }
 
 bool VertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
-                                      u32* out_offset, const void* palette_data, u32 palette_size,
-                                      TexelBufferFormat palette_format, u32* out_palette_offset)
+    u32* out_offset, const void* palette_data, u32 palette_size, TexelBufferFormat palette_format,
+    u32* out_palette_offset)
 {
   const u32 elem_size = GetTexelBufferElementSize(format);
   const u32 palette_elem_size = GetTexelBufferElementSize(palette_format);
@@ -172,7 +172,7 @@ void VertexManager::ResetBuffer(u32 vertex_stride)
 }
 
 void VertexManager::CommitBuffer(u32 num_vertices, u32 vertex_stride, u32 num_indices,
-                                 u32* out_base_vertex, u32* out_base_index)
+    u32* out_base_vertex, u32* out_base_index)
 {
   u32 vertex_data_size = num_vertices * vertex_stride;
   u32 index_data_size = num_indices * sizeof(u16);

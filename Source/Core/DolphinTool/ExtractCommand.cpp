@@ -22,7 +22,7 @@
 namespace DolphinTool
 {
 static void ExtractFile(const DiscIO::Volume& disc_volume, const DiscIO::Partition& partition,
-                        const std::string& path, const std::string& out)
+    const std::string& path, const std::string& out)
 {
   const DiscIO::FileSystem* filesystem = disc_volume.GetFileSystem(partition);
   if (!filesystem)
@@ -32,8 +32,7 @@ static void ExtractFile(const DiscIO::Volume& disc_volume, const DiscIO::Partiti
 }
 
 static std::unique_ptr<DiscIO::FileInfo> GetFileInfo(const DiscIO::Volume& disc_volume,
-                                                     const DiscIO::Partition& partition,
-                                                     const std::string& path)
+    const DiscIO::Partition& partition, const std::string& path)
 {
   const DiscIO::FileSystem* filesystem = disc_volume.GetFileSystem(partition);
   if (!filesystem)
@@ -51,7 +50,7 @@ static bool VolumeSupported(const DiscIO::Volume& disc_volume)
     return false;
   case DiscIO::Platform::ELFOrDOL:
     fmt::println(std::cerr,
-                 "Error: *.elf or *.dol have no filesystem and are therefore not supported.");
+        "Error: *.elf or *.dol have no filesystem and are therefore not supported.");
     return false;
   case DiscIO::Platform::WiiDisc:
   case DiscIO::Platform::GameCubeDisc:
@@ -63,7 +62,7 @@ static bool VolumeSupported(const DiscIO::Volume& disc_volume)
 }
 
 static void ExtractDirectory(const DiscIO::Volume& disc_volume, const DiscIO::Partition& partition,
-                             const std::string& path, const std::string& out, bool quiet)
+    const std::string& path, const std::string& out, bool quiet)
 {
   const DiscIO::FileSystem* filesystem = disc_volume.GetFileSystem(partition);
   if (!filesystem)
@@ -72,9 +71,9 @@ static void ExtractDirectory(const DiscIO::Volume& disc_volume, const DiscIO::Pa
   const std::unique_ptr<DiscIO::FileInfo> info = filesystem->FindFileInfo(path);
   u32 size = info->GetTotalChildren();
   u32 files = 0;
-  ExportDirectory(
-      disc_volume, partition, *info, true, "", out,
-      [&files, &size, &quiet](const std::string& current) {
+  ExportDirectory(disc_volume, partition, *info, true, "", out,
+      [&files, &size, &quiet](const std::string& current)
+      {
         files++;
         const float progress = static_cast<float>(files) / static_cast<float>(size) * 100;
         if (!quiet)
@@ -84,20 +83,20 @@ static void ExtractDirectory(const DiscIO::Volume& disc_volume, const DiscIO::Pa
 }
 
 static bool ExtractSystemData(const DiscIO::Volume& disc_volume, const DiscIO::Partition& partition,
-                              const std::string& out)
+    const std::string& out)
 {
   return ExportSystemData(disc_volume, partition, out);
 }
 
 static void ExtractPartition(const DiscIO::Volume& disc_volume, const DiscIO::Partition& partition,
-                             const std::string& out, bool quiet)
+    const std::string& out, bool quiet)
 {
   ExtractDirectory(disc_volume, partition, "", out + "/files", quiet);
   ExtractSystemData(disc_volume, partition, out);
 }
 
 static void ListRecursively(const std::string& path, const DiscIO::FileInfo& info,
-                            std::string* result_text)
+    std::string* result_text)
 {
   // Don't print the root.
   if (!path.empty())
@@ -116,8 +115,7 @@ static void ListRecursively(const std::string& path, const DiscIO::FileInfo& inf
 }
 
 static bool ListPartition(const DiscIO::Volume& disc_volume, const DiscIO::Partition& partition,
-                          const std::string& partition_name, const std::string& path,
-                          std::string* result_text)
+    const std::string& partition_name, const std::string& path, std::string* result_text)
 {
   const DiscIO::FileSystem* filesystem = disc_volume.GetFileSystem(partition);
   const std::unique_ptr<DiscIO::FileInfo> info = filesystem->FindFileInfo(path);
@@ -137,13 +135,12 @@ static bool ListPartition(const DiscIO::Volume& disc_volume, const DiscIO::Parti
 }
 
 static bool ListVolume(const DiscIO::Volume& disc_volume, const std::string& path,
-                       const std::string& specific_partition_name, bool quiet,
-                       std::string* result_text)
+    const std::string& specific_partition_name, bool quiet, std::string* result_text)
 {
   if (disc_volume.GetPartitions().empty())
   {
     return ListPartition(disc_volume, DiscIO::PARTITION_NONE, specific_partition_name, path,
-                         result_text);
+        result_text);
   }
 
   bool success = false;
@@ -175,9 +172,8 @@ static bool ListVolume(const DiscIO::Volume& disc_volume, const std::string& pat
 }
 
 static bool HandleExtractPartition(const std::string& output, const std::string& single_file_path,
-                                   const std::string& partition_name,
-                                   const DiscIO::Volume& disc_volume,
-                                   const DiscIO::Partition& partition, bool quiet, bool single)
+    const std::string& partition_name, const DiscIO::Volume& disc_volume,
+    const DiscIO::Partition& partition, bool quiet, bool single)
 {
   std::string file;
   file.append(output).append("/");
@@ -330,13 +326,12 @@ int Extract(const std::vector<std::string>& args)
   {
     if (options.is_set("partition"))
     {
-      fmt::println(
-          std::cerr,
+      fmt::println(std::cerr,
           "Warning: --partition has a value even though this image doesn't have any partitions.");
     }
 
     extracted_one = HandleExtractPartition(output_folder_path, single_file_path, "", *disc_volume,
-                                           DiscIO::PARTITION_NONE, quiet, options.is_set("single"));
+        DiscIO::PARTITION_NONE, quiet, options.is_set("single"));
   }
   else
   {
@@ -352,9 +347,8 @@ int Extract(const std::vector<std::string>& args)
           continue;
         }
 
-        extracted_one |=
-            HandleExtractPartition(output_folder_path, single_file_path, partition_name,
-                                   *disc_volume, p, quiet, options.is_set("single"));
+        extracted_one |= HandleExtractPartition(output_folder_path, single_file_path,
+            partition_name, *disc_volume, p, quiet, options.is_set("single"));
       }
     }
   }

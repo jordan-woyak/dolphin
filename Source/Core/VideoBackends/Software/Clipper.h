@@ -16,7 +16,7 @@ void ProcessLine(OutputVertexData* v0, OutputVertexData* v1);
 void ProcessPoint(OutputVertexData* v);
 
 bool IsTriviallyRejected(const OutputVertexData* v0, const OutputVertexData* v1,
-                         const OutputVertexData* v2);
+    const OutputVertexData* v2);
 
 bool IsBackface(const OutputVertexData* v0, const OutputVertexData* v1, const OutputVertexData* v2);
 

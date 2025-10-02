@@ -17,13 +17,16 @@ void HotkeyGeneral::CreateMainLayout()
 {
   m_main_layout = new QGridLayout;
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("General"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GENERAL)), 0, 0, -1, 1);
+  m_main_layout->addWidget(CreateGroupBox(tr("General"),
+                               HotkeyManagerEmu::GetHotkeyGroup(HKGP_GENERAL)),
+      0, 0, -1, 1);
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Volume"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_VOLUME)), 0, 1);
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Emulation Speed"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_SPEED)), 1, 1);
+  m_main_layout->addWidget(CreateGroupBox(tr("Volume"),
+                               HotkeyManagerEmu::GetHotkeyGroup(HKGP_VOLUME)),
+      0, 1);
+  m_main_layout->addWidget(CreateGroupBox(tr("Emulation Speed"),
+                               HotkeyManagerEmu::GetHotkeyGroup(HKGP_SPEED)),
+      1, 1);
 
   setLayout(m_main_layout);
 }

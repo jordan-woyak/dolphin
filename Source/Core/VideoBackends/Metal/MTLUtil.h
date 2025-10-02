@@ -43,9 +43,9 @@ struct Viewport
 std::vector<MRCOwned<id<MTLDevice>>> GetAdapterList();
 void PopulateBackendInfo(BackendInfo* backend_info);
 void PopulateBackendInfoAdapters(BackendInfo* backend_info,
-                                 const std::vector<MRCOwned<id<MTLDevice>>>& adapters);
+    const std::vector<MRCOwned<id<MTLDevice>>>& adapters);
 void PopulateBackendInfoFeatures(const VideoConfig& config, BackendInfo* backend_info,
-                                 id<MTLDevice> device);
+    id<MTLDevice> device);
 
 AbstractTextureFormat ToAbstract(MTLPixelFormat format);
 MTLPixelFormat FromAbstract(AbstractTextureFormat format);

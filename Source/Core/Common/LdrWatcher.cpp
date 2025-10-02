@@ -37,18 +37,17 @@ typedef const LDR_DLL_NOTIFICATION_DATA* PCLDR_DLL_NOTIFICATION_DATA;
 #define LDR_DLL_NOTIFICATION_REASON_UNLOADED (2)
 
 typedef VOID NTAPI LDR_DLL_NOTIFICATION_FUNCTION(_In_ ULONG NotificationReason,
-                                                 _In_ PCLDR_DLL_NOTIFICATION_DATA NotificationData,
-                                                 _In_opt_ PVOID Context);
+    _In_ PCLDR_DLL_NOTIFICATION_DATA NotificationData, _In_opt_ PVOID Context);
 typedef LDR_DLL_NOTIFICATION_FUNCTION* PLDR_DLL_NOTIFICATION_FUNCTION;
 
-typedef NTSTATUS(NTAPI* LdrRegisterDllNotification_t)(
-    _In_ ULONG Flags, _In_ PLDR_DLL_NOTIFICATION_FUNCTION NotificationFunction,
-    _In_opt_ PVOID Context, _Out_ PVOID* Cookie);
+typedef NTSTATUS(NTAPI* LdrRegisterDllNotification_t)(_In_ ULONG Flags,
+    _In_ PLDR_DLL_NOTIFICATION_FUNCTION NotificationFunction, _In_opt_ PVOID Context,
+    _Out_ PVOID* Cookie);
 
 typedef NTSTATUS(NTAPI* LdrUnregisterDllNotification_t)(_In_ PVOID Cookie);
 
 static void LdrObserverRun(const LdrObserver& observer, PCUNICODE_STRING module_name,
-                           uintptr_t base_address)
+    uintptr_t base_address)
 {
   for (auto& needle : observer.module_names)
   {
@@ -61,7 +60,7 @@ static void LdrObserverRun(const LdrObserver& observer, PCUNICODE_STRING module_
 }
 
 static VOID DllNotificationCallback(ULONG NotificationReason,
-                                    PCLDR_DLL_NOTIFICATION_DATA NotificationData, PVOID Context)
+    PCLDR_DLL_NOTIFICATION_DATA NotificationData, PVOID Context)
 {
   if (NotificationReason != LDR_DLL_NOTIFICATION_REASON_LOADED)
     return;
@@ -100,12 +99,14 @@ bool LdrDllNotifier::Init()
   auto ntdll = GetModuleHandleW(L"ntdll");
   if (!ntdll)
     return false;
-  LdrRegisterDllNotification = reinterpret_cast<decltype(LdrRegisterDllNotification)>(
-      GetProcAddress(ntdll, "LdrRegisterDllNotification"));
+  LdrRegisterDllNotification =
+      reinterpret_cast<decltype(LdrRegisterDllNotification)>(GetProcAddress(ntdll,
+          "LdrRegisterDllNotification"));
   if (!LdrRegisterDllNotification)
     return false;
-  LdrUnregisterDllNotification = reinterpret_cast<decltype(LdrUnregisterDllNotification)>(
-      GetProcAddress(ntdll, "LdrUnregisterDllNotification"));
+  LdrUnregisterDllNotification =
+      reinterpret_cast<decltype(LdrUnregisterDllNotification)>(GetProcAddress(ntdll,
+          "LdrUnregisterDllNotification"));
   if (!LdrUnregisterDllNotification)
     return false;
   return true;
@@ -117,7 +118,7 @@ void LdrDllNotifier::Install(LdrObserver* observer)
     return;
   void* cookie{};
   if (!NT_SUCCESS(LdrRegisterDllNotification(0, DllNotificationCallback,
-                                             static_cast<PVOID>(observer), &cookie)))
+          static_cast<PVOID>(observer), &cookie)))
     cookie = {};
   observer->cookie = cookie;
   return;

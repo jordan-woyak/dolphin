@@ -39,7 +39,7 @@ static void AddToSyncHash(Common::SHA1::Context* context, const T& data)
 }
 
 void Volume::ReadAndAddToSyncHash(Common::SHA1::Context* context, u64 offset, u64 length,
-                                  const Partition& partition) const
+    const Partition& partition) const
 {
   std::vector<u8> buffer(length);
   if (Read(offset, length, buffer.data(), partition))

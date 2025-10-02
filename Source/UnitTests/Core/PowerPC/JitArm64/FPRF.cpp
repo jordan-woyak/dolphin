@@ -81,8 +81,8 @@ TEST(JitArm64, FPRF)
 
   for (const u64 double_input : double_test_values)
   {
-    const u32 expected_double = RunUpdateFPRF(
-        ppc_state, [&] { ppc_state.UpdateFPRFDouble(std::bit_cast<double>(double_input)); });
+    const u32 expected_double = RunUpdateFPRF(ppc_state,
+        [&] { ppc_state.UpdateFPRFDouble(std::bit_cast<double>(double_input)); });
     const u32 actual_double = RunUpdateFPRF(ppc_state, [&] { test.fprf_double(double_input); });
     if (expected_double != actual_double)
       fmt::print("{:016x} -> {:08x} == {:08x}\n", double_input, actual_double, expected_double);
@@ -90,8 +90,8 @@ TEST(JitArm64, FPRF)
 
     const u32 single_input = ConvertToSingle(double_input);
 
-    const u32 expected_single = RunUpdateFPRF(
-        ppc_state, [&] { ppc_state.UpdateFPRFSingle(std::bit_cast<float>(single_input)); });
+    const u32 expected_single = RunUpdateFPRF(ppc_state,
+        [&] { ppc_state.UpdateFPRFSingle(std::bit_cast<float>(single_input)); });
     const u32 actual_single = RunUpdateFPRF(ppc_state, [&] { test.fprf_single(single_input); });
     if (expected_single != actual_single)
       fmt::print("{:08x} -> {:08x} == {:08x}\n", single_input, actual_single, expected_single);

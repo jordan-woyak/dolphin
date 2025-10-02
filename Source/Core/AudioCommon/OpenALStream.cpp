@@ -239,7 +239,7 @@ void OpenALStream::SoundLoop()
   }
 
   INFO_LOG_FMT(AUDIO, "Using {} buffers, each with {} audio frames for a total of {}.", OAL_BUFFERS,
-               frames_per_buffer, frames_per_buffer * OAL_BUFFERS);
+      frames_per_buffer, frames_per_buffer * OAL_BUFFERS);
 
   // Should we make these larger just in case the mixer ever sends more samples
   // than what we request?
@@ -301,7 +301,7 @@ void OpenALStream::SoundLoop()
       if (float32_capable)
       {
         palBufferData(m_buffers[next_buffer], AL_FORMAT_51CHN32, dpl2.data(),
-                      rendered_frames * FRAME_SURROUND_FLOAT, frequency);
+            rendered_frames * FRAME_SURROUND_FLOAT, frequency);
       }
       else if (fixed32_capable)
       {
@@ -319,7 +319,7 @@ void OpenALStream::SoundLoop()
         }
 
         palBufferData(m_buffers[next_buffer], AL_FORMAT_51CHN32, surround_int32.data(),
-                      rendered_frames * FRAME_SURROUND_INT32, frequency);
+            rendered_frames * FRAME_SURROUND_INT32, frequency);
       }
       else
       {
@@ -337,15 +337,15 @@ void OpenALStream::SoundLoop()
         }
 
         palBufferData(m_buffers[next_buffer], AL_FORMAT_51CHN16, surround_short.data(),
-                      rendered_frames * FRAME_SURROUND_SHORT, frequency);
+            rendered_frames * FRAME_SURROUND_SHORT, frequency);
       }
 
       err = CheckALError("buffering data");
       if (err == AL_INVALID_ENUM)
       {
         // 5.1 is not supported by the host, fallback to stereo
-        WARN_LOG_FMT(
-            AUDIO, "Unable to set 5.1 surround mode.  Updating OpenAL Soft might fix this issue.");
+        WARN_LOG_FMT(AUDIO,
+            "Unable to set 5.1 surround mode.  Updating OpenAL Soft might fix this issue.");
         use_surround = false;
       }
     }
@@ -358,7 +358,7 @@ void OpenALStream::SoundLoop()
         continue;
 
       palBufferData(m_buffers[next_buffer], AL_FORMAT_STEREO16, m_realtime_buffer.data(),
-                    rendered_frames * FRAME_STEREO_SHORT, frequency);
+          rendered_frames * FRAME_STEREO_SHORT, frequency);
     }
 
     palSourceQueueBuffers(m_source, 1, &m_buffers[next_buffer]);

@@ -98,10 +98,12 @@ JitBase::JitBase(Core::System& system)
       m_mmu(system.GetMMU()), m_branch_watch(system.GetPowerPC().GetBranchWatch()),
       m_ppc_symbol_db(system.GetPPCSymbolDB())
 {
-  m_registered_config_callback_id = CPUThreadConfigCallback::AddConfigChangedCallback([this] {
-    if (DoesConfigNeedRefresh())
-      ClearCache();
-  });
+  m_registered_config_callback_id = CPUThreadConfigCallback::AddConfigChangedCallback(
+      [this]
+      {
+        if (DoesConfigNeedRefresh())
+          ClearCache();
+      });
   // The JIT is responsible for calling RefreshConfig on Init and ClearCache
 }
 
@@ -112,9 +114,8 @@ JitBase::~JitBase()
 
 bool JitBase::DoesConfigNeedRefresh() const
 {
-  return std::ranges::any_of(JIT_SETTINGS, [this](const auto& pair) {
-    return this->*pair.first != Config::Get(*pair.second);
-  });
+  return std::ranges::any_of(JIT_SETTINGS,
+      [this](const auto& pair) { return this->*pair.first != Config::Get(*pair.second); });
 }
 
 void JitBase::RefreshConfig()
@@ -194,7 +195,7 @@ void JitBase::ProtectStack()
   {
     PanicAlertFmt("Stack is too small for BLR optimization (size {:x}, base {:x}, current stack "
                   "pointer {:x}, alignment {:x})",
-                  stack_size, stack_base_addr, stack_middle_addr, page_size);
+        stack_size, stack_base_addr, stack_middle_addr, page_size);
     m_enable_blr_optimization = false;
     return;
   }

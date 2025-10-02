@@ -54,8 +54,8 @@ Nunchuk::Nunchuk() : Extension1stParty(_trans("Nunchuk"))
   groups.emplace_back(m_swing = new ControllerEmu::Force(_trans("Swing")));
 
   // accelerometer
-  groups.emplace_back(m_imu_accelerometer = new ControllerEmu::IMUAccelerometer(
-                          ACCELEROMETER_GROUP, _trans("Accelerometer")));
+  groups.emplace_back(m_imu_accelerometer = new ControllerEmu::IMUAccelerometer(ACCELEROMETER_GROUP,
+                          _trans("Accelerometer")));
 }
 
 void Nunchuk::BuildDesiredExtensionState(DesiredExtensionState* target_state)
@@ -83,10 +83,9 @@ void Nunchuk::BuildDesiredExtensionState(DesiredExtensionState* target_state)
   const auto transformation =
       GetRotationalMatrix(-m_tilt_state.angle) * GetRotationalMatrix(-m_swing_state.angle);
 
-  Common::Vec3 accel =
-      transformation *
-      (m_swing_state.acceleration +
-       m_imu_accelerometer->GetState().value_or(Common::Vec3(0, 0, float(GRAVITY_ACCELERATION))));
+  Common::Vec3 accel = transformation * (m_swing_state.acceleration +
+                                            m_imu_accelerometer->GetState().value_or(Common::Vec3(0,
+                                                0, float(GRAVITY_ACCELERATION))));
 
   // shake
   accel += m_shake_state.acceleration;

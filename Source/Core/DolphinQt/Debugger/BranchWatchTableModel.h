@@ -50,7 +50,7 @@ enum EnumType : int
 struct BranchWatchTableModelSymbolListValueType
 {
   explicit BranchWatchTableModelSymbolListValueType(const Common::Symbol* const origin_symbol,
-                                                    const Common::Symbol* const destin_symbol)
+      const Common::Symbol* const destin_symbol)
       : origin_name(origin_symbol ? QString::fromStdString(origin_symbol->name) : QVariant{}),
         origin_addr(origin_symbol ? origin_symbol->address : QVariant{}),
         destin_name(destin_symbol ? QString::fromStdString(destin_symbol->name) : QVariant{}),
@@ -72,7 +72,7 @@ public:
   using SymbolList = QList<SymbolListValueType>;
 
   explicit BranchWatchTableModel(Core::System& system, Core::BranchWatch& branch_watch,
-                                 PPCSymbolDB& ppc_symbol_db, QObject* parent = nullptr)
+      PPCSymbolDB& ppc_symbol_db, QObject* parent = nullptr)
       : QAbstractTableModel(parent), m_system(system), m_branch_watch(branch_watch),
         m_ppc_symbol_db(ppc_symbol_db)
   {
@@ -86,7 +86,7 @@ public:
 
   QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
   QVariant headerData(int section, Qt::Orientation orientation,
-                      int role = Qt::DisplayRole) const override;
+      int role = Qt::DisplayRole) const override;
   int rowCount(const QModelIndex& parent = QModelIndex{}) const override;
   int columnCount(const QModelIndex& parent = QModelIndex{}) const override;
   bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex{}) override;

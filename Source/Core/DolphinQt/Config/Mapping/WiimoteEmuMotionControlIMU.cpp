@@ -35,23 +35,26 @@ void WiimoteEmuMotionControlIMU::CreateMainLayout()
                     "alternate input sources before using these controls."));
   warning_label->setWordWrap(true);
   auto* warning_input_sources_button = new QPushButton(tr("Alternate Input Sources"));
-  warning_layout->addWidget(
-      QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning, warning_label), 1);
+  warning_layout->addWidget(QtUtils::CreateIconWarning(this, QStyle::SP_MessageBoxWarning,
+                                warning_label),
+      1);
   warning_layout->addWidget(warning_input_sources_button);
-  connect(warning_input_sources_button, &QPushButton::clicked, this, [this] {
-    ControllerInterfaceWindow window{this};
-    window.exec();
-  });
+  connect(warning_input_sources_button, &QPushButton::clicked, this,
+      [this]
+      {
+        ControllerInterfaceWindow window{this};
+        window.exec();
+      });
 
   auto* groups_layout = new QHBoxLayout();
-  groups_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUPoint)));
-  groups_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IRPassthrough)));
-  groups_layout->addWidget(CreateGroupBox(
-      Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUAccelerometer)));
-  groups_layout->addWidget(
-      CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(), WiimoteEmu::WiimoteGroup::IMUGyroscope)));
+  groups_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::IMUPoint)));
+  groups_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::IRPassthrough)));
+  groups_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::IMUAccelerometer)));
+  groups_layout->addWidget(CreateGroupBox(Wiimote::GetWiimoteGroup(GetPort(),
+      WiimoteEmu::WiimoteGroup::IMUGyroscope)));
 
   m_main_layout = new QVBoxLayout();
   m_main_layout->addLayout(warning_layout);

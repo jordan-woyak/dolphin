@@ -168,7 +168,7 @@ public:
     if (version_major > 1)
     {
       ERROR_LOG_FMT(COMMON, "MO file '{}' has unsupported version number {}", filename,
-                    version_major);
+          version_major);
       m_data = {};
       return;
     }
@@ -184,7 +184,7 @@ public:
     const MoIterator begin(m_data.data(), m_offset_original_table);
     const MoIterator end(m_data.data(), m_offset_original_table, m_number_of_strings);
     auto iter = std::lower_bound(begin, end, original_string,
-                                 [](const char* a, const char* b) { return strcmp(a, b) < 0; });
+        [](const char* a, const char* b) { return strcmp(a, b) < 0; });
 
     if (iter == end || strcmp(*iter, original_string) != 0)
       return nullptr;
@@ -213,7 +213,7 @@ public:
   }
 
   QString translate(const char* context, const char* source_text,
-                    const char* disambiguation = nullptr, int n = -1) const override
+      const char* disambiguation = nullptr, int n = -1) const override
   {
     const char* translated_text;
 
@@ -280,7 +280,7 @@ static bool TryInstallTranslator(const QString& exact_language_code)
         fmt::format("{}/Languages/{}.mo", File::GetExeDirectory(), lang)
 #elif defined __APPLE__
         fmt::format("{}/Contents/Resources/{}.lproj/dolphin-emu.mo", File::GetBundleDirectory(),
-                    lang)
+            lang)
 #elif defined LINUX_LOCAL_DEV
         fmt::format("{}/../Source/Core/DolphinQt/{}/dolphin-emu.mo", File::GetExeDirectory(), lang)
 #else
@@ -307,8 +307,8 @@ static bool TryInstallTranslator(const QString& exact_language_code)
 void Translation::Initialize()
 {
   // Hook up Dolphin internal translation
-  Common::RegisterStringTranslator(
-      [](const char* text) { return QObject::tr(text).toStdString(); });
+  Common::RegisterStringTranslator([](const char* text)
+      { return QObject::tr(text).toStdString(); });
 
   // Hook up Qt translations
   std::string configured_language = Config::Get(Config::MAIN_INTERFACE_LANGUAGE);
@@ -317,8 +317,7 @@ void Translation::Initialize()
     if (TryInstallTranslator(QString::fromStdString(configured_language)))
       return;
 
-    ModalMessageBox::warning(
-        nullptr, QObject::tr("Error"),
+    ModalMessageBox::warning(nullptr, QObject::tr("Error"),
         QObject::tr("Error loading selected language. Falling back to system default."));
     Config::SetBase(Config::MAIN_INTERFACE_LANGUAGE, "");
   }

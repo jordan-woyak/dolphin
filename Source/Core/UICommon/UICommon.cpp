@@ -111,7 +111,7 @@ static void InitCustomPaths()
   CreateWFSPath(Config::Get(Config::MAIN_WFS_PATH));
   File::SetUserPath(F_WIISDCARDIMAGE_IDX, Config::Get(Config::MAIN_WII_SD_CARD_IMAGE_PATH));
   File::SetUserPath(D_WIISDCARDSYNCFOLDER_IDX,
-                    Config::Get(Config::MAIN_WII_SD_CARD_SYNC_FOLDER_PATH));
+      Config::Get(Config::MAIN_WII_SD_CARD_SYNC_FOLDER_PATH));
   File::CreateFullPath(File::GetUserPath(D_WIISDCARDSYNCFOLDER_IDX));
 #ifdef HAS_LIBMGBA
   File::SetUserPath(F_GBABIOS_IDX, Config::Get(Config::MAIN_GBA_BIOS_PATH));
@@ -131,7 +131,8 @@ void Init()
   Core::RestoreWiiSettings(Core::RestoreReason::CrashRecovery);
 
   Config::Init();
-  const auto config_changed_callback = [] {
+  const auto config_changed_callback = []
+  {
     InitCustomPaths();
     RefreshConfig();
   };
@@ -195,7 +196,8 @@ void ShutdownControllers()
 
 void SetLocale(std::string locale_name)
 {
-  auto set_locale = [](const std::string& locale) {
+  auto set_locale = [](const std::string& locale)
+  {
 #ifdef __linux__
     std::string adjusted_locale = locale;
     if (!locale.empty())
@@ -315,19 +317,19 @@ void SetUserDirectory(std::string custom_path)
 
   // Get AppData path in case we need it.
   wil::unique_cotaskmem_string appdata;
-  bool appdata_found = SUCCEEDED(
-      SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, nullptr, appdata.put()));
+  bool appdata_found = SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, KF_FLAG_DEFAULT,
+      nullptr, appdata.put()));
 
   // Check our registry keys
   wil::unique_hkey hkey;
   DWORD local = 0;
   std::unique_ptr<TCHAR[]> configPath;
   if (RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\Dolphin Emulator"), 0, KEY_QUERY_VALUE,
-                   hkey.put()) == ERROR_SUCCESS)
+          hkey.put()) == ERROR_SUCCESS)
   {
     DWORD size = sizeof(local);
     if (RegQueryValueEx(hkey.get(), TEXT("LocalUserConfig"), nullptr, nullptr,
-                        reinterpret_cast<LPBYTE>(&local), &size) != ERROR_SUCCESS)
+            reinterpret_cast<LPBYTE>(&local), &size) != ERROR_SUCCESS)
     {
       local = 0;
     }
@@ -336,7 +338,7 @@ void SetUserDirectory(std::string custom_path)
     RegQueryValueEx(hkey.get(), TEXT("UserConfigPath"), nullptr, nullptr, nullptr, &size);
     configPath = std::make_unique<TCHAR[]>(size / sizeof(TCHAR));
     if (RegQueryValueEx(hkey.get(), TEXT("UserConfigPath"), nullptr, nullptr,
-                        reinterpret_cast<LPBYTE>(configPath.get()), &size) != ERROR_SUCCESS)
+            reinterpret_cast<LPBYTE>(configPath.get()), &size) != ERROR_SUCCESS)
     {
       configPath.reset();
     }
@@ -346,8 +348,8 @@ void SetUserDirectory(std::string custom_path)
 
   // Attempt to check if the old User directory exists in Documents.
   wil::unique_cotaskmem_string documents;
-  bool documents_found = SUCCEEDED(
-      SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT, nullptr, documents.put()));
+  bool documents_found = SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_DEFAULT,
+      nullptr, documents.put()));
 
   std::optional<std::string> old_user_folder;
   if (documents_found)
@@ -377,8 +379,7 @@ void SetUserDirectory(std::string custom_path)
     // (If we're in this case, then this key doesn't exist, so it's OK to set it.)
     std::wstring wstr_path = UTF8ToWString(user_path);
     RegSetKeyValueW(HKEY_CURRENT_USER, TEXT("Software\\Dolphin Emulator"), TEXT("UserConfigPath"),
-                    REG_SZ, wstr_path.c_str(),
-                    static_cast<DWORD>((wstr_path.size() + 1) * sizeof(wchar_t)));
+        REG_SZ, wstr_path.c_str(), static_cast<DWORD>((wstr_path.size() + 1) * sizeof(wchar_t)));
   }
   else  // Case 6
   {
@@ -505,8 +506,7 @@ void InhibitScreenSaver(bool inhibit)
   {
     CFStringRef reason_for_activity = CFSTR("Emulation Running");
     if (IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleDisplaySleep,
-                                    kIOPMAssertionLevelOn, reason_for_activity,
-                                    &s_power_assertion) != kIOReturnSuccess)
+            kIOPMAssertionLevelOn, reason_for_activity, &s_power_assertion) != kIOReturnSuccess)
     {
       s_power_assertion = kIOPMNullAssertionID;
     }
@@ -525,8 +525,8 @@ void InhibitScreenSaver(bool inhibit)
 std::string FormatSize(u64 bytes, int decimals)
 {
   // i18n: The symbol for the unit "bytes"
-  const char* const unit_symbols[] = {_trans("B"),   _trans("KiB"), _trans("MiB"), _trans("GiB"),
-                                      _trans("TiB"), _trans("PiB"), _trans("EiB")};
+  const char* const unit_symbols[] = {_trans("B"), _trans("KiB"), _trans("MiB"), _trans("GiB"),
+      _trans("TiB"), _trans("PiB"), _trans("EiB")};
 
   // Find largest power of 2 less than size.
   // div 10 to get largest named unit less than size
@@ -537,7 +537,7 @@ std::string FormatSize(u64 bytes, int decimals)
   // Don't need exact values, only 5 most significant digits
   const double unit_size = std::pow(2, unit * 10);
   return fmt::format("{:.{}Lf} {}", bytes / unit_size, decimals,
-                     Common::GetStringT(unit_symbols[unit]));
+      Common::GetStringT(unit_symbols[unit]));
 }
 
 }  // namespace UICommon

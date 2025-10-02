@@ -75,18 +75,18 @@ static jint ConvertUpdateResult(WiiUtils::UpdateResult result)
 extern "C" {
 
 JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_installWAD(JNIEnv* env,
-                                                                                    jclass,
-                                                                                    jstring jFile)
+    jclass, jstring jFile)
 {
   const std::string path = GetJString(env, jFile);
   return static_cast<jboolean>(WiiUtils::InstallWAD(path));
 }
 
-JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_importWiiSave(
-    JNIEnv* env, jclass, jstring jFile, jobject jCanOverwrite)
+JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_importWiiSave(JNIEnv* env,
+    jclass, jstring jFile, jobject jCanOverwrite)
 {
   const std::string path = GetJString(env, jFile);
-  const auto can_overwrite = [&] {
+  const auto can_overwrite = [&]
+  {
     const jmethodID get = IDCache::GetBooleanSupplierGet();
     return static_cast<bool>(env->CallBooleanMethod(jCanOverwrite, get));
   };
@@ -95,19 +95,20 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_importWiiSa
 }
 
 JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_importNANDBin(JNIEnv* env,
-                                                                                   jclass,
-                                                                                   jstring jFile)
+    jclass, jstring jFile)
 {
   const std::string path = GetJString(env, jFile);
 
   return DiscIO::NANDImporter().ImportNANDBin(
       path,
-      [] {
+      []
+      {
         // This callback gets called every now and then in case we want to update the GUI. However,
         // we have no way of knowing what the current progress is, so we can't do anything
         // especially useful. DolphinQt chooses to show the elapsed time, for reference.
       },
-      [] {
+      []
+      {
         // This callback gets called if the NAND file does not have decryption keys appended to it.
         // We're supposed to ask the user for a separate file containing keys, but this is probably
         // more work to implement on Android than it's worth, as this case almost never comes up.
@@ -116,18 +117,19 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_importNANDB
       });
 }
 
-JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doOnlineUpdate(
-    JNIEnv* env, jclass, jstring jRegion, jobject jCallback)
+JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doOnlineUpdate(JNIEnv* env,
+    jclass, jstring jRegion, jobject jCallback)
 {
   const std::string region = GetJString(env, jRegion);
 
   jobject jCallbackGlobal = env->NewGlobalRef(jCallback);
   Common::ScopeGuard scope_guard([jCallbackGlobal, env] { env->DeleteGlobalRef(jCallbackGlobal); });
 
-  const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id) {
+  const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id)
+  {
     JNIEnv* env = IDCache::GetEnvForThread();
-    return static_cast<bool>(env->CallBooleanMethod(
-        jCallbackGlobal, IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
+    return static_cast<bool>(env->CallBooleanMethod(jCallbackGlobal,
+        IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
   };
 
   WiiUtils::UpdateResult result = WiiUtils::DoOnlineUpdate(callback, region);
@@ -136,19 +138,18 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doOnlineUpd
 }
 
 JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doDiscUpdate(JNIEnv* env,
-                                                                                  jclass,
-                                                                                  jstring jPath,
-                                                                                  jobject jCallback)
+    jclass, jstring jPath, jobject jCallback)
 {
   const std::string path = GetJString(env, jPath);
 
   jobject jCallbackGlobal = env->NewGlobalRef(jCallback);
   Common::ScopeGuard scope_guard([jCallbackGlobal, env] { env->DeleteGlobalRef(jCallbackGlobal); });
 
-  const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id) {
+  const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id)
+  {
     JNIEnv* env = IDCache::GetEnvForThread();
-    return static_cast<bool>(env->CallBooleanMethod(
-        jCallbackGlobal, IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
+    return static_cast<bool>(env->CallBooleanMethod(jCallbackGlobal,
+        IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
   };
 
   WiiUtils::UpdateResult result = WiiUtils::DoDiscUpdate(callback, path);

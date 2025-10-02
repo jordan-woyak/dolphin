@@ -147,7 +147,7 @@ struct ScissorResult
 
 private:
   ScissorResult(const BPMemory& bpmem, std::pair<float, float> viewport_x,
-                std::pair<float, float> viewport_y);
+      std::pair<float, float> viewport_y);
 
   int GetViewportArea(const ScissorRect& rect) const;
   bool IsWorse(const ScissorRect& lhs, const ScissorRect& rhs) const;

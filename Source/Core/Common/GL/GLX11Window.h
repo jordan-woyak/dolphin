@@ -13,7 +13,7 @@ class GLX11Window
 {
 public:
   GLX11Window(Display* display, Window parent_window, Colormap color_map, Window window, int width,
-              int height);
+      int height);
   ~GLX11Window();
 
   Display* GetDisplay() const { return m_display; }
@@ -25,7 +25,7 @@ public:
   void UpdateDimensions();
 
   static std::unique_ptr<GLX11Window> Create(Display* display, Window parent_window,
-                                             XVisualInfo* vi);
+      XVisualInfo* vi);
 
 private:
   Display* m_display;

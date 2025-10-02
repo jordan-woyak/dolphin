@@ -23,8 +23,8 @@ constexpr std::array<u8, 6> drawsome_tablet_id{{0xff, 0x00, 0xa4, 0x20, 0x00, 0x
 DrawsomeTablet::DrawsomeTablet() : Extension3rdParty("Drawsome", _trans("Drawsome Tablet"))
 {
   // Stylus
-  groups.emplace_back(m_stylus = new ControllerEmu::AnalogStick(
-                          _trans("Stylus"), std::make_unique<ControllerEmu::SquareStickGate>(1.0)));
+  groups.emplace_back(m_stylus = new ControllerEmu::AnalogStick(_trans("Stylus"),
+                          std::make_unique<ControllerEmu::SquareStickGate>(1.0)));
 
   // Touch
   groups.emplace_back(m_touch = new ControllerEmu::Triggers(_trans("Touch")));

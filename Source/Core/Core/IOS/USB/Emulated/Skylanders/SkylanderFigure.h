@@ -63,7 +63,7 @@ public:
   SkylanderFigure(const std::string& file_path);
   SkylanderFigure(File::IOFile file);
   bool Create(u16 sky_id, u16 sky_var,
-              std::optional<std::array<u8, 4>> requested_nuid = std::nullopt);
+      std::optional<std::array<u8, 4>> requested_nuid = std::nullopt);
   void Save();
   void Close();
   bool FileIsOpen() const;

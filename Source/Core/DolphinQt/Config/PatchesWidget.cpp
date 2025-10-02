@@ -69,7 +69,7 @@ void PatchesWidget::ConnectWidgets()
 {
 #ifdef USE_RETRO_ACHIEVEMENTS
   connect(m_hc_warning, &HardcoreWarningWidget::OpenAchievementSettings, this,
-          &PatchesWidget::OpenAchievementSettings);
+      &PatchesWidget::OpenAchievementSettings);
 #endif  // USE_RETRO_ACHIEVEMENTS
 
   connect(m_list, &QListWidget::itemSelectionChanged, this, &PatchesWidget::UpdateActions);

@@ -45,7 +45,7 @@ struct ImagePixelData
 };
 
 void CopyImageRegion(const ImagePixelData& src, ImagePixelData& dst, const Rect& src_region,
-                     const Rect& dst_region);
+    const Rect& dst_region);
 
 std::optional<ImagePixelData> LoadImage(const std::string& path);
 
@@ -59,5 +59,5 @@ enum class ResizeMode
 ImagePixelData Resize(ResizeMode mode, const ImagePixelData& src, u32 new_width, u32 new_height);
 
 ImagePixelData ResizeKeepAspectRatio(ResizeMode mode, const ImagePixelData& src, u32 new_width,
-                                     u32 new_height, const Pixel& background_color);
+    u32 new_height, const Pixel& background_color);
 }  // namespace InputCommon

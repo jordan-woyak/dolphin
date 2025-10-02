@@ -16,8 +16,8 @@
 
 static ControllerEmu::Control* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::Control*>(
-      env->GetLongField(obj, IDCache::GetControlPointer()));
+  return reinterpret_cast<ControllerEmu::Control*>(env->GetLongField(obj,
+      IDCache::GetControlPointer()));
 }
 
 jobject ControlToJava(JNIEnv* env, ControllerEmu::Control* control)
@@ -26,14 +26,14 @@ jobject ControlToJava(JNIEnv* env, ControllerEmu::Control* control)
     return nullptr;
 
   return env->NewObject(IDCache::GetControlClass(), IDCache::GetControlConstructor(),
-                        reinterpret_cast<jlong>(control));
+      reinterpret_cast<jlong>(control));
 }
 
 extern "C" {
 
 JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_controlleremu_Control_getUiName(JNIEnv* env,
-                                                                                    jobject obj)
+    jobject obj)
 {
   ControllerEmu::Control* control = GetPointer(env, obj);
   std::string ui_name = control->ui_name;

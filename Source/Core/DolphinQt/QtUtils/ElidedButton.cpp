@@ -38,8 +38,7 @@ void ElidedButton::paintEvent(QPaintEvent* event)
   QStyleOptionButton option;
   initStyleOption(&option);
 
-  option.text = fontMetrics().elidedText(
-      text(), m_elide_mode,
+  option.text = fontMetrics().elidedText(text(), m_elide_mode,
       style()->subElementRect(QStyle::SE_PushButtonContents, &option, this).width());
 
   QStylePainter{this}.drawControl(QStyle::CE_PushButton, option);

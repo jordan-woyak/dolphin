@@ -63,7 +63,7 @@ private:
   CodeViewWidget* m_parent;
 
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
-             const QModelIndex& index) const override
+      const QModelIndex& index) const override
   {
     QStyledItemDelegate::paint(painter, option, index);
 
@@ -172,31 +172,35 @@ CodeViewWidget::CodeViewWidget()
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this,
-          [this](Qt::ColorScheme colorScheme) { OnSelectionChanged(); });
+      [this](Qt::ColorScheme colorScheme) { OnSelectionChanged(); });
 #endif
 
   connect(this, &CodeViewWidget::customContextMenuRequested, this, &CodeViewWidget::OnContextMenu);
   connect(this, &CodeViewWidget::itemSelectionChanged, this, &CodeViewWidget::OnSelectionChanged);
   connect(&Settings::Instance(), &Settings::DebugFontChanged, this,
-          &CodeViewWidget::OnDebugFontChanged);
+      &CodeViewWidget::OnDebugFontChanged);
 
-  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this] {
-    if (!m_lock_address && Core::GetState(m_system) == Core::State::Paused)
-      m_address = m_system.GetPPCState().pc;
-    Update();
-  });
-  connect(Host::GetInstance(), &Host::UpdateDisasmDialog, this, [this] {
-    if (!m_lock_address && Core::GetState(m_system) == Core::State::Paused)
-      m_address = m_system.GetPPCState().pc;
-    Update();
-  });
+  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
+      [this]
+      {
+        if (!m_lock_address && Core::GetState(m_system) == Core::State::Paused)
+          m_address = m_system.GetPPCState().pc;
+        Update();
+      });
+  connect(Host::GetInstance(), &Host::UpdateDisasmDialog, this,
+      [this]
+      {
+        if (!m_lock_address && Core::GetState(m_system) == Core::State::Paused)
+          m_address = m_system.GetPPCState().pc;
+        Update();
+      });
   connect(Host::GetInstance(), &Host::PPCSymbolsChanged, this,
-          qOverload<>(&CodeViewWidget::Update));
+      qOverload<>(&CodeViewWidget::Update));
   connect(Host::GetInstance(), &Host::PPCBreakpointsChanged, this,
-          qOverload<>(&CodeViewWidget::Update));
+      qOverload<>(&CodeViewWidget::Update));
 
   connect(&Settings::Instance(), &Settings::ThemeChanged, this,
-          qOverload<>(&CodeViewWidget::Update));
+      qOverload<>(&CodeViewWidget::Update));
 }
 
 CodeViewWidget::~CodeViewWidget() = default;
@@ -225,7 +229,7 @@ void CodeViewWidget::FontBasedSizing()
   horizontalHeader()->setMinimumSectionSize(rowh + 5);
   setColumnWidth(CODE_VIEW_COLUMN_BREAKPOINT, rowh + 5);
   setColumnWidth(CODE_VIEW_COLUMN_ADDRESS,
-                 fm.boundingRect(QStringLiteral("80000000")).width() + extra_text_width);
+      fm.boundingRect(QStringLiteral("80000000")).width() + extra_text_width);
 
   // The longest instruction is technically 'ps_merge00' (0x10000420u), but those instructions are
   // very rare and would needlessly increase the column size, so let's go with 'rlwinm.' instead.
@@ -237,11 +241,11 @@ void CodeViewWidget::FontBasedSizing()
   const std::string ins = (split == std::string::npos ? disas : disas.substr(0, split));
   const std::string param = (split == std::string::npos ? "" : disas.substr(split + 1));
   setColumnWidth(CODE_VIEW_COLUMN_INSTRUCTION,
-                 fm.boundingRect(QString::fromStdString(ins)).width() + extra_text_width);
+      fm.boundingRect(QString::fromStdString(ins)).width() + extra_text_width);
   setColumnWidth(CODE_VIEW_COLUMN_PARAMETERS,
-                 fm.boundingRect(QString::fromStdString(param)).width() + extra_text_width);
+      fm.boundingRect(QString::fromStdString(param)).width() + extra_text_width);
   setColumnWidth(CODE_VIEW_COLUMN_DESCRIPTION,
-                 fm.boundingRect(QChar(u'0')).width() * 25 + extra_text_width);
+      fm.boundingRect(QChar(u'0')).width() * 25 + extra_text_width);
 
   Update();
 }
@@ -357,7 +361,7 @@ void CodeViewWidget::Update(const Core::CPUThreadGuard* guard)
     auto* branch_item = new QTableWidgetItem();
 
     for (auto* item :
-         {bp_item, addr_item, ins_item, param_item, description_item, note_item, branch_item})
+        {bp_item, addr_item, ins_item, param_item, description_item, note_item, branch_item})
     {
       item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
       item->setData(Qt::UserRole, addr);
@@ -446,21 +450,26 @@ void CodeViewWidget::CalculateBranchIndentation()
 
   // process in order of how much vertical space the drawn arrow would take up
   // so shorter arrows go further to the left
-  std::ranges::stable_sort(m_branches, {}, [](const CodeViewBranch& b) {
-    return b.is_link ? 0 : (std::max(b.src_addr, b.dst_addr) - std::min(b.src_addr, b.dst_addr));
-  });
+  std::ranges::stable_sort(m_branches, {},
+      [](const CodeViewBranch& b)
+      {
+        return b.is_link ? 0 :
+                           (std::max(b.src_addr, b.dst_addr) - std::min(b.src_addr, b.dst_addr));
+      });
 
   // build a 2D lookup table representing the columns and rows the arrow could be drawn in
   // and try to place all branch arrows in it as far left as possible
   std::vector<bool> arrow_space_used(columns * rows, false);
-  const auto index = [&](u32 column, u32 row) {
+  const auto index = [&](u32 column, u32 row)
+  {
     ASSERT(row <= rows);
     ASSERT(column <= columns);
     return column * rows + row;
   };
 
-  const auto add_branch_arrow = [&](CodeViewBranch& branch, u32 first_addr, u32 first_row,
-                                    u32 last_addr) {
+  const auto add_branch_arrow =
+      [&](CodeViewBranch& branch, u32 first_addr, u32 first_row, u32 last_addr)
+  {
     const u32 arrow_src_addr = branch.src_addr;
     const u32 arrow_dst_addr = branch.is_link ? branch.src_addr : branch.dst_addr;
     const auto [arrow_addr_lower, arrow_addr_higher] = std::minmax(arrow_src_addr, arrow_dst_addr);
@@ -475,10 +484,12 @@ void CodeViewWidget::CalculateBranchIndentation()
     const u32 arrow_first_visible_row = (arrow_first_visible_addr - first_addr) / 4 + first_row;
     const u32 arrow_last_visible_row = (arrow_last_visible_addr - first_addr) / 4 + first_row;
 
-    const auto free_column = [&]() -> std::optional<u32> {
+    const auto free_column = [&]() -> std::optional<u32>
+    {
       for (u32 column = 0; column < columns; ++column)
       {
-        const bool column_is_free = [&] {
+        const bool column_is_free = [&]
+        {
           for (u32 row = arrow_first_visible_row; row <= arrow_last_visible_row; ++row)
           {
             if (arrow_space_used[index(column, row)])
@@ -568,8 +579,8 @@ void CodeViewWidget::ReplaceAddress(u32 address, ReplaceWith replace)
 {
   Core::CPUThreadGuard guard(m_system);
 
-  m_system.GetPowerPC().GetDebugInterface().SetPatch(
-      guard, address, replace == ReplaceWith::BLR ? 0x4e800020 : 0x60000000);
+  m_system.GetPowerPC().GetDebugInterface().SetPatch(guard, address,
+      replace == ReplaceWith::BLR ? 0x4e800020 : 0x60000000);
 
   Update(&guard);
 }
@@ -650,21 +661,20 @@ void CodeViewWidget::OnContextMenu()
   auto* run_until_menu = menu->addMenu(tr("Run Until (Ignoring Breakpoints)"));
   // i18n: One of the options shown below "Run Until (Ignoring Breakpoints)"
   run_until_menu->addAction(tr("%1's value is hit").arg(target), this,
-                            [this] { AutoStep(CodeTrace::AutoStop::Always); });
+      [this] { AutoStep(CodeTrace::AutoStop::Always); });
   // i18n: One of the options shown below "Run Until (Ignoring Breakpoints)"
   run_until_menu->addAction(tr("%1's value is used").arg(target), this,
-                            [this] { AutoStep(CodeTrace::AutoStop::Used); });
+      [this] { AutoStep(CodeTrace::AutoStop::Used); });
   // i18n: One of the options shown below "Run Until (Ignoring Breakpoints)"
   run_until_menu->addAction(tr("%1's value is changed").arg(target),
-                            [this] { AutoStep(CodeTrace::AutoStop::Changed); });
+      [this] { AutoStep(CodeTrace::AutoStop::Changed); });
 
   run_until_menu->setEnabled(!target.isEmpty());
   follow_branch_action->setEnabled(follow_branch_enabled);
 
-  for (auto* action :
-       {copy_address_action, copy_line_action, copy_hex_action, symbol_add_action,
-        symbol_edit_action, note_add_action, note_edit_action, run_to_action, ppc_action,
-        insert_blr_action, insert_nop_action, replace_action, assemble_action})
+  for (auto* action : {copy_address_action, copy_line_action, copy_hex_action, symbol_add_action,
+           symbol_edit_action, note_add_action, note_edit_action, run_to_action, ppc_action,
+           insert_blr_action, insert_nop_action, replace_action, assemble_action})
   {
     action->setEnabled(running);
   }
@@ -716,8 +726,7 @@ void CodeViewWidget::AutoStep(CodeTrace::AutoStop option)
     // Status report
     if (results.reg_tracked.empty() && results.mem_tracked.empty())
     {
-      QMessageBox::warning(
-          this, tr("Overwritten"),
+      QMessageBox::warning(this, tr("Overwritten"),
           tr("Target value was overwritten by current instruction.\nInstructions executed:   %1")
               .arg(QString::number(results.count)),
           QMessageBox::Cancel);
@@ -788,7 +797,8 @@ void CodeViewWidget::OnCopyTargetAddress()
 
   const u32 addr = GetContextAddress();
 
-  const std::string code_line = [this, addr] {
+  const std::string code_line = [this, addr]
+  {
     Core::CPUThreadGuard guard(m_system);
     return m_system.GetPowerPC().GetDebugInterface().Disassemble(&guard, addr);
   }();
@@ -801,8 +811,8 @@ void CodeViewWidget::OnCopyTargetAddress()
 
   if (target_addr)
   {
-    QApplication::clipboard()->setText(
-        QStringLiteral("%1").arg(*target_addr, 8, 16, QLatin1Char('0')));
+    QApplication::clipboard()->setText(QStringLiteral("%1").arg(*target_addr, 8, 16,
+        QLatin1Char('0')));
   }
 }
 
@@ -818,7 +828,8 @@ void CodeViewWidget::OnShowTargetInMemory()
 
   const u32 addr = GetContextAddress();
 
-  const std::string code_line = [this, addr] {
+  const std::string code_line = [this, addr]
+  {
     Core::CPUThreadGuard guard(m_system);
     return m_system.GetPowerPC().GetDebugInterface().Disassemble(&guard, addr);
   }();
@@ -837,7 +848,8 @@ void CodeViewWidget::OnCopyCode()
 {
   const u32 addr = GetContextAddress();
 
-  const std::string text = [this, addr] {
+  const std::string text = [this, addr]
+  {
     Core::CPUThreadGuard guard(m_system);
     return m_system.GetPowerPC().GetDebugInterface().Disassemble(&guard, addr);
   }();
@@ -876,13 +888,14 @@ void CodeViewWidget::OnCopyHex()
 {
   const u32 addr = GetContextAddress();
 
-  const u32 instruction = [this, addr] {
+  const u32 instruction = [this, addr]
+  {
     Core::CPUThreadGuard guard(m_system);
     return m_system.GetPowerPC().GetDebugInterface().ReadInstruction(guard, addr);
   }();
 
-  QApplication::clipboard()->setText(
-      QStringLiteral("%1").arg(instruction, 8, 16, QLatin1Char('0')));
+  QApplication::clipboard()->setText(QStringLiteral("%1").arg(instruction, 8, 16,
+      QLatin1Char('0')));
 }
 
 void CodeViewWidget::OnRunToHere()
@@ -902,10 +915,9 @@ void CodeViewWidget::OnPPCComparison()
 void CodeViewWidget::OnAddFunction()
 {
   const u32 addr = GetContextAddress();
-  const int confirm =
-      QMessageBox::warning(this, tr("Add Function Symbol"),
-                           tr("Force new function symbol to be made at %1?").arg(addr, 0, 16),
-                           QMessageBox::Ok | QMessageBox::Cancel);
+  const int confirm = QMessageBox::warning(this, tr("Add Function Symbol"),
+      tr("Force new function symbol to be made at %1?").arg(addr, 0, 16),
+      QMessageBox::Ok | QMessageBox::Cancel);
 
   if (confirm != QMessageBox::Ok)
     return;
@@ -934,7 +946,8 @@ void CodeViewWidget::OnFollowBranch()
 {
   const u32 addr = GetContextAddress();
 
-  const u32 branch_addr = [this, addr] {
+  const u32 branch_addr = [this, addr]
+  {
     Core::CPUThreadGuard guard(m_system);
     return GetBranchFromAddress(guard, addr);
   }();
@@ -994,10 +1007,10 @@ void CodeViewWidget::OnDeleteSymbol()
     return;
 
   const int confirm = QMessageBox::warning(this, tr("Delete Function Symbol"),
-                                           tr("Delete function symbol: %1\nat %2?")
-                                               .arg(QString::fromStdString(symbol->name))
-                                               .arg(addr, 0, 16),
-                                           QMessageBox::Ok | QMessageBox::Cancel);
+      tr("Delete function symbol: %1\nat %2?")
+          .arg(QString::fromStdString(symbol->name))
+          .arg(addr, 0, 16),
+      QMessageBox::Ok | QMessageBox::Cancel);
 
   if (confirm != QMessageBox::Ok)
     return;
@@ -1077,10 +1090,10 @@ void CodeViewWidget::OnDeleteNote()
     return;
 
   const int confirm = QMessageBox::warning(this, tr("Delete Note"),
-                                           tr("Delete Note: %1\nat %2?")
-                                               .arg(QString::fromStdString(note->name))
-                                               .arg(context_address, 0, 16),
-                                           QMessageBox::Ok | QMessageBox::Cancel);
+      tr("Delete Note: %1\nat %2?")
+          .arg(QString::fromStdString(note->name))
+          .arg(context_address, 0, 16),
+      QMessageBox::Ok | QMessageBox::Cancel);
 
   if (confirm != QMessageBox::Ok)
     return;

@@ -105,8 +105,8 @@ std::optional<IPCReply> WFSSRVDevice::IOCtl(const IOCtlRequest& request)
 
   case IOCTL_WFS_MKDIR:
   {
-    const std::string path = NormalizePath(
-        memory.GetString(request.buffer_in + 34, memory.Read_U16(request.buffer_in + 32)));
+    const std::string path = NormalizePath(memory.GetString(request.buffer_in + 34,
+        memory.Read_U16(request.buffer_in + 32)));
     const std::string native_path = WFS::NativePath(path);
 
     if (File::Exists(native_path))
@@ -312,7 +312,7 @@ std::optional<IPCReply> WFSSRVDevice::IOCtl(const IOCtlRequest& request)
     }
 
     INFO_LOG_FMT(IOS_WFS, "IOCTL_WFS_READ: read {} bytes from FD {} ({})", read_bytes, fd,
-                 fd_obj->path);
+        fd_obj->path);
     return_error_code = static_cast<int>(read_bytes);
     break;
   }
@@ -352,7 +352,7 @@ std::optional<IPCReply> WFSSRVDevice::IOCtl(const IOCtlRequest& request)
     }
 
     INFO_LOG_FMT(IOS_WFS, "IOCTL_WFS_WRITE: written {} bytes from FD {} ({})", size, fd,
-                 fd_obj->path);
+        fd_obj->path);
     break;
   }
 
@@ -360,7 +360,7 @@ std::optional<IPCReply> WFSSRVDevice::IOCtl(const IOCtlRequest& request)
     // TODO(wfs): Should be returning -3. However until we have everything
     // properly stubbed it's easier to simulate the methods succeeding.
     request.DumpUnknown(system, GetDeviceName(), Common::Log::LogType::IOS_WFS,
-                        Common::Log::LogLevel::LWARNING);
+        Common::Log::LogLevel::LWARNING);
     memory.Memset(request.buffer_out, 0, request.buffer_out_size);
     break;
   }

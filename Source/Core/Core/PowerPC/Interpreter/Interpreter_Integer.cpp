@@ -87,7 +87,7 @@ void Interpreter::andis_rc(Interpreter& interpreter, UGeckoInstruction inst)
 
 template <typename T>
 void Interpreter::Helper_IntCompare(PowerPC::PowerPCState& ppc_state, UGeckoInstruction inst, T a,
-                                    T b)
+    T b)
 {
   u32 cr_field;
 

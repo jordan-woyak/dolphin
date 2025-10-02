@@ -13,7 +13,7 @@ public:
   ~CPUCull();
   void Init();
   bool AreAllVerticesCulled(VertexLoaderBase* loader, OpcodeDecoder::Primitive primitive,
-                            const u8* src, u32 count);
+      const u8* src, u32 count);
 
   struct alignas(16) TransformedVertex
   {
@@ -33,6 +33,6 @@ private:
   u32 m_transform_buffer_size = 0;
   std::array<std::array<TransformFunction, 2>, 2> m_transform_table{};
   Common::EnumMap<Common::EnumMap<CullFunction, CullMode::All>,
-                  OpcodeDecoder::Primitive::GX_DRAW_TRIANGLE_FAN>
+      OpcodeDecoder::Primitive::GX_DRAW_TRIANGLE_FAN>
       m_cull_table{};
 };

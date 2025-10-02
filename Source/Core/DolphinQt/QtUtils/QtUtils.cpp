@@ -17,8 +17,8 @@ void ShowFourDigitYear(QDateTimeEdit* widget)
   {
     // Always show the full year, no matter what the locale specifies. Otherwise, two-digit years
     // will always be interpreted as in the 21st century.
-    widget->setDisplayFormat(
-        widget->displayFormat().replace(QStringLiteral("yy"), QStringLiteral("yyyy")));
+    widget->setDisplayFormat(widget->displayFormat().replace(QStringLiteral("yy"),
+        QStringLiteral("yyyy")));
   }
 }
 
@@ -61,8 +61,8 @@ void CenterOnParentWindow(QWidget* const widget)
   const QPoint window_pos{window_geometry.topLeft()};
   const QRect geometry{widget->geometry()};
   const QSize size{geometry.size()};
-  const QPoint offset{(window_size.width() - size.width()) / 2,
-                      (window_size.height() - size.height()) / 2};
+  const QPoint offset{
+      (window_size.width() - size.width()) / 2, (window_size.height() - size.height()) / 2};
   const QPoint pos{window_pos + offset};
 
   widget->setGeometry(QRect(pos, size));

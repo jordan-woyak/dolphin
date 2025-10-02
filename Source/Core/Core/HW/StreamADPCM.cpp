@@ -64,9 +64,9 @@ void ADPCMDecoder::DecodeBlock(s16* pcm, const u8* adpcm)
   for (int i = 0; i < SAMPLES_PER_BLOCK; i++)
   {
     pcm[i * 2] = ADPDecodeSample(adpcm[i + (ONE_BLOCK_SIZE - SAMPLES_PER_BLOCK)] & 0xf, adpcm[0],
-                                 m_histl1, m_histl2);
+        m_histl1, m_histl2);
     pcm[i * 2 + 1] = ADPDecodeSample(adpcm[i + (ONE_BLOCK_SIZE - SAMPLES_PER_BLOCK)] >> 4, adpcm[1],
-                                     m_histr1, m_histr2);
+        m_histr1, m_histr2);
   }
 }
 }  // namespace StreamADPCM

@@ -83,7 +83,7 @@ MappingButton::MappingButton(MappingWidget* parent, ControlReference* ref, Contr
 
   connect(parent, &MappingWidget::ConfigChanged, this, &MappingButton::ConfigChanged);
   connect(this, &MappingButton::ConfigChanged,
-          [this] { setText(RefToDisplayString(m_reference)); });
+      [this] { setText(RefToDisplayString(m_reference)); });
 }
 
 void MappingButton::AdvancedPressed()
@@ -91,7 +91,7 @@ void MappingButton::AdvancedPressed()
   m_mapping_window->CancelMapping();
 
   IOWindow io(m_mapping_window, m_mapping_window->GetController(), m_reference,
-              m_reference->IsInput() ? IOWindow::Type::Input : IOWindow::Type::Output);
+      m_reference->IsInput() ? IOWindow::Type::Input : IOWindow::Type::Output);
   io.exec();
 
   ConfigChanged();
@@ -115,7 +115,7 @@ void MappingButton::Clear()
 
   m_reference->SetExpression("");
   m_mapping_window->GetController()->UpdateSingleControlReference(g_controller_interface,
-                                                                  m_reference);
+      m_reference);
 
   m_mapping_window->Save();
 

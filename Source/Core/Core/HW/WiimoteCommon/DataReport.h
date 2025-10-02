@@ -54,7 +54,7 @@ public:
 };
 
 std::unique_ptr<DataReportManipulator> MakeDataReportManipulator(InputReportID rpt_id,
-                                                                 u8* data_ptr);
+    u8* data_ptr);
 
 class DataReportBuilder
 {

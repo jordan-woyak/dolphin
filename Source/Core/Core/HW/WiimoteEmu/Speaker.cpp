@@ -21,11 +21,11 @@ namespace WiimoteEmu
 {
 // Yamaha ADPCM decoder code based on The ffmpeg Project (Copyright (s) 2001-2003)
 
-static const s32 yamaha_difflookup[] = {1,  3,  5,  7,  9,  11,  13,  15,
-                                        -1, -3, -5, -7, -9, -11, -13, -15};
+static const s32 yamaha_difflookup[] = {
+    1, 3, 5, 7, 9, 11, 13, 15, -1, -3, -5, -7, -9, -11, -13, -15};
 
-static const s32 yamaha_indexscale[] = {230, 230, 230, 230, 307, 409, 512, 614,
-                                        230, 230, 230, 230, 307, 409, 512, 614};
+static const s32 yamaha_indexscale[] = {
+    230, 230, 230, 230, 307, 409, 512, 614, 230, 230, 230, 230, 307, 409, 512, 614};
 
 static s16 av_clip16(s32 a)
 {
@@ -133,8 +133,8 @@ void SpeakerLogic::SpeakerData(const u8* data, int length, float speaker_pan)
 
   // ADPCM sample rate is thought to be x2.(3000 x2 = 6000).
   const unsigned int sample_rate = sample_rate_dividend / reg_data.sample_rate;
-  sound_stream->GetMixer()->PushWiimoteSpeakerSamples(
-      samples.data(), sample_length, Mixer::FIXED_SAMPLE_RATE_DIVIDEND / (sample_rate * 2));
+  sound_stream->GetMixer()->PushWiimoteSpeakerSamples(samples.data(), sample_length,
+      Mixer::FIXED_SAMPLE_RATE_DIVIDEND / (sample_rate * 2));
 }
 
 void SpeakerLogic::Reset()

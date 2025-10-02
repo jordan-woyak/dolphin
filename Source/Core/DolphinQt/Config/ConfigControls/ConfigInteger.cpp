@@ -9,7 +9,7 @@ ConfigInteger::ConfigInteger(int minimum, int maximum, const Config::Info<int>& 
 }
 
 ConfigInteger::ConfigInteger(int minimum, int maximum, const Config::Info<int>& setting,
-                             Config::Layer* layer, int step)
+    Config::Layer* layer, int step)
     : ConfigControl(setting.GetLocation(), layer), m_setting(setting)
 {
   setMinimum(minimum);
@@ -33,9 +33,11 @@ void ConfigInteger::OnConfigChanged()
 ConfigIntegerLabel::ConfigIntegerLabel(const QString& text, ConfigInteger* widget)
     : QLabel(text), m_widget(QPointer<ConfigInteger>(widget))
 {
-  connect(&Settings::Instance(), &Settings::ConfigChanged, this, [this] {
-    // Label shares font changes with ConfigInteger to mark game ini settings.
-    if (m_widget)
-      setFont(m_widget->font());
-  });
+  connect(&Settings::Instance(), &Settings::ConfigChanged, this,
+      [this]
+      {
+        // Label shares font changes with ConfigInteger to mark game ini settings.
+        if (m_widget)
+          setFont(m_widget->font());
+      });
 }

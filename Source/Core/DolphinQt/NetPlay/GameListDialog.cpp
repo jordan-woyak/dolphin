@@ -36,7 +36,7 @@ void GameListDialog::CreateWidgets()
 void GameListDialog::ConnectWidgets()
 {
   connect(m_game_list, &QListWidget::itemSelectionChanged,
-          [this] { m_button_box->setEnabled(m_game_list->currentRow() != -1); });
+      [this] { m_button_box->setEnabled(m_game_list->currentRow() != -1); });
 
   connect(m_game_list, &QListWidget::itemDoubleClicked, this, &GameListDialog::accept);
   connect(m_button_box, &QDialogButtonBox::accepted, this, &GameListDialog::accept);

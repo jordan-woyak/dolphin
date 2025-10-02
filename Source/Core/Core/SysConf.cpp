@@ -56,7 +56,7 @@ void SysConf::Load()
   Clear();
 
   const auto file = m_fs->OpenFile(IOS::HLE::FS::Uid{0}, IOS::HLE::FS::Gid{0},
-                                   "/shared2/sys/SYSCONF", IOS::HLE::FS::Mode::Read);
+      "/shared2/sys/SYSCONF", IOS::HLE::FS::Mode::Read);
   if (!file || file->GetStatus()->size != SYSCONF_SIZE || !LoadFromFile(*file))
   {
     WARN_LOG_FMT(CORE, "No valid SYSCONF detected. Creating a new one.");
@@ -118,7 +118,7 @@ bool SysConf::LoadFromFile(const IOS::HLE::FS::FileHandle& file)
       break;
     default:
       ERROR_LOG_FMT(CORE, "Unknown entry type {} in SYSCONF for {} (offset {})",
-                    static_cast<u8>(type), name, offset);
+          static_cast<u8>(type), name, offset);
       return false;
     }
 
@@ -155,7 +155,7 @@ bool SysConf::Save() const
 
     // Entry metadata (type and name)
     entries.insert(entries.end(),
-                   (static_cast<u8>(item.type) << 5) | (static_cast<u8>(item.name.size()) - 1));
+        (static_cast<u8>(item.type) << 5) | (static_cast<u8>(item.name.size()) - 1));
     entries.insert(entries.end(), item.name.cbegin(), item.name.cend());
 
     // Entry data
@@ -199,12 +199,12 @@ bool SysConf::Save() const
   constexpr auto rw_mode = IOS::HLE::FS::Mode::ReadWrite;
   {
     auto file = m_fs->CreateAndOpenFile(IOS::SYSMENU_UID, IOS::SYSMENU_GID, temp_file,
-                                        {rw_mode, rw_mode, rw_mode});
+        {rw_mode, rw_mode, rw_mode});
     if (!file || !file->Write(buffer.data(), buffer.size()))
       return false;
   }
   m_fs->CreateDirectory(IOS::SYSMENU_UID, IOS::SYSMENU_GID, "/shared2/sys", 0,
-                        {rw_mode, rw_mode, rw_mode});
+      {rw_mode, rw_mode, rw_mode});
   const auto result =
       m_fs->Rename(IOS::SYSMENU_UID, IOS::SYSMENU_GID, temp_file, "/shared2/sys/SYSCONF");
   return result == IOS::HLE::FS::ResultCode::Success;

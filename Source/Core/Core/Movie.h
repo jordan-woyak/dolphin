@@ -204,7 +204,7 @@ public:
   void SetReadOnly(bool bEnabled);
 
   bool BeginRecordingInput(const ControllerTypeArray& controllers,
-                           const WiimoteEnabledArray& wiimotes);
+      const WiimoteEnabledArray& wiimotes);
   void RecordInput(const GCPadStatus* PadStatus, int controllerID);
   void RecordWiimote(int wiimote, const WiimoteEmu::SerializedWiimoteState& serialized_state);
 

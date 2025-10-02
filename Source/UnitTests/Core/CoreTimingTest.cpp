@@ -74,7 +74,7 @@ private:
 };
 
 static void AdvanceAndCheck(Core::System& system, const u32 idx, const int downcount,
-                            const int expected_lateness = 0, const int cpu_downcount = 0)
+    const int expected_lateness = 0, const int cpu_downcount = 0)
 {
   s_callbacks_ran_flags = 0;
   s_expected_callback = CB_IDS[idx];
@@ -215,7 +215,7 @@ static void RescheduleCallback(Core::System& system, const u64 userdata, const s
   if (s_reschedules > 0)
   {
     system.GetCoreTiming().ScheduleEvent(1000, reinterpret_cast<CoreTiming::EventType*>(userdata),
-                                         userdata);
+        userdata);
   }
 }
 }  // namespace ChainSchedulingTest

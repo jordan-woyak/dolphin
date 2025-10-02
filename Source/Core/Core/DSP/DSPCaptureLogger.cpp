@@ -64,7 +64,7 @@ void PCAPDSPCaptureLogger::LogIFXAccess(bool read, u16 address, u16 value)
 }
 
 void PCAPDSPCaptureLogger::LogDMA(u16 control, u32 gc_address, u16 dsp_address, u16 length,
-                                  const u8* data)
+    const u8* data)
 {
   // The length of a DMA cannot be above 64K, so we use a static buffer for
   // the construction of the packet.

@@ -133,9 +133,9 @@ class BitCastPtrType
 {
 public:
   static_assert(std::is_trivially_copyable<PtrType>(),
-                "BitCastPtr source type must be trivially copyable.");
+      "BitCastPtr source type must be trivially copyable.");
   static_assert(std::is_trivially_copyable<T>(),
-                "BitCastPtr destination type must be trivially copyable.");
+      "BitCastPtr destination type must be trivially copyable.");
 
   explicit BitCastPtrType(PtrType* ptr) : m_ptr(ptr) {}
 

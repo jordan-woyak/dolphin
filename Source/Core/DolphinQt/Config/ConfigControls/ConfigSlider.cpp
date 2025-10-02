@@ -14,7 +14,7 @@ ConfigSlider::ConfigSlider(int minimum, int maximum, const Config::Info<int>& se
 }
 
 ConfigSlider::ConfigSlider(int minimum, int maximum, const Config::Info<int>& setting,
-                           Config::Layer* layer, int tick)
+    Config::Layer* layer, int tick)
     : ConfigControl(Qt::Horizontal, setting.GetLocation(), layer), m_setting(setting)
 
 {
@@ -27,7 +27,7 @@ ConfigSlider::ConfigSlider(int minimum, int maximum, const Config::Info<int>& se
 }
 
 ConfigSlider::ConfigSlider(std::vector<int> tick_values, const Config::Info<int>& setting,
-                           Config::Layer* layer)
+    Config::Layer* layer)
     : ConfigControl(Qt::Horizontal, setting.GetLocation(), layer), m_setting(setting),
       m_tick_values(std::move(tick_values))
 {
@@ -81,13 +81,13 @@ void ConfigSlider::OnConfigChanged()
 }
 
 ConfigSliderU32::ConfigSliderU32(u32 minimum, u32 maximum, const Config::Info<u32>& setting,
-                                 u32 scale)
+    u32 scale)
     : ConfigSliderU32(minimum, maximum, setting, nullptr, scale)
 {
 }
 
 ConfigSliderU32::ConfigSliderU32(u32 minimum, u32 maximum, const Config::Info<u32>& setting,
-                                 Config::Layer* layer, u32 scale)
+    Config::Layer* layer, u32 scale)
     : ConfigControl(Qt::Horizontal, setting.GetLocation(), layer), m_setting(setting),
       m_scale(scale)
 
@@ -113,9 +113,11 @@ void ConfigSliderU32::OnConfigChanged()
 ConfigSliderLabel::ConfigSliderLabel(const QString& text, ConfigSlider* slider)
     : QLabel(text), m_slider(QPointer<ConfigSlider>(slider))
 {
-  connect(&Settings::Instance(), &Settings::ConfigChanged, this, [this] {
-    // Label shares font changes with slider to mark game ini settings.
-    if (m_slider)
-      setFont(m_slider->font());
-  });
+  connect(&Settings::Instance(), &Settings::ConfigChanged, this,
+      [this]
+      {
+        // Label shares font changes with slider to mark game ini settings.
+        if (m_slider)
+          setFont(m_slider->font());
+      });
 }

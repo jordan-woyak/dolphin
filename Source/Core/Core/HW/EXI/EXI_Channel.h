@@ -26,7 +26,7 @@ class CEXIChannel
 {
 public:
   explicit CEXIChannel(Core::System& system, u32 channel_id,
-                       const Memcard::HeaderData& memcard_header_data);
+      const Memcard::HeaderData& memcard_header_data);
   ~CEXIChannel();
 
   // get device
@@ -38,7 +38,7 @@ public:
 
   void AddDevice(EXIDeviceType device_type, int device_num);
   void AddDevice(std::unique_ptr<IEXIDevice> device, int device_num,
-                 bool notify_presence_changed = true);
+      bool notify_presence_changed = true);
 
   // Remove all devices
   void RemoveDevices();

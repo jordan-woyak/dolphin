@@ -49,13 +49,13 @@ void AbstractGfx::SetAndDiscardFramebuffer(AbstractFramebuffer* framebuffer)
 }
 
 void AbstractGfx::SetAndClearFramebuffer(AbstractFramebuffer* framebuffer,
-                                         const ClearColor& color_value, float depth_value)
+    const ClearColor& color_value, float depth_value)
 {
   m_current_framebuffer = framebuffer;
 }
 
 void AbstractGfx::ClearRegion(const MathUtil::Rectangle<int>& target_rc, bool colorEnable,
-                              bool alphaEnable, bool zEnable, u32 color, u32 z)
+    bool alphaEnable, bool zEnable, u32 color, u32 z)
 {
   // This is a generic fallback for any ClearRegion operations that backends don't support.
   // It simply draws a Quad.
@@ -71,10 +71,10 @@ void AbstractGfx::ClearRegion(const MathUtil::Rectangle<int>& target_rc, bool co
   };
   static_assert(std::is_standard_layout<Uniforms>::value);
   Uniforms uniforms = {{static_cast<float>((color >> 16) & 0xFF) / 255.0f,
-                        static_cast<float>((color >> 8) & 0xFF) / 255.0f,
-                        static_cast<float>((color >> 0) & 0xFF) / 255.0f,
-                        static_cast<float>((color >> 24) & 0xFF) / 255.0f},
-                       static_cast<float>(z & 0xFFFFFF) / 16777216.0f};
+                           static_cast<float>((color >> 8) & 0xFF) / 255.0f,
+                           static_cast<float>((color >> 0) & 0xFF) / 255.0f,
+                           static_cast<float>((color >> 24) & 0xFF) / 255.0f},
+      static_cast<float>(z & 0xFFFFFF) / 16777216.0f};
   if (!g_backend_info.bSupportsReversedDepthRange)
     uniforms.clear_depth = 1.0f - uniforms.clear_depth;
   g_vertex_manager->UploadUtilityUniforms(&uniforms, sizeof(uniforms));
@@ -86,18 +86,17 @@ void AbstractGfx::ClearRegion(const MathUtil::Rectangle<int>& target_rc, bool co
 }
 
 void AbstractGfx::SetViewportAndScissor(const MathUtil::Rectangle<int>& rect, float min_depth,
-                                        float max_depth)
+    float max_depth)
 {
   SetViewport(static_cast<float>(rect.left), static_cast<float>(rect.top),
-              static_cast<float>(rect.GetWidth()), static_cast<float>(rect.GetHeight()), min_depth,
-              max_depth);
+      static_cast<float>(rect.GetWidth()), static_cast<float>(rect.GetHeight()), min_depth,
+      max_depth);
   SetScissorRect(rect);
 }
 
 void AbstractGfx::ScaleTexture(AbstractFramebuffer* dst_framebuffer,
-                               const MathUtil::Rectangle<int>& dst_rect,
-                               const AbstractTexture* src_texture,
-                               const MathUtil::Rectangle<int>& src_rect)
+    const MathUtil::Rectangle<int>& dst_rect, const AbstractTexture* src_texture,
+    const MathUtil::Rectangle<int>& src_rect)
 {
   ASSERT(dst_framebuffer->GetColorFormat() == AbstractTextureFormat::RGBA8);
 
@@ -109,9 +108,8 @@ void AbstractGfx::ScaleTexture(AbstractFramebuffer* dst_framebuffer,
   const float rcp_src_width = 1.0f / src_texture->GetWidth();
   const float rcp_src_height = 1.0f / src_texture->GetHeight();
   const std::array<float, 4> uniforms = {{converted_src_rect.left * rcp_src_width,
-                                          converted_src_rect.top * rcp_src_height,
-                                          converted_src_rect.GetWidth() * rcp_src_width,
-                                          converted_src_rect.GetHeight() * rcp_src_height}};
+      converted_src_rect.top * rcp_src_height, converted_src_rect.GetWidth() * rcp_src_width,
+      converted_src_rect.GetHeight() * rcp_src_height}};
   g_vertex_manager->UploadUtilityUniforms(&uniforms, sizeof(uniforms));
 
   // Discard if we're overwriting the whole thing.
@@ -138,14 +136,14 @@ void AbstractGfx::ScaleTexture(AbstractFramebuffer* dst_framebuffer,
 
 MathUtil::Rectangle<int>
 AbstractGfx::ConvertFramebufferRectangle(const MathUtil::Rectangle<int>& rect,
-                                         const AbstractFramebuffer* framebuffer) const
+    const AbstractFramebuffer* framebuffer) const
 {
   return ConvertFramebufferRectangle(rect, framebuffer->GetWidth(), framebuffer->GetHeight());
 }
 
 MathUtil::Rectangle<int>
 AbstractGfx::ConvertFramebufferRectangle(const MathUtil::Rectangle<int>& rect, u32 fb_width,
-                                         u32 fb_height) const
+    u32 fb_height) const
 {
   MathUtil::Rectangle<int> ret = rect;
   if (g_backend_info.bUsesLowerLeftOrigin)

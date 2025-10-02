@@ -59,7 +59,7 @@ struct ErrorWrap
 
 // Returns the UTF-16 descriptor converted to UTF-8 or returns nullopt on error.
 std::optional<std::string> GetStringDescriptor(libusb_device_handle* dev_handle,
-                                               uint8_t desc_index);
+    uint8_t desc_index);
 
 }  // namespace LibusbUtils
 
@@ -71,6 +71,6 @@ struct fmt::formatter<LibusbUtils::ErrorWrap>
   auto format(const LibusbUtils::ErrorWrap& wrap, FormatContext& ctx) const
   {
     return fmt::format_to(ctx.out(), "{} ({}: {})", wrap.GetStrError(), wrap.m_error,
-                          wrap.GetName());
+        wrap.GetName());
   }
 };

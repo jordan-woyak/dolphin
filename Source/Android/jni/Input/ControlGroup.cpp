@@ -15,8 +15,8 @@
 
 static ControllerEmu::ControlGroup* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::ControlGroup*>(
-      env->GetLongField(obj, IDCache::GetControlGroupPointer()));
+  return reinterpret_cast<ControllerEmu::ControlGroup*>(env->GetLongField(obj,
+      IDCache::GetControlGroupPointer()));
 }
 
 jobject ControlGroupToJava(JNIEnv* env, ControllerEmu::ControlGroup* group)
@@ -25,7 +25,7 @@ jobject ControlGroupToJava(JNIEnv* env, ControllerEmu::ControlGroup* group)
     return nullptr;
 
   return env->NewObject(IDCache::GetControlGroupClass(), IDCache::GetControlGroupConstructor(),
-                        reinterpret_cast<jlong>(group));
+      reinterpret_cast<jlong>(group));
 }
 
 extern "C" {

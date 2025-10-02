@@ -100,14 +100,14 @@ void VolumeDisc::AddGamePartitionToSyncHash(Common::SHA1::Context* context) cons
 
   // All headers at the beginning of the partition, plus the apploader
   ReadAndAddToSyncHash(context, 0, 0x2440 + GetApploaderSize(*this, partition).value_or(0),
-                       partition);
+      partition);
 
   // Boot DOL (may be missing if this is a Datel disc)
   const std::optional<u64> dol_offset = GetBootDOLOffset(*this, partition);
   if (dol_offset)
   {
     ReadAndAddToSyncHash(context, *dol_offset,
-                         GetBootDOLSize(*this, partition, *dol_offset).value_or(0), partition);
+        GetBootDOLSize(*this, partition, *dol_offset).value_or(0), partition);
   }
 
   // File system

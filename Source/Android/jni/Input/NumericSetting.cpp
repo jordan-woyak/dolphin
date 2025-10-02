@@ -22,15 +22,15 @@ static const char* NullStringToEmptyString(const char* str)
 
 static ControllerEmu::NumericSettingBase* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::NumericSettingBase*>(
-      env->GetLongField(obj, IDCache::GetNumericSettingPointer()));
+  return reinterpret_cast<ControllerEmu::NumericSettingBase*>(env->GetLongField(obj,
+      IDCache::GetNumericSettingPointer()));
 }
 
 template <typename T>
 static ControllerEmu::NumericSetting<T>* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ControllerEmu::NumericSetting<T>*>(
-      env->GetLongField(obj, IDCache::GetNumericSettingPointer()));
+  return reinterpret_cast<ControllerEmu::NumericSetting<T>*>(env->GetLongField(obj,
+      IDCache::GetNumericSettingPointer()));
 }
 
 jobject NumericSettingToJava(JNIEnv* env, ControllerEmu::NumericSettingBase* numeric_setting)
@@ -39,7 +39,7 @@ jobject NumericSettingToJava(JNIEnv* env, ControllerEmu::NumericSettingBase* num
     return nullptr;
 
   return env->NewObject(IDCache::GetNumericSettingClass(), IDCache::GetNumericSettingConstructor(),
-                        reinterpret_cast<jlong>(numeric_setting));
+      reinterpret_cast<jlong>(numeric_setting));
 }
 
 extern "C" {

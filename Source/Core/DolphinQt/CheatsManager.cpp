@@ -28,7 +28,7 @@ CheatsManager::CheatsManager(Core::System& system, QWidget* parent)
   setWindowTitle(tr("Cheats Manager"));
 
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
-          &CheatsManager::OnStateChanged);
+      &CheatsManager::OnStateChanged);
 
   CreateWidgets();
   ConnectWidgets();
@@ -166,15 +166,15 @@ void CheatsManager::ConnectWidgets()
 {
   connect(m_button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
   connect(m_cheat_search_new, &CheatSearchFactoryWidget::NewSessionCreated, this,
-          &CheatsManager::OnNewSessionCreated);
+      &CheatsManager::OnNewSessionCreated);
   connect(m_tab_widget, &QTabWidget::tabCloseRequested, this, &CheatsManager::OnTabCloseRequested);
   connect(m_ar_code, &ARCodeWidget::OpenGeneralSettings, this, &CheatsManager::OpenGeneralSettings);
   connect(m_gecko_code, &GeckoCodeWidget::OpenGeneralSettings, this,
-          &CheatsManager::OpenGeneralSettings);
+      &CheatsManager::OpenGeneralSettings);
 #ifdef USE_RETRO_ACHIEVEMENTS
   connect(m_ar_code, &ARCodeWidget::OpenAchievementSettings, this,
-          &CheatsManager::OpenAchievementSettings);
+      &CheatsManager::OpenAchievementSettings);
   connect(m_gecko_code, &GeckoCodeWidget::OpenAchievementSettings, this,
-          &CheatsManager::OpenAchievementSettings);
+      &CheatsManager::OpenAchievementSettings);
 #endif  // USE_RETRO_ACHIEVEMENTS
 }

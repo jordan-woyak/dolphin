@@ -310,7 +310,7 @@ bool Wiimote::Read()
     {
       static sf::UdpSocket Socket;
       (void)Socket.send(rpt.data(), rpt.size(), sf::IpAddress::LocalHost,
-                        m_balance_board_dump_port);
+          m_balance_board_dump_port);
     }
 
     // Add it to queue
@@ -329,7 +329,7 @@ bool Wiimote::Write(const TimedReport& timed_report)
   {
     static sf::UdpSocket Socket;
     (void)Socket.send((char*)rpt.data(), rpt.size(), sf::IpAddress::LocalHost,
-                      m_balance_board_dump_port);
+        m_balance_board_dump_port);
   }
 
   // Write the report at the proper time, mainly for speaker data, not that it will help much.
@@ -349,8 +349,8 @@ bool Wiimote::IsBalanceBoard()
       WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::WriteData), 0x04, 0xa4, 0x00, 0xf0, 0x01, 0x55};
   static const u8 init_extension_rpt2[MAX_PAYLOAD] = {
       WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::WriteData), 0x04, 0xa4, 0x00, 0xfb, 0x01, 0x00};
-  static const u8 status_report[] = {WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::RequestStatus),
-                                     0};
+  static const u8 status_report[] = {
+      WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::RequestStatus), 0};
   if (!IOWrite(init_extension_rpt1, sizeof(init_extension_rpt1)) ||
       !IOWrite(init_extension_rpt2, sizeof(init_extension_rpt2)))
   {
@@ -375,14 +375,8 @@ bool Wiimote::IsBalanceBoard()
       if (!status->extension)
         return false;
       // Read two bytes from 0xa400fe to identify the extension.
-      static const u8 identify_ext_rpt[] = {WR_SET_REPORT | BT_OUTPUT,
-                                            u8(OutputReportID::ReadData),
-                                            0x04,
-                                            0xa4,
-                                            0x00,
-                                            0xfe,
-                                            0x02,
-                                            0x00};
+      static const u8 identify_ext_rpt[] = {WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::ReadData),
+          0x04, 0xa4, 0x00, 0xfe, 0x02, 0x00};
       ret = IOWrite(identify_ext_rpt, sizeof(identify_ext_rpt));
       break;
     }
@@ -392,7 +386,7 @@ bool Wiimote::IsBalanceBoard()
       if (Common::swap16(reply->address) != 0x00fe)
       {
         ERROR_LOG_FMT(WIIMOTE, "IsBalanceBoard(): Received unexpected data reply for address {:X}",
-                      Common::swap16(reply->address));
+            Common::swap16(reply->address));
         return false;
       }
       // A Balance Board ext can be identified by checking for 0x0402.
@@ -404,7 +398,7 @@ bool Wiimote::IsBalanceBoard()
       if (ack->rpt_id == OutputReportID::ReadData && ack->error_code != ErrorCode::Success)
       {
         WARN_LOG_FMT(WIIMOTE,
-                     "Failed to read from 0xa400fe, assuming Wiimote is not a Balance Board.");
+            "Failed to read from 0xa400fe, assuming Wiimote is not a Balance Board.");
         return false;
       }
       break;
@@ -455,7 +449,7 @@ void Wiimote::SetWiimoteDeviceIndex(u8 index)
 }
 
 void Wiimote::PrepareInput(WiimoteEmu::DesiredWiimoteState* target_state,
-                           SensorBarState sensor_bar_state)
+    SensorBarState sensor_bar_state)
 {
   // Nothing to do here on real Wiimotes.
 }
@@ -482,7 +476,7 @@ void Wiimote::Update(const WiimoteEmu::DesiredWiimoteState& target_state)
     return;
 
   InterruptCallback(rpt.front(), rpt.data() + REPORT_HID_HEADER_SIZE,
-                    u32(rpt.size() - REPORT_HID_HEADER_SIZE));
+      u32(rpt.size() - REPORT_HID_HEADER_SIZE));
 }
 
 ButtonData Wiimote::GetCurrentlyPressedButtons()
@@ -510,8 +504,8 @@ void Wiimote::Prepare()
   const auto now = Clock::now();
 
   // Set reporting mode to non-continuous core buttons and turn on rumble.
-  Report mode_report = {WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::ReportMode), 1,
-                        u8(InputReportID::ReportCore)};
+  Report mode_report = {
+      WR_SET_REPORT | BT_OUTPUT, u8(OutputReportID::ReportMode), 1, u8(InputReportID::ReportCore)};
   m_write_thread.EmplaceItem(now, std::move(mode_report));
 
   // Request status and turn off rumble.

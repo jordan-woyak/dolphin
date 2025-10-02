@@ -60,7 +60,7 @@ public:
   virtual void Apply(const Core::CPUThreadGuard& guard, PPCSymbolDB* func_db) const = 0;
 
   virtual bool Add(const Core::CPUThreadGuard& guard, u32 startAddr, u32 size,
-                   const std::string& name) = 0;
+      const std::string& name) = 0;
 };
 
 class HashSignatureDB : public SignatureDBFormatHandler
@@ -84,7 +84,7 @@ public:
   void Apply(const Core::CPUThreadGuard& guard, PPCSymbolDB* func_db) const override;
 
   bool Add(const Core::CPUThreadGuard& guard, u32 startAddr, u32 size,
-           const std::string& name) override;
+      const std::string& name) override;
 
 protected:
   // Map from signature to function. We store the DB in this map because it optimizes the

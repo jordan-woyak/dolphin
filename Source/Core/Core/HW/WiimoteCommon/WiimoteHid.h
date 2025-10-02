@@ -46,7 +46,7 @@ public:
 
   // Called every ~200hz after HID channels are established.
   virtual void PrepareInput(WiimoteEmu::DesiredWiimoteState* target_state,
-                            SensorBarState sensor_bar_state) = 0;
+      SensorBarState sensor_bar_state) = 0;
   virtual void Update(const WiimoteEmu::DesiredWiimoteState& target_state) = 0;
 
   void SetInterruptCallback(InterruptCallbackType callback) { m_callback = std::move(callback); }
@@ -64,7 +64,7 @@ protected:
   void InterruptDataInputCallback(const u8* data, u32 size)
   {
     InterruptCallback((WiimoteCommon::HID_TYPE_DATA << 4) | WiimoteCommon::HID_PARAM_INPUT, data,
-                      size);
+        size);
   }
 
   void InterruptCallback(u8 hid_type, const u8* data, u32 size)

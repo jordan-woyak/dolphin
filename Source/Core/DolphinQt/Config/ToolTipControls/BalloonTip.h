@@ -29,8 +29,8 @@ public:
     No
   };
   static void ShowBalloon(const QString& title, const QString& message,
-                          const QPoint& target_arrow_tip_position, QWidget* parent,
-                          ShowArrow show_arrow = ShowArrow::Yes, int border_width = 1);
+      const QPoint& target_arrow_tip_position, QWidget* parent,
+      ShowArrow show_arrow = ShowArrow::Yes, int border_width = 1);
   static void HideBalloon();
   static bool IsCursorInsideWidgetBoundingBox(const QWidget& widget);
   static bool IsCursorOnBalloonTip();
@@ -46,7 +46,7 @@ protected:
 
 private:
   void UpdateBoundsAndRedraw(const QPoint& target_arrow_tip_position, ShowArrow show_arrow,
-                             int border_width);
+      int border_width);
 
   QColor m_border_color;
   QPixmap m_pixmap;

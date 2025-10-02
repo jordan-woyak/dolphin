@@ -114,7 +114,7 @@ void CachedInterpreter::SingleStep()
 }
 
 s32 CachedInterpreter::StartProfiledBlock(PowerPC::PowerPCState& ppc_state,
-                                          const StartProfiledBlockOperands& operands)
+    const StartProfiledBlockOperands& operands)
 {
   JitBlock::ProfileData::BeginProfiling(operands.profile_data);
   return sizeof(AnyCallback) + sizeof(operands);
@@ -122,12 +122,12 @@ s32 CachedInterpreter::StartProfiledBlock(PowerPC::PowerPCState& ppc_state,
 
 template <bool profiled>
 s32 CachedInterpreter::EndBlock(PowerPC::PowerPCState& ppc_state,
-                                const EndBlockOperands<profiled>& operands)
+    const EndBlockOperands<profiled>& operands)
 {
   ppc_state.pc = ppc_state.npc;
   ppc_state.downcount -= operands.downcount;
   PowerPC::UpdatePerformanceMonitor(operands.downcount, operands.num_load_stores,
-                                    operands.num_fp_inst, ppc_state);
+      operands.num_fp_inst, ppc_state);
   if constexpr (profiled)
     JitBlock::ProfileData::EndProfiling(operands.profile_data, operands.downcount);
   return 0;
@@ -135,7 +135,7 @@ s32 CachedInterpreter::EndBlock(PowerPC::PowerPCState& ppc_state,
 
 template <bool write_pc>
 s32 CachedInterpreter::Interpret(PowerPC::PowerPCState& ppc_state,
-                                 const InterpretOperands& operands)
+    const InterpretOperands& operands)
 {
   if constexpr (write_pc)
   {
@@ -147,8 +147,8 @@ s32 CachedInterpreter::Interpret(PowerPC::PowerPCState& ppc_state,
 }
 
 template <bool write_pc>
-s32 CachedInterpreter::InterpretAndCheckExceptions(
-    PowerPC::PowerPCState& ppc_state, const InterpretAndCheckExceptionsOperands& operands)
+s32 CachedInterpreter::InterpretAndCheckExceptions(PowerPC::PowerPCState& ppc_state,
+    const InterpretAndCheckExceptionsOperands& operands)
 {
   if constexpr (write_pc)
   {
@@ -168,7 +168,7 @@ s32 CachedInterpreter::InterpretAndCheckExceptions(
 }
 
 s32 CachedInterpreter::HLEFunction(PowerPC::PowerPCState& ppc_state,
-                                   const HLEFunctionOperands& operands)
+    const HLEFunctionOperands& operands)
 {
   const auto& [system, current_pc, hook_index] = operands;
   ppc_state.pc = current_pc;
@@ -177,7 +177,7 @@ s32 CachedInterpreter::HLEFunction(PowerPC::PowerPCState& ppc_state,
 }
 
 s32 CachedInterpreter::WriteBrokenBlockNPC(PowerPC::PowerPCState& ppc_state,
-                                           const WriteBrokenBlockNPCOperands& operands)
+    const WriteBrokenBlockNPCOperands& operands)
 {
   const auto& [current_pc] = operands;
   ppc_state.npc = current_pc;
@@ -199,7 +199,7 @@ s32 CachedInterpreter::CheckFPU(PowerPC::PowerPCState& ppc_state, const CheckHal
 }
 
 s32 CachedInterpreter::CheckBreakpoint(PowerPC::PowerPCState& ppc_state,
-                                       const CheckHaltOperands& operands)
+    const CheckHaltOperands& operands)
 {
   const auto& [power_pc, current_pc, downcount] = operands;
   ppc_state.pc = current_pc;
@@ -213,7 +213,7 @@ s32 CachedInterpreter::CheckBreakpoint(PowerPC::PowerPCState& ppc_state,
 }
 
 s32 CachedInterpreter::CheckIdle(PowerPC::PowerPCState& ppc_state,
-                                 const CheckIdleOperands& operands)
+    const CheckIdleOperands& operands)
 {
   const auto& [core_timing, idle_pc] = operands;
   if (ppc_state.npc == idle_pc)
@@ -244,7 +244,7 @@ void CachedInterpreter::WriteEndBlock()
   if (IsProfilingEnabled())
   {
     Write(EndBlock<true>, {{js.downcountAmount, js.numLoadStoreInst, js.numFloatingPointInst},
-                           js.curBlock->profile_data.get()});
+                              js.curBlock->profile_data.get()});
   }
   else
   {
@@ -392,19 +392,18 @@ bool CachedInterpreter::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
           (!op.canEndBlock && ShouldHandleFPExceptionForInstruction(&op)))
       {
         const InterpretAndCheckExceptionsOperands operands = {
-            {interpreter, Interpreter::GetInterpreterOp(op.inst), js.compilerPC, op.inst},
-            power_pc,
+            {interpreter, Interpreter::GetInterpreterOp(op.inst), js.compilerPC, op.inst}, power_pc,
             js.downcountAmount};
         Write(op.canEndBlock ? CallbackCast(InterpretAndCheckExceptions<true>) :
                                CallbackCast(InterpretAndCheckExceptions<false>),
-              operands);
+            operands);
       }
       else
       {
-        const InterpretOperands operands = {interpreter, Interpreter::GetInterpreterOp(op.inst),
-                                            js.compilerPC, op.inst};
+        const InterpretOperands operands = {
+            interpreter, Interpreter::GetInterpreterOp(op.inst), js.compilerPC, op.inst};
         Write(op.canEndBlock ? CallbackCast(Interpret<true>) : CallbackCast(Interpret<false>),
-              operands);
+            operands);
       }
 
       if (op.branchIsIdleLoop)
@@ -439,7 +438,7 @@ std::vector<JitBase::MemoryStats> CachedInterpreter::GetMemoryStats() const
 }
 
 std::size_t CachedInterpreter::DisassembleNearCode(const JitBlock& block,
-                                                   std::ostream& stream) const
+    std::ostream& stream) const
 {
   return Disassemble(block, stream);
 }
@@ -466,10 +465,10 @@ void CachedInterpreter::LogGeneratedCode() const
 
   stream << "\nPPC Code Buffer:\n";
   for (const PPCAnalyst::CodeOp& op :
-       std::span{m_code_buffer.data(), code_block.m_num_instructions})
+      std::span{m_code_buffer.data(), code_block.m_num_instructions})
   {
     fmt::print(stream, "0x{:08x}\t\t{}\n", op.address,
-               Common::GekkoDisassembler::Disassemble(op.inst.hex, op.address));
+        Common::GekkoDisassembler::Disassemble(op.inst.hex, op.address));
   }
 
   stream << "\nHost Code:\n";

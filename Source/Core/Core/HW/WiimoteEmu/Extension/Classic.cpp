@@ -54,7 +54,7 @@ Classic::Classic() : Extension1stParty("Classic", _trans("Classic Controller"))
   // buttons
   groups.emplace_back(m_buttons = new ControllerEmu::Buttons(BUTTONS_GROUP));
   for (auto& button_name :
-       {A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, ZL_BUTTON, ZR_BUTTON, MINUS_BUTTON, PLUS_BUTTON})
+      {A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, ZL_BUTTON, ZR_BUTTON, MINUS_BUTTON, PLUS_BUTTON})
   {
     m_buttons->AddInput(Translatability::DoNotTranslate, button_name);
   }
@@ -116,7 +116,7 @@ void Classic::BuildDesiredExtensionState(DesiredExtensionState* target_state)
   {
     ControlState triggers[2] = {0, 0};
     m_triggers->GetState(&buttons, classic_trigger_bitmasks.data(), triggers,
-                         m_input_override_function);
+        m_input_override_function);
 
     const u8 lt = MapFloat<u8>(triggers[0], 0, 0, TRIGGER_RANGE);
     const u8 rt = MapFloat<u8>(triggers[1], 0, 0, TRIGGER_RANGE);

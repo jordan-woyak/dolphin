@@ -43,7 +43,7 @@
 #endif  // USE_RETRO_ACHIEVEMENTS
 
 GeckoCodeWidget::GeckoCodeWidget(std::string game_id, std::string gametdb_id, u16 game_revision,
-                                 bool restart_required)
+    bool restart_required)
     : m_game_id(std::move(game_id)), m_gametdb_id(std::move(gametdb_id)),
       m_game_revision(game_revision), m_restart_required(restart_required)
 {
@@ -54,7 +54,7 @@ GeckoCodeWidget::GeckoCodeWidget(std::string game_id, std::string gametdb_id, u1
 }
 
 void GeckoCodeWidget::ChangeGame(std::string game_id, std::string gametdb_id,
-                                 const u16 game_revision)
+    const u16 game_revision)
 {
   m_game_id = std::move(game_id);
   m_gametdb_id = std::move(gametdb_id);
@@ -152,24 +152,24 @@ void GeckoCodeWidget::CreateWidgets()
 void GeckoCodeWidget::ConnectWidgets()
 {
   connect(m_code_list, &QListWidget::itemSelectionChanged, this,
-          &GeckoCodeWidget::OnSelectionChanged);
+      &GeckoCodeWidget::OnSelectionChanged);
   connect(m_code_list, &QListWidget::itemChanged, this, &GeckoCodeWidget::OnItemChanged);
   connect(m_code_list->model(), &QAbstractItemModel::rowsMoved, this,
-          &GeckoCodeWidget::OnListReordered);
+      &GeckoCodeWidget::OnListReordered);
   connect(m_code_list, &QListWidget::customContextMenuRequested, this,
-          &GeckoCodeWidget::OnContextMenuRequested);
+      &GeckoCodeWidget::OnContextMenuRequested);
 
   connect(m_add_code, &QPushButton::clicked, this, &GeckoCodeWidget::AddCode);
   connect(m_remove_code, &QPushButton::clicked, this, &GeckoCodeWidget::RemoveCode);
   connect(m_edit_code, &QPushButton::clicked, this, &GeckoCodeWidget::EditCode);
   connect(m_download_codes, &QPushButton::clicked, this, &GeckoCodeWidget::DownloadCodes);
   connect(m_warning, &CheatWarningWidget::OpenCheatEnableSettings, this,
-          &GeckoCodeWidget::OpenGeneralSettings);
+      &GeckoCodeWidget::OpenGeneralSettings);
 #ifdef USE_RETRO_ACHIEVEMENTS
   connect(m_hc_warning, &HardcoreWarningWidget::OpenAchievementSettings, this,
-          &GeckoCodeWidget::OpenAchievementSettings);
+      &GeckoCodeWidget::OpenAchievementSettings);
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
-          &GeckoCodeWidget::UpdateList);
+      &GeckoCodeWidget::UpdateList);
 #endif  // USE_RETRO_ACHIEVEMENTS
 }
 
@@ -360,8 +360,8 @@ void GeckoCodeWidget::UpdateList()
     const auto& code = m_gecko_codes[i];
 
     auto* item = new QListWidgetItem(QString::fromStdString(code.name)
-                                         .replace(QStringLiteral("&lt;"), QChar::fromLatin1('<'))
-                                         .replace(QStringLiteral("&gt;"), QChar::fromLatin1('>')));
+            .replace(QStringLiteral("&lt;"), QChar::fromLatin1('<'))
+            .replace(QStringLiteral("&gt;"), QChar::fromLatin1('>')));
 
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsUserCheckable |
                    Qt::ItemIsDragEnabled);
@@ -423,8 +423,7 @@ void GeckoCodeWidget::DownloadCodes()
   UpdateList();
   SaveCodes();
 
-  ModalMessageBox::information(
-      this, tr("Download complete"),
+  ModalMessageBox::information(this, tr("Download complete"),
       tr("Downloaded %1 codes. (added %2)")
           .arg(QString::number(codes.size()), QString::number(added_count)));
 }

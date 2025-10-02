@@ -22,8 +22,8 @@ void GCMicrophone::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Microphone"), Pad::GetGroup(GetPort(), PadGroup::Mic)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Microphone"),
+      Pad::GetGroup(GetPort(), PadGroup::Mic)));
 
   setLayout(m_main_layout);
 }

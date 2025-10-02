@@ -230,9 +230,8 @@ private:
       std::string type = std::get<0>(use_data);
       std::string path = "Profiles/" + std::get<1>(use_data) + "/";
 
-      const auto control_section = [&](std::string key) {
-        return Config::Location{std::get<2>(use_data), "Controls", key};
-      };
+      const auto control_section = [&](std::string key)
+      { return Config::Location{std::get<2>(use_data), "Controls", key}; };
 
       for (const char num : nums)
       {
@@ -328,13 +327,13 @@ void INIGameConfigLayerLoader::Save(Config::Layer* layer)
 
 // Loader generation
 std::unique_ptr<Config::ConfigLayerLoader> GenerateGlobalGameConfigLoader(const std::string& id,
-                                                                          u16 revision)
+    u16 revision)
 {
   return std::make_unique<INIGameConfigLayerLoader>(id, revision, true);
 }
 
 std::unique_ptr<Config::ConfigLayerLoader> GenerateLocalGameConfigLoader(const std::string& id,
-                                                                         u16 revision)
+    u16 revision)
 {
   return std::make_unique<INIGameConfigLayerLoader>(id, revision, false);
 }

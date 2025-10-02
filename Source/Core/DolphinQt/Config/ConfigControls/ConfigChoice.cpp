@@ -6,7 +6,7 @@
 #include <QSignalBlocker>
 
 ConfigChoice::ConfigChoice(const QStringList& options, const Config::Info<int>& setting,
-                           Config::Layer* layer)
+    Config::Layer* layer)
     : ConfigControl(setting.GetLocation(), layer), m_setting(setting)
 {
   addItems(options);
@@ -26,8 +26,7 @@ void ConfigChoice::OnConfigChanged()
 }
 
 ConfigStringChoice::ConfigStringChoice(const std::vector<std::string>& options,
-                                       const Config::Info<std::string>& setting,
-                                       Config::Layer* layer)
+    const Config::Info<std::string>& setting, Config::Layer* layer)
     : ConfigControl(setting.GetLocation(), layer), m_setting(setting), m_text_is_data(true)
 {
   for (const auto& op : options)
@@ -38,8 +37,7 @@ ConfigStringChoice::ConfigStringChoice(const std::vector<std::string>& options,
 }
 
 ConfigStringChoice::ConfigStringChoice(const std::vector<std::pair<QString, QString>>& options,
-                                       const Config::Info<std::string>& setting,
-                                       Config::Layer* layer)
+    const Config::Info<std::string>& setting, Config::Layer* layer)
     : ConfigControl(setting.GetLocation(), layer), m_setting(setting), m_text_is_data(false)
 {
   for (const auto& [option_text, option_data] : options)
@@ -72,7 +70,7 @@ void ConfigStringChoice::OnConfigChanged()
 }
 
 ConfigComplexChoice::ConfigComplexChoice(const InfoVariant setting1, const InfoVariant setting2,
-                                         Config::Layer* layer)
+    Config::Layer* layer)
     : m_layer(layer), m_setting1(setting1), m_setting2(setting2)
 {
   connect(&Settings::Instance(), &Settings::ConfigChanged, this, &ConfigComplexChoice::Refresh);
@@ -99,7 +97,7 @@ void ConfigComplexChoice::Refresh()
 }
 
 void ConfigComplexChoice::Add(const QString& name, const OptionVariant option1,
-                              const OptionVariant option2)
+    const OptionVariant option2)
 {
   const QSignalBlocker blocker(this);
   addItem(name);
@@ -114,7 +112,8 @@ void ConfigComplexChoice::Reset()
 
 void ConfigComplexChoice::SaveValue(int choice)
 {
-  auto Set = [this](auto& setting, auto& value) {
+  auto Set = [this](auto& setting, auto& value)
+  {
     if (m_layer != nullptr)
     {
       m_layer->Set(setting.GetLocation(), value);
@@ -131,7 +130,8 @@ void ConfigComplexChoice::SaveValue(int choice)
 
 void ConfigComplexChoice::UpdateComboIndex()
 {
-  auto get_layer_value = [this](auto& setting) {
+  auto get_layer_value = [this](auto& setting)
+  {
     if (m_layer != nullptr)
       return static_cast<OptionVariant>(m_layer->Get(setting));
 
@@ -140,14 +140,16 @@ void ConfigComplexChoice::UpdateComboIndex()
 
   auto get_default_value = [](auto& setting) { return OptionVariant(setting.GetDefaultValue()); };
 
-  auto is_current_value = [&](const InfoVariant& info, const OptionVariant& option) {
+  auto is_current_value = [&](const InfoVariant& info, const OptionVariant& option)
+  {
     return std::visit(get_layer_value, info) ==
            (std::holds_alternative<Config::DefaultState>(option) ?
-                std::visit(get_default_value, info) :
-                option);
+                   std::visit(get_default_value, info) :
+                   option);
   };
 
-  auto is_correct_option = [&](const std::pair<OptionVariant, OptionVariant>& option) {
+  auto is_correct_option = [&](const std::pair<OptionVariant, OptionVariant>& option)
+  {
     return is_current_value(m_setting1, option.first) &&
            is_current_value(m_setting2, option.second);
   };

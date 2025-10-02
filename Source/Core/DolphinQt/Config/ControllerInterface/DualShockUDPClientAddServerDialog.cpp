@@ -57,7 +57,7 @@ void DualShockUDPClientAddServerDialog::CreateWidgets()
   m_buttonbox->addButton(add_button, QDialogButtonBox::AcceptRole);
   m_buttonbox->addButton(cancel_button, QDialogButtonBox::RejectRole);
   connect(add_button, &QPushButton::clicked, this,
-          &DualShockUDPClientAddServerDialog::OnServerAdded);
+      &DualShockUDPClientAddServerDialog::OnServerAdded);
   connect(cancel_button, &QPushButton::clicked, this, &DualShockUDPClientAddServerDialog::reject);
   add_button->setDefault(true);
 
@@ -68,9 +68,7 @@ void DualShockUDPClientAddServerDialog::OnServerAdded()
 {
   const auto& servers_setting = Config::Get(ciface::DualShockUDPClient::Settings::SERVERS);
   Config::SetBaseOrCurrent(ciface::DualShockUDPClient::Settings::SERVERS,
-                           servers_setting + fmt::format("{}:{}:{};",
-                                                         m_description->text().toStdString(),
-                                                         m_server_address->text().toStdString(),
-                                                         m_server_port->value()));
+      servers_setting + fmt::format("{}:{}:{};", m_description->text().toStdString(),
+                            m_server_address->text().toStdString(), m_server_port->value()));
   accept();
 }

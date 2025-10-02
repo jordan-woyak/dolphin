@@ -296,7 +296,7 @@ private:
   {
   public:
     MotionInput(std::string name, SDL_Gamepad* gc, SDL_SensorType type, int index,
-                ControlState scale)
+        ControlState scale)
         : m_name(std::move(name)), m_gc(gc), m_type(type), m_index(index), m_scale(scale)
     {
     }
@@ -334,7 +334,7 @@ public:
         SDL_GetNumGamepadTouchpadFingers(m_gamepad, touchpad_index) > finger_index)
     {
       SDL_GetGamepadTouchpadFinger(m_gamepad, touchpad_index, finger_index, nullptr, &m_touchpad_x,
-                                   &m_touchpad_y, &m_touchpad_pressure);
+          &m_touchpad_y, &m_touchpad_pressure);
       m_touchpad_x = m_touchpad_x * 2 - 1;
       m_touchpad_y = m_touchpad_y * 2 - 1;
     }

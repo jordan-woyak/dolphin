@@ -65,8 +65,7 @@ GCMemcard::GCMemcard()
 }
 
 std::optional<GCMemcard> GCMemcard::Create(std::string filename, const CardFlashId& flash_id,
-                                           u16 size_mbits, bool shift_jis, u32 rtc_bias,
-                                           u32 sram_language, u64 format_time)
+    u16 size_mbits, bool shift_jis, u32 rtc_bias, u32 sram_language, u64 format_time)
 {
   GCMemcard card;
   card.m_filename = std::move(filename);
@@ -102,7 +101,7 @@ std::pair<GCMemcardErrorCode, std::optional<GCMemcard>> GCMemcard::Open(std::str
   }};
 
   if (!std::ranges::any_of(valid_megabits,
-                           [filesize_megabits](u64 mbits) { return mbits == filesize_megabits; }))
+          [filesize_megabits](u64 mbits) { return mbits == filesize_megabits; }))
   {
     error_code.Set(GCMemcardValidityIssues::INVALID_CARD_SIZE);
     return std::make_pair(error_code, std::nullopt);
@@ -452,7 +451,7 @@ u16 GCMemcard::DEntry_BlockCount(u8 index) const
 }
 
 std::optional<std::vector<u8>> GCMemcard::GetSaveDataBytes(u8 save_index, size_t offset,
-                                                           size_t length) const
+    size_t length) const
 {
   if (!m_valid || save_index >= DIRLEN)
     return std::nullopt;
@@ -525,7 +524,8 @@ std::optional<std::pair<std::string, std::string>> GCMemcard::GetSaveComments(u8
     return std::nullopt;
 
   const auto string_decoder = IsShiftJIS() ? SHIFTJISToUTF8 : CP1252ToUTF8;
-  const auto strip_null = [](const std::string& s) {
+  const auto strip_null = [](const std::string& s)
+  {
     auto offset = s.find('\0');
     if (offset == std::string::npos)
       offset = s.length();
@@ -537,7 +537,7 @@ std::optional<std::pair<std::string, std::string>> GCMemcard::GetSaveComments(u8
   const std::string encoded_1(reinterpret_cast<const char*>(address_1), DENTRY_STRLEN);
   const std::string encoded_2(reinterpret_cast<const char*>(address_2), DENTRY_STRLEN);
   return std::make_pair(strip_null(string_decoder(encoded_1)),
-                        strip_null(string_decoder(encoded_2)));
+      strip_null(string_decoder(encoded_2)));
 }
 
 std::optional<DEntry> GCMemcard::GetDEntry(u8 index) const
@@ -862,14 +862,14 @@ std::optional<std::vector<u32>> GCMemcard::ReadBannerRGBA8(u8 index) const
     std::array<u16, MEMORY_CARD_CI8_PALETTE_ENTRIES> paldata;
     std::memcpy(paldata.data(), data->data() + pixel_count, MEMORY_CARD_CI8_PALETTE_ENTRIES * 2);
     Common::DecodeCI8Image(rgba.data(), pxdata, paldata.data(), MEMORY_CARD_BANNER_WIDTH,
-                           MEMORY_CARD_BANNER_HEIGHT);
+        MEMORY_CARD_BANNER_HEIGHT);
   }
   else
   {
     std::array<u16, pixel_count> pxdata;
     std::memcpy(pxdata.data(), data->data(), pixel_count * 2);
     Common::Decode5A3Image(rgba.data(), pxdata.data(), MEMORY_CARD_BANNER_WIDTH,
-                           MEMORY_CARD_BANNER_HEIGHT);
+        MEMORY_CARD_BANNER_HEIGHT);
   }
 
   return rgba;
@@ -962,7 +962,7 @@ std::optional<std::vector<GCMemcardAnimationFrameRGBA8>> GCMemcard::ReadAnimRGBA
   if (has_shared_palette)
   {
     std::memcpy(shared_palette.data(), save_data_bytes->data() + shared_palette_offset,
-                2 * MEMORY_CARD_CI8_PALETTE_ENTRIES);
+        2 * MEMORY_CARD_CI8_PALETTE_ENTRIES);
   }
 
   std::vector<GCMemcardAnimationFrameRGBA8> output;
@@ -985,8 +985,8 @@ std::optional<std::vector<GCMemcardAnimationFrameRGBA8>> GCMemcard::ReadAnimRGBA
       if (frame_formats[j] == MEMORY_CARD_ICON_FORMAT_CI8_SHARED_PALETTE)
       {
         Common::DecodeCI8Image(output_frame.image_data.data(),
-                               save_data_bytes->data() + frame_offsets[j], shared_palette.data(),
-                               MEMORY_CARD_ICON_WIDTH, MEMORY_CARD_ICON_HEIGHT);
+            save_data_bytes->data() + frame_offsets[j], shared_palette.data(),
+            MEMORY_CARD_ICON_WIDTH, MEMORY_CARD_ICON_HEIGHT);
         break;
       }
 
@@ -994,9 +994,9 @@ std::optional<std::vector<GCMemcardAnimationFrameRGBA8>> GCMemcard::ReadAnimRGBA
       {
         std::array<u16, pixels_per_frame> pxdata;
         std::memcpy(pxdata.data(), save_data_bytes->data() + frame_offsets[j],
-                    pixels_per_frame * 2);
+            pixels_per_frame * 2);
         Common::Decode5A3Image(output_frame.image_data.data(), pxdata.data(),
-                               MEMORY_CARD_ICON_WIDTH, MEMORY_CARD_ICON_HEIGHT);
+            MEMORY_CARD_ICON_WIDTH, MEMORY_CARD_ICON_HEIGHT);
         break;
       }
 
@@ -1004,10 +1004,10 @@ std::optional<std::vector<GCMemcardAnimationFrameRGBA8>> GCMemcard::ReadAnimRGBA
       {
         std::array<u16, MEMORY_CARD_CI8_PALETTE_ENTRIES> paldata;
         std::memcpy(paldata.data(), save_data_bytes->data() + frame_offsets[j] + pixels_per_frame,
-                    MEMORY_CARD_CI8_PALETTE_ENTRIES * 2);
+            MEMORY_CARD_CI8_PALETTE_ENTRIES * 2);
         Common::DecodeCI8Image(output_frame.image_data.data(),
-                               save_data_bytes->data() + frame_offsets[j], paldata.data(),
-                               MEMORY_CARD_ICON_WIDTH, MEMORY_CARD_ICON_HEIGHT);
+            save_data_bytes->data() + frame_offsets[j], paldata.data(), MEMORY_CARD_ICON_WIDTH,
+            MEMORY_CARD_ICON_HEIGHT);
         break;
       }
     }
@@ -1017,7 +1017,7 @@ std::optional<std::vector<GCMemcardAnimationFrameRGBA8>> GCMemcard::ReadAnimRGBA
 }
 
 bool GCMemcard::Format(u8* card_data, const CardFlashId& flash_id, u16 size_mbits, bool shift_jis,
-                       u32 rtc_bias, u32 sram_language, u64 format_time)
+    u32 rtc_bias, u32 sram_language, u64 format_time)
 {
   if (!card_data)
     return false;
@@ -1036,7 +1036,7 @@ bool GCMemcard::Format(u8* card_data, const CardFlashId& flash_id, u16 size_mbit
 }
 
 bool GCMemcard::Format(const CardFlashId& flash_id, u16 size_mbits, bool shift_jis, u32 rtc_bias,
-                       u32 sram_language, u64 format_time)
+    u32 sram_language, u64 format_time)
 {
   m_header_block = Header(flash_id, size_mbits, shift_jis, rtc_bias, sram_language, format_time);
   m_directory_blocks[0] = m_directory_blocks[1] = Directory();
@@ -1066,7 +1066,7 @@ bool GCMemcard::Format(const CardFlashId& flash_id, u16 size_mbits, bool shift_j
 /*************************************************************/
 
 s32 GCMemcard::FZEROGX_MakeSaveGameValid(const Header& cardheader, const DEntry& direntry,
-                                         std::vector<GCMBlock>& FileBuffer)
+    std::vector<GCMBlock>& FileBuffer)
 {
   u32 i, j;
   u16 chksum = 0xFFFF;
@@ -1121,7 +1121,7 @@ s32 GCMemcard::FZEROGX_MakeSaveGameValid(const Header& cardheader, const DEntry&
 /***********************************************************/
 
 s32 GCMemcard::PSO_MakeSaveGameValid(const Header& cardheader, const DEntry& direntry,
-                                     std::vector<GCMBlock>& FileBuffer)
+    std::vector<GCMBlock>& FileBuffer)
 {
   u32 i, j;
   u32 chksum;
@@ -1198,7 +1198,7 @@ Header::Header()
 }
 
 void InitializeHeaderData(HeaderData* data, const CardFlashId& flash_id, u16 size_mbits,
-                          bool shift_jis, u32 rtc_bias, u32 sram_language, u64 format_time)
+    bool shift_jis, u32 rtc_bias, u32 sram_language, u64 format_time)
 {
   // Nintendo format algorithm.
   // Constants are fixed by the GC SDK
@@ -1229,12 +1229,12 @@ bool operator==(const HeaderData& lhs, const HeaderData& rhs)
 }
 
 Header::Header(const CardFlashId& flash_id, u16 size_mbits, bool shift_jis, u32 rtc_bias,
-               u32 sram_language, u64 format_time)
+    u32 sram_language, u64 format_time)
 {
   static_assert(std::is_trivially_copyable_v<Header>);
   std::memset(this, 0xFF, BLOCK_SIZE);
   InitializeHeaderData(&m_data, flash_id, size_mbits, shift_jis, rtc_bias, sram_language,
-                       format_time);
+      format_time);
   FixChecksums();
 }
 

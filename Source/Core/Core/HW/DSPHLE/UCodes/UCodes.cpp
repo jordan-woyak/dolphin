@@ -184,8 +184,8 @@ void UCodeInterface::PrepareBootUCode(u32 mail)
     m_upload_setup_in_progress = false;
 
     auto& memory = m_dsphle->GetSystem().GetMemory();
-    const u32 ector_crc = Common::HashEctor(
-        static_cast<u8*>(HLEMemory_Get_Pointer(memory, m_next_ucode.iram_mram_addr)),
+    const u32 ector_crc = Common::HashEctor(static_cast<u8*>(HLEMemory_Get_Pointer(memory,
+                                                m_next_ucode.iram_mram_addr)),
         m_next_ucode.iram_size);
 
     if (Config::Get(Config::MAIN_DUMP_UCODE))
@@ -197,12 +197,12 @@ void UCodeInterface::PrepareBootUCode(u32 mail)
 
     DEBUG_LOG_FMT(DSPHLE, "PrepareBootUCode {:#010x}", ector_crc);
     DEBUG_LOG_FMT(DSPHLE, "DRAM -> MRAM: src {:04x} dst {:08x} size {:04x}",
-                  m_next_ucode.mram_dram_addr, m_next_ucode.mram_dest_addr, m_next_ucode.mram_size);
+        m_next_ucode.mram_dram_addr, m_next_ucode.mram_dest_addr, m_next_ucode.mram_size);
     DEBUG_LOG_FMT(DSPHLE, "MRAM -> IRAM: src {:08x} dst {:04x} size {:04x} startpc {:04x}",
-                  m_next_ucode.iram_mram_addr, m_next_ucode.iram_dest, m_next_ucode.iram_size,
-                  m_next_ucode.iram_startpc);
+        m_next_ucode.iram_mram_addr, m_next_ucode.iram_dest, m_next_ucode.iram_size,
+        m_next_ucode.iram_startpc);
     DEBUG_LOG_FMT(DSPHLE, "MRAM -> DRAM: src {:08x} dst {:04x} size {:04x}",
-                  m_next_ucode.dram_mram_addr, m_next_ucode.dram_dest, m_next_ucode.dram_size);
+        m_next_ucode.dram_mram_addr, m_next_ucode.dram_dest, m_next_ucode.dram_size);
 
     if (m_next_ucode.mram_size)
     {

@@ -17,8 +17,8 @@ void HotkeyUSBEmu::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("USB Device Emulation"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_USB_EMU)));
+  m_main_layout->addWidget(CreateGroupBox(tr("USB Device Emulation"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_USB_EMU)));
 
   setLayout(m_main_layout);
 }

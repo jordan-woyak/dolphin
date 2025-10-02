@@ -45,18 +45,75 @@ static constexpr std::string_view SOURCE_NAME = "WGInput";
 // GameControllerButtonLabel::XboxLeftBumper and GameControllerButtonLabel::LeftBumper.
 // If needed we can prepend "Xbox" to relevant input names on conflict in the future.
 static constexpr std::array wgi_button_names = {
-    "None",      "Back",     "Start",      "Menu",     "View",     "Pad N",
-    "Pad S",     "Pad W",    "Pad E",      "Button A", "Button B", "Button X",
-    "Button Y",  "Bumper L", "Trigger L",  "Thumb L",  "Bumper R", "Trigger R",
-    "Thumb R",   "Paddle 1", "Paddle 2",   "Paddle 3", "Paddle 4", "Mode",
-    "Select",    "Menu",     "View",       "Back",     "Start",    "Options",
-    "Share",     "Pad N",    "Pad S",      "Pad W",    "Pad E",    "Letter A",
-    "Letter B",  "Letter C", "Letter L",   "Letter R", "Letter X", "Letter Y",
-    "Letter Z",  "Cross",    "Circle",     "Square",   "Triangle", "Bumper L",
-    "Trigger L", "Thumb L",  "Left 1",     "Left 2",   "Left 3",   "Bumper R",
-    "Trigger R", "Thumb R",  "Right 1",    "Right 2",  "Right 3",  "Paddle 1",
-    "Paddle 2",  "Paddle 3", "Paddle 4",   "Plus",     "Minus",    "Down Left Arrow",
-    "Dial L",    "Dial R",   "Suspension",
+    "None",
+    "Back",
+    "Start",
+    "Menu",
+    "View",
+    "Pad N",
+    "Pad S",
+    "Pad W",
+    "Pad E",
+    "Button A",
+    "Button B",
+    "Button X",
+    "Button Y",
+    "Bumper L",
+    "Trigger L",
+    "Thumb L",
+    "Bumper R",
+    "Trigger R",
+    "Thumb R",
+    "Paddle 1",
+    "Paddle 2",
+    "Paddle 3",
+    "Paddle 4",
+    "Mode",
+    "Select",
+    "Menu",
+    "View",
+    "Back",
+    "Start",
+    "Options",
+    "Share",
+    "Pad N",
+    "Pad S",
+    "Pad W",
+    "Pad E",
+    "Letter A",
+    "Letter B",
+    "Letter C",
+    "Letter L",
+    "Letter R",
+    "Letter X",
+    "Letter Y",
+    "Letter Z",
+    "Cross",
+    "Circle",
+    "Square",
+    "Triangle",
+    "Bumper L",
+    "Trigger L",
+    "Thumb L",
+    "Left 1",
+    "Left 2",
+    "Left 3",
+    "Bumper R",
+    "Trigger R",
+    "Thumb R",
+    "Right 1",
+    "Right 2",
+    "Right 3",
+    "Paddle 1",
+    "Paddle 2",
+    "Paddle 3",
+    "Paddle 4",
+    "Plus",
+    "Minus",
+    "Down Left Arrow",
+    "Dial L",
+    "Dial R",
+    "Suspension",
 };
 
 template <typename T, typename M>
@@ -77,8 +134,7 @@ static constexpr MemberName<WGI::GamepadReading, double> gamepad_axis_names[] = 
     {&WGI::GamepadReading::RightThumbstickY, "Right Y"}};
 
 static constexpr MemberName<WGI::GamepadVibration, double> gamepad_motor_names[] = {
-    {&WGI::GamepadVibration::LeftMotor, "Motor L"},
-    {&WGI::GamepadVibration::RightMotor, "Motor R"},
+    {&WGI::GamepadVibration::LeftMotor, "Motor L"}, {&WGI::GamepadVibration::RightMotor, "Motor R"},
     {&WGI::GamepadVibration::LeftTrigger, "Trigger L"},
     {&WGI::GamepadVibration::RightTrigger, "Trigger R"}};
 
@@ -126,7 +182,7 @@ public:
         for (auto& axis : m_axes)
         {
           AddFullAnalogSurfaceInputs(new IndexedAxis(&axis, 0.5, +0.5, i),
-                                     new IndexedAxis(&axis, 0.5, -0.5, i));
+              new IndexedAxis(&axis, 0.5, -0.5, i));
           ++i;
         }
       }
@@ -315,7 +371,7 @@ private:
   {
   public:
     IndexedSwitch(const WGI::GameControllerSwitchPosition* swtch, u32 index,
-                  WGI::GameControllerSwitchPosition direction)
+        WGI::GameControllerSwitchPosition direction)
         : m_switch(*swtch), m_index(index), m_direction(static_cast<int32_t>(direction))
     {
     }
@@ -360,7 +416,7 @@ private:
   {
   public:
     SimpleHaptics(Haptics::SimpleHapticsController haptics,
-                  Haptics::SimpleHapticsControllerFeedback feedback, u32 haptics_index)
+        Haptics::SimpleHapticsControllerFeedback feedback, u32 haptics_index)
         : m_haptics(haptics), m_feedback(feedback), m_haptics_index(haptics_index)
     {
     }
@@ -399,8 +455,8 @@ private:
   {
   public:
     NamedFeedback(Haptics::SimpleHapticsController haptics,
-                  Haptics::SimpleHapticsControllerFeedback feedback, u32 haptics_index,
-                  std::string_view feedback_name)
+        Haptics::SimpleHapticsControllerFeedback feedback, u32 haptics_index,
+        std::string_view feedback_name)
         : SimpleHaptics(haptics, feedback, haptics_index), m_feedback_name(feedback_name)
     {
     }
@@ -465,18 +521,18 @@ private:
       for (auto haptics_controller : m_raw_controller.SimpleHapticsControllers())
       {
         for (Haptics::SimpleHapticsControllerFeedback feedback :
-             haptics_controller.SupportedFeedback())
+            haptics_controller.SupportedFeedback())
         {
           const uint16_t waveform = feedback.Waveform();
           auto waveform_name_it = waveform_name_map.find(waveform);
           if (waveform_name_it == waveform_name_map.end())
           {
             WARN_LOG_FMT(CONTROLLERINTERFACE,
-                         "WGInput: Unhandled haptics feedback waveform: 0x{:04x}.", waveform);
+                "WGInput: Unhandled haptics feedback waveform: 0x{:04x}.", waveform);
             continue;
           }
           AddOutput(new NamedFeedback(haptics_controller, feedback, haptics_index,
-                                      waveform_name_it->second));
+              waveform_name_it->second));
         }
         ++haptics_index;
       }
@@ -501,7 +557,7 @@ private:
     // vector<u8> and view it as array<bool>.
     auto buttons =
         winrt::array_view<bool>(reinterpret_cast<winrt::array_view<bool>::pointer>(&m_buttons[0]),
-                                static_cast<winrt::array_view<bool>::size_type>(m_buttons.size()));
+            static_cast<winrt::array_view<bool>::size_type>(m_buttons.size()));
     try
     {
       m_raw_controller.GetCurrentReading(buttons, m_switches, m_axes);
@@ -509,7 +565,7 @@ private:
     catch (winrt::hresult_error error)
     {
       ERROR_LOG_FMT(CONTROLLERINTERFACE,
-                    "WGInput: IRawGameController::GetCurrentReading failed: {}", error.code());
+          "WGInput: IRawGameController::GetCurrentReading failed: {}", error.code());
     }
 
     // IGamepad:
@@ -522,7 +578,7 @@ private:
       catch (winrt::hresult_error error)
       {
         ERROR_LOG_FMT(CONTROLLERINTERFACE, "WGInput: IGamepad::GetCurrentReading failed: {}",
-                      error.code());
+            error.code());
       }
     }
 
@@ -669,11 +725,13 @@ static void AddDevice(const WGI::RawGameController& raw_game_controller)
 
 static void RemoveDevice(const WGI::RawGameController& raw_game_controller)
 {
-  g_controller_interface.RemoveDevice([&](const auto* dev) {
-    if (dev->GetSource() != SOURCE_NAME)
-      return false;
-    return static_cast<const Device*>(dev)->GetRawGameController() == raw_game_controller;
-  });
+  g_controller_interface.RemoveDevice(
+      [&](const auto* dev)
+      {
+        if (dev->GetSource() != SOURCE_NAME)
+          return false;
+        return static_cast<const Device*>(dev)->GetRawGameController() == raw_game_controller;
+      });
 }
 
 #pragma warning(push)
@@ -692,8 +750,8 @@ static void HandleAddRemoveEvent(AddRemoveEvent evt)
   catch (const winrt::hresult_error& ex)
   {
     ERROR_LOG_FMT(CONTROLLERINTERFACE,
-                  "WGInput: Failed to CoInitialize for add/remove controller event: {}",
-                  WStringToUTF8(ex.message()));
+        "WGInput: Failed to CoInitialize for add/remove controller event: {}",
+        WStringToUTF8(ex.message()));
     return;
   }
   Common::ScopeGuard coinit_guard([] { winrt::uninit_apartment(); });
@@ -709,7 +767,7 @@ static void HandleAddRemoveEvent(AddRemoveEvent evt)
     break;
   default:
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "WGInput: Invalid add/remove controller event: {}",
-                  std::to_underlying(evt.type));
+        std::to_underlying(evt.type));
   }
 }
 
@@ -729,15 +787,17 @@ void Init()
   {
     // These events will be invoked from WGI-managed threadpool.
     s_event_added = WGI::RawGameController::RawGameControllerAdded(
-        [](auto&&, WGI::RawGameController raw_game_controller) {
-          s_device_add_remove_queue.EmplaceItem(
-              AddRemoveEvent{AddRemoveEventType::AddOrReplace, std::move(raw_game_controller)});
+        [](auto&&, WGI::RawGameController raw_game_controller)
+        {
+          s_device_add_remove_queue.EmplaceItem(AddRemoveEvent{
+              AddRemoveEventType::AddOrReplace, std::move(raw_game_controller)});
         });
 
     s_event_removed = WGI::RawGameController::RawGameControllerRemoved(
-        [](auto&&, WGI::RawGameController raw_game_controller) {
-          s_device_add_remove_queue.EmplaceItem(
-              AddRemoveEvent{AddRemoveEventType::Remove, std::move(raw_game_controller)});
+        [](auto&&, WGI::RawGameController raw_game_controller)
+        {
+          s_device_add_remove_queue.EmplaceItem(AddRemoveEvent{
+              AddRemoveEventType::Remove, std::move(raw_game_controller)});
         });
   }
   catch (winrt::hresult_error)
@@ -779,7 +839,7 @@ void PopulateDevices()
   try
   {
     for (const WGI::RawGameController& raw_game_controller :
-         WGI::RawGameController::RawGameControllers())
+        WGI::RawGameController::RawGameControllers())
     {
       RemoveDevice(raw_game_controller);
       AddDevice(raw_game_controller);

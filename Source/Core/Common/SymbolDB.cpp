@@ -39,7 +39,7 @@ void SymbolDB::List()
   for (const auto& func : m_functions)
   {
     DEBUG_LOG_FMT(OSHLE, "{} @ {:08x}: {} bytes (hash {:08x}) : {} calls", func.second.name,
-                  func.second.address, func.second.size, func.second.hash, func.second.num_calls);
+        func.second.address, func.second.size, func.second.hash, func.second.num_calls);
   }
   INFO_LOG_FMT(OSHLE, "{} functions known in this program above.", m_functions.size());
 }
@@ -149,7 +149,7 @@ bool SymbolDB::RenameSymbol(const Symbol& symbol, const std::string& symbol_name
 }
 
 bool SymbolDB::RenameSymbol(const Symbol& symbol, const std::string& symbol_name,
-                            const std::string& object_name)
+    const std::string& object_name)
 {
   std::lock_guard lock(m_mutex);
 

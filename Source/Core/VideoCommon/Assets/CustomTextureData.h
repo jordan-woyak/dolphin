@@ -32,7 +32,7 @@ public:
 
 bool LoadDDSTexture(CustomTextureData* texture, const std::string& filename);
 bool LoadDDSTexture(CustomTextureData::ArraySlice::Level* level, const std::string& filename,
-                    u32 mip_level);
+    u32 mip_level);
 bool LoadPNGTexture(CustomTextureData::ArraySlice::Level* level, const std::string& filename);
 bool LoadPNGTexture(CustomTextureData::ArraySlice::Level* level, std::span<const u8> buffer);
 }  // namespace VideoCommon

@@ -35,7 +35,7 @@
 #include "UICommon/UICommon.h"
 
 ConvertDialog::ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> files,
-                             QWidget* parent)
+    QWidget* parent)
     : QDialog(parent), m_files(std::move(files))
 {
   ASSERT(!m_files.empty());
@@ -50,8 +50,8 @@ ConvertDialog::ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> fi
   m_format->addItem(QStringLiteral("GCZ"), static_cast<int>(DiscIO::BlobType::GCZ));
   m_format->addItem(QStringLiteral("WIA"), static_cast<int>(DiscIO::BlobType::WIA));
   m_format->addItem(QStringLiteral("RVZ"), static_cast<int>(DiscIO::BlobType::RVZ));
-  if (std::ranges::all_of(
-          m_files, [](const auto& file) { return file->GetBlobType() == DiscIO::BlobType::PLAIN; }))
+  if (std::ranges::all_of(m_files,
+          [](const auto& file) { return file->GetBlobType() == DiscIO::BlobType::PLAIN; }))
   {
     m_format->setCurrentIndex(m_format->count() - 1);
   }
@@ -108,7 +108,7 @@ ConvertDialog::ConvertDialog(QList<std::shared_ptr<const UICommon::GameFile>> fi
 
   connect(m_format, &QComboBox::currentIndexChanged, this, &ConvertDialog::OnFormatChanged);
   connect(m_compression, &QComboBox::currentIndexChanged, this,
-          &ConvertDialog::OnCompressionChanged);
+      &ConvertDialog::OnCompressionChanged);
   connect(convert_button, &QPushButton::clicked, this, &ConvertDialog::Convert);
 
   OnFormatChanged();
@@ -126,7 +126,7 @@ void ConvertDialog::AddToBlockSizeComboBox(int size)
 }
 
 void ConvertDialog::AddToCompressionComboBox(const QString& name,
-                                             DiscIO::WIARVZCompressionType type)
+    DiscIO::WIARVZCompressionType type)
 {
   m_compression->addItem(name, static_cast<int>(type));
 }
@@ -150,15 +150,15 @@ void ConvertDialog::OnFormatChanged()
   {
     // To support legacy versions of dolphin, we have to check the GCZ block size
     // See DiscIO::IsGCZBlockSizeLegacyCompatible() for details
-    const auto block_size_ok = [this](int block_size) {
-      return std::ranges::all_of(m_files, [block_size](const auto& file) {
-        return DiscIO::IsGCZBlockSizeLegacyCompatible(block_size, file->GetVolumeSize());
-      });
+    const auto block_size_ok = [this](int block_size)
+    {
+      return std::ranges::all_of(m_files, [block_size](const auto& file)
+          { return DiscIO::IsGCZBlockSizeLegacyCompatible(block_size, file->GetVolumeSize()); });
     };
 
     // Add all block sizes in the normal range that do not cause problems
     for (int block_size = DiscIO::PREFERRED_MIN_BLOCK_SIZE;
-         block_size <= DiscIO::PREFERRED_MAX_BLOCK_SIZE; block_size *= 2)
+        block_size <= DiscIO::PREFERRED_MAX_BLOCK_SIZE; block_size *= 2)
     {
       if (block_size_ok(block_size))
         AddToBlockSizeComboBox(block_size);
@@ -189,7 +189,7 @@ void ConvertDialog::OnFormatChanged()
     m_block_size->setEnabled(true);
 
     for (int block_size = DiscIO::PREFERRED_MIN_BLOCK_SIZE;
-         block_size <= DiscIO::PREFERRED_MAX_BLOCK_SIZE; block_size *= 2)
+        block_size <= DiscIO::PREFERRED_MAX_BLOCK_SIZE; block_size *= 2)
       AddToBlockSizeComboBox(block_size);
 
     break;
@@ -218,12 +218,12 @@ void ConvertDialog::OnFormatChanged()
       AddToCompressionComboBox(QStringLiteral("Purge"), DiscIO::WIARVZCompressionType::Purge);
 
     AddToCompressionComboBox(slow.arg(QStringLiteral("bzip2")),
-                             DiscIO::WIARVZCompressionType::Bzip2);
+        DiscIO::WIARVZCompressionType::Bzip2);
 
     AddToCompressionComboBox(slow.arg(QStringLiteral("LZMA")), DiscIO::WIARVZCompressionType::LZMA);
 
     AddToCompressionComboBox(slow.arg(QStringLiteral("LZMA2")),
-                             DiscIO::WIARVZCompressionType::LZMA2);
+        DiscIO::WIARVZCompressionType::LZMA2);
 
     if (format == DiscIO::BlobType::RVZ)
     {
@@ -231,7 +231,7 @@ void ConvertDialog::OnFormatChanged()
       const QString recommended = tr("%1 (recommended)");
 
       AddToCompressionComboBox(recommended.arg(QStringLiteral("Zstandard")),
-                               DiscIO::WIARVZCompressionType::Zstd);
+          DiscIO::WIARVZCompressionType::Zstd);
       m_compression->setCurrentIndex(m_compression->count() - 1);
     }
 
@@ -305,9 +305,8 @@ void ConvertDialog::Convert()
   }
 
   if (!scrub && format == DiscIO::BlobType::GCZ &&
-      std::ranges::any_of(m_files, [](const auto& file) {
-        return file->GetPlatform() == DiscIO::Platform::WiiDisc && !file->IsDatelDisc();
-      }))
+      std::ranges::any_of(m_files, [](const auto& file)
+          { return file->GetPlatform() == DiscIO::Platform::WiiDisc && !file->IsDatelDisc(); }))
   {
     if (!ShowAreYouSureDialog(tr("Converting Wii disc images to GCZ without removing junk data "
                                  "does not save any noticeable amount of space compared to "
@@ -362,8 +361,7 @@ void ConvertDialog::Convert()
 
   if (m_files.size() > 1)
   {
-    dst_dir = DolphinFileDialog::getExistingDirectory(
-        this, tr("Save Converted Images"),
+    dst_dir = DolphinFileDialog::getExistingDirectory(this, tr("Save Converted Images"),
         QFileInfo(QString::fromStdString(m_files[0]->GetFilePath())).dir().absolutePath());
 
     if (dst_dir.isEmpty())
@@ -371,8 +369,7 @@ void ConvertDialog::Convert()
   }
   else
   {
-    dst_path = DolphinFileDialog::getSaveFileName(
-        this, tr("Save Converted Image"),
+    dst_path = DolphinFileDialog::getSaveFileName(this, tr("Save Converted Image"),
         QFileInfo(QString::fromStdString(m_files[0]->GetFilePath()))
             .dir()
             .absoluteFilePath(
@@ -403,7 +400,7 @@ void ConvertDialog::Convert()
         confirm_replace.setWindowTitle(tr("Confirm"));
         confirm_replace.setText(tr("The file %1 already exists.\n"
                                    "Do you wish to replace it?")
-                                    .arg(dst_info.fileName()));
+                .arg(dst_info.fileName()));
         confirm_replace.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 
         if (confirm_replace.exec() == QMessageBox::No)
@@ -415,10 +412,9 @@ void ConvertDialog::Convert()
     {
       std::error_code ec;
       if (std::filesystem::equivalent(StringToPath(dst_path.toStdString()),
-                                      StringToPath(original_path), ec))
+              StringToPath(original_path), ec))
       {
-        ModalMessageBox::critical(
-            this, tr("Error"),
+        ModalMessageBox::critical(this, tr("Error"),
             tr("The destination file cannot be the same as the source file\n\n"
                "Please select another destination path for \"%1\"")
                 .arg(QString::fromStdString(original_path)));
@@ -445,12 +441,11 @@ void ConvertDialog::Convert()
       blob_reader = DiscIO::ScrubbedBlob::Create(original_path);
       if (!blob_reader)
       {
-        const int result =
-            ModalMessageBox::warning(this, tr("Question"),
-                                     tr("Failed to remove junk data from file \"%1\".\n\n"
-                                        "Would you like to convert it without removing junk data?")
-                                         .arg(QString::fromStdString(original_path)),
-                                     QMessageBox::Ok | QMessageBox::Abort);
+        const int result = ModalMessageBox::warning(this, tr("Question"),
+            tr("Failed to remove junk data from file \"%1\".\n\n"
+               "Would you like to convert it without removing junk data?")
+                .arg(QString::fromStdString(original_path)),
+            QMessageBox::Ok | QMessageBox::Abort);
 
         if (result == QMessageBox::Ok)
           scrub_current_file = false;
@@ -464,14 +459,14 @@ void ConvertDialog::Convert()
 
     if (!blob_reader)
     {
-      ModalMessageBox::critical(
-          this, tr("Error"),
+      ModalMessageBox::critical(this, tr("Error"),
           tr("Failed to open the input file \"%1\".").arg(QString::fromStdString(original_path)));
       return;
     }
     else
     {
-      const auto callback = [&progress_dialog](const std::string& text, float percent) {
+      const auto callback = [&progress_dialog](const std::string& text, float percent)
+      {
         progress_dialog.SetValue(percent * 100);
         return !progress_dialog.WasCanceled();
       };
@@ -481,34 +476,39 @@ void ConvertDialog::Convert()
       switch (format)
       {
       case DiscIO::BlobType::PLAIN:
-        success = std::async(std::launch::async, [&] {
-          const bool good = DiscIO::ConvertToPlain(blob_reader.get(), original_path,
-                                                   dst_path.toStdString(), callback);
-          progress_dialog.Reset();
-          return good;
-        });
+        success = std::async(std::launch::async,
+            [&]
+            {
+              const bool good = DiscIO::ConvertToPlain(blob_reader.get(), original_path,
+                  dst_path.toStdString(), callback);
+              progress_dialog.Reset();
+              return good;
+            });
         break;
 
       case DiscIO::BlobType::GCZ:
-        success = std::async(std::launch::async, [&] {
-          const bool good = DiscIO::ConvertToGCZ(
-              blob_reader.get(), original_path, dst_path.toStdString(),
-              file->GetPlatform() == DiscIO::Platform::WiiDisc ? 1 : 0, block_size, callback);
-          progress_dialog.Reset();
-          return good;
-        });
+        success = std::async(std::launch::async,
+            [&]
+            {
+              const bool good = DiscIO::ConvertToGCZ(blob_reader.get(), original_path,
+                  dst_path.toStdString(), file->GetPlatform() == DiscIO::Platform::WiiDisc ? 1 : 0,
+                  block_size, callback);
+              progress_dialog.Reset();
+              return good;
+            });
         break;
 
       case DiscIO::BlobType::WIA:
       case DiscIO::BlobType::RVZ:
-        success = std::async(std::launch::async, [&] {
-          const bool good =
-              DiscIO::ConvertToWIAOrRVZ(blob_reader.get(), original_path, dst_path.toStdString(),
-                                        format == DiscIO::BlobType::RVZ, compression,
-                                        compression_level, block_size, callback);
-          progress_dialog.Reset();
-          return good;
-        });
+        success = std::async(std::launch::async,
+            [&]
+            {
+              const bool good = DiscIO::ConvertToWIAOrRVZ(blob_reader.get(), original_path,
+                  dst_path.toStdString(), format == DiscIO::BlobType::RVZ, compression,
+                  compression_level, block_size, callback);
+              progress_dialog.Reset();
+              return good;
+            });
         break;
 
       default:
@@ -520,7 +520,7 @@ void ConvertDialog::Convert()
       if (!success.get())
       {
         ModalMessageBox::critical(this, tr("Error"),
-                                  tr("Dolphin failed to complete the requested action."));
+            tr("Dolphin failed to complete the requested action."));
         return;
       }
 
@@ -529,7 +529,7 @@ void ConvertDialog::Convert()
   }
 
   ModalMessageBox::information(this, tr("Success"),
-                               tr("Successfully converted %n image(s).", "", success_count));
+      tr("Successfully converted %n image(s).", "", success_count));
 
   close();
 }

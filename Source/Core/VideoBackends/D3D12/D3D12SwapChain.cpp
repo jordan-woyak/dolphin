@@ -11,7 +11,7 @@
 namespace DX12
 {
 SwapChain::SwapChain(const WindowSystemInfo& wsi, IDXGIFactory* dxgi_factory,
-                     ID3D12CommandQueue* d3d_command_queue)
+    ID3D12CommandQueue* d3d_command_queue)
     : D3DCommon::SwapChain(wsi, dxgi_factory, d3d_command_queue)
 {
 }
@@ -20,8 +20,8 @@ SwapChain::~SwapChain() = default;
 
 std::unique_ptr<SwapChain> SwapChain::Create(const WindowSystemInfo& wsi)
 {
-  std::unique_ptr<SwapChain> swap_chain = std::make_unique<SwapChain>(
-      wsi, g_dx_context->GetDXGIFactory(), g_dx_context->GetCommandQueue());
+  std::unique_ptr<SwapChain> swap_chain = std::make_unique<SwapChain>(wsi,
+      g_dx_context->GetDXGIFactory(), g_dx_context->GetCommandQueue());
   if (!swap_chain->CreateSwapChain(WantsStereo(), WantsHDR()))
     return nullptr;
 
@@ -44,7 +44,7 @@ bool SwapChain::CreateSwapChainBuffers()
 
     buffer.framebuffer = DXFramebuffer::Create(buffer.texture.get(), nullptr, {});
     ASSERT_MSG(VIDEO, buffer.framebuffer != nullptr,
-               "Failed to create swap chain buffer framebuffer");
+        "Failed to create swap chain buffer framebuffer");
     if (!buffer.framebuffer)
       return false;
 

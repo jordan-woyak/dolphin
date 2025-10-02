@@ -118,7 +118,7 @@ void WaveFileWriter::Write4(const char* ptr)
 }
 
 void WaveFileWriter::AddStereoSamplesBE(const short* sample_data, u32 count,
-                                        u32 sample_rate_divisor, int l_volume, int r_volume)
+    u32 sample_rate_divisor, int l_volume, int r_volume)
 {
   if (!m_file)
   {

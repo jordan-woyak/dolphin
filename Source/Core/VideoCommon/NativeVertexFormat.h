@@ -77,7 +77,7 @@ struct PortableVertexDeclaration
 };
 
 static_assert(std::is_trivially_copyable_v<PortableVertexDeclaration>,
-              "Make sure we can memset-initialize");
+    "Make sure we can memset-initialize");
 
 template <>
 struct std::hash<PortableVertexDeclaration>

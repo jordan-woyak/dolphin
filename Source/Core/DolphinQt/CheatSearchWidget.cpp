@@ -56,8 +56,7 @@ constexpr int ADDRESS_TABLE_COLUMN_INDEX_LAST_VALUE = 2;
 constexpr int ADDRESS_TABLE_COLUMN_INDEX_CURRENT_VALUE = 3;
 
 CheatSearchWidget::CheatSearchWidget(Core::System& system,
-                                     std::unique_ptr<Cheats::CheatSearchSessionBase> session,
-                                     QWidget* parent)
+    std::unique_ptr<Cheats::CheatSearchSessionBase> session, QWidget* parent)
     : QWidget(parent), m_system(system), m_session(std::move(session))
 {
   setAttribute(Qt::WA_DeleteOnClose);
@@ -71,14 +70,14 @@ CheatSearchWidget::~CheatSearchWidget()
 {
   auto& settings = Settings::GetQSettings();
   settings.setValue(QStringLiteral("cheatsearchwidget/displayhex"),
-                    m_display_values_in_hex_checkbox->isChecked());
+      m_display_values_in_hex_checkbox->isChecked());
   settings.setValue(QStringLiteral("cheatsearchwidget/autoupdatecurrentvalues"),
-                    m_autoupdate_current_values->isChecked());
+      m_autoupdate_current_values->isChecked());
 
   if (m_session->IsIntegerType())
   {
     settings.setValue(QStringLiteral("cheatsearchwidget/parsehex"),
-                      m_parse_values_as_hex_checkbox->isChecked());
+        m_parse_values_as_hex_checkbox->isChecked());
   }
 }
 
@@ -188,26 +187,26 @@ void CheatSearchWidget::CreateWidgets()
   auto* value_layout = new QHBoxLayout();
   m_compare_type_dropdown = new QComboBox();
   m_compare_type_dropdown->addItem(tr("is equal to"),
-                                   QVariant::fromValue(Cheats::CompareType::Equal));
+      QVariant::fromValue(Cheats::CompareType::Equal));
   m_compare_type_dropdown->addItem(tr("is not equal to"),
-                                   QVariant::fromValue(Cheats::CompareType::NotEqual));
+      QVariant::fromValue(Cheats::CompareType::NotEqual));
   m_compare_type_dropdown->addItem(tr("is less than"),
-                                   QVariant::fromValue(Cheats::CompareType::Less));
+      QVariant::fromValue(Cheats::CompareType::Less));
   m_compare_type_dropdown->addItem(tr("is less than or equal to"),
-                                   QVariant::fromValue(Cheats::CompareType::LessOrEqual));
+      QVariant::fromValue(Cheats::CompareType::LessOrEqual));
   m_compare_type_dropdown->addItem(tr("is greater than"),
-                                   QVariant::fromValue(Cheats::CompareType::Greater));
+      QVariant::fromValue(Cheats::CompareType::Greater));
   m_compare_type_dropdown->addItem(tr("is greater than or equal to"),
-                                   QVariant::fromValue(Cheats::CompareType::GreaterOrEqual));
+      QVariant::fromValue(Cheats::CompareType::GreaterOrEqual));
   value_layout->addWidget(m_compare_type_dropdown);
 
   m_value_source_dropdown = new QComboBox();
-  m_value_source_dropdown->addItem(
-      tr("this value:"), QVariant::fromValue(Cheats::FilterType::CompareAgainstSpecificValue));
-  m_value_source_dropdown->addItem(
-      tr("last value"), QVariant::fromValue(Cheats::FilterType::CompareAgainstLastValue));
+  m_value_source_dropdown->addItem(tr("this value:"),
+      QVariant::fromValue(Cheats::FilterType::CompareAgainstSpecificValue));
+  m_value_source_dropdown->addItem(tr("last value"),
+      QVariant::fromValue(Cheats::FilterType::CompareAgainstLastValue));
   m_value_source_dropdown->addItem(tr("any value"),
-                                   QVariant::fromValue(Cheats::FilterType::DoNotFilter));
+      QVariant::fromValue(Cheats::FilterType::DoNotFilter));
   value_layout->addWidget(m_value_source_dropdown);
 
   m_given_value_text = new QLineEdit();
@@ -264,16 +263,16 @@ void CheatSearchWidget::ConnectWidgets()
 {
   connect(m_next_scan_button, &QPushButton::clicked, this, &CheatSearchWidget::OnNextScanClicked);
   connect(m_refresh_values_button, &QPushButton::clicked, this,
-          &CheatSearchWidget::OnRefreshClicked);
+      &CheatSearchWidget::OnRefreshClicked);
   connect(m_reset_button, &QPushButton::clicked, this, &CheatSearchWidget::OnResetClicked);
   connect(m_address_table, &QTableWidget::itemChanged, this,
-          &CheatSearchWidget::OnAddressTableItemChanged);
+      &CheatSearchWidget::OnAddressTableItemChanged);
   connect(m_address_table, &QTableWidget::customContextMenuRequested, this,
-          &CheatSearchWidget::OnAddressTableContextMenu);
+      &CheatSearchWidget::OnAddressTableContextMenu);
   connect(m_value_source_dropdown, &QComboBox::currentTextChanged, this,
-          &CheatSearchWidget::OnValueSourceChanged);
+      &CheatSearchWidget::OnValueSourceChanged);
   connect(m_display_values_in_hex_checkbox, &QCheckBox::toggled, this,
-          &CheatSearchWidget::OnDisplayHexCheckboxStateChanged);
+      &CheatSearchWidget::OnDisplayHexCheckboxStateChanged);
 }
 
 void CheatSearchWidget::OnNextScanClicked()
@@ -296,7 +295,7 @@ void CheatSearchWidget::OnNextScanClicked()
     if (m_session->IsIntegerType() || m_session->IsFloatingType())
       search_value = search_value.simplified().remove(QLatin1Char(' '));
     if (!m_session->SetValueFromString(search_value.toStdString(),
-                                       m_parse_values_as_hex_checkbox->isChecked()))
+            m_parse_values_as_hex_checkbox->isChecked()))
     {
       m_info_label_1->setText(tr("Failed to parse given value into target data type."));
       return;
@@ -326,7 +325,7 @@ void CheatSearchWidget::OnNextScanClicked()
       {
         const QString inaccessible_str =
             tr("%n address(es) could not be accessed in emulated memory.", "",
-               static_cast<int>(new_count - new_valid_count));
+                static_cast<int>(new_count - new_valid_count));
 
         m_info_label_2->setText(
             tr("%1 %2 %3").arg(removed_str).arg(remain_str).arg(inaccessible_str));
@@ -344,7 +343,7 @@ void CheatSearchWidget::OnNextScanClicked()
       {
         const QString inaccessible_str =
             tr("%n address(es) could not be accessed in emulated memory.", "",
-               static_cast<int>(new_count - new_valid_count));
+                static_cast<int>(new_count - new_valid_count));
 
         m_info_label_2->setText(tr("%1 %2").arg(found_str).arg(inaccessible_str));
       }
@@ -385,7 +384,7 @@ void CheatSearchWidget::OnNextScanClicked()
 }
 
 bool CheatSearchWidget::UpdateTableRows(const Core::CPUThreadGuard& guard, const size_t begin_index,
-                                        const size_t end_index, const UpdateSource source)
+    const size_t end_index, const UpdateSource source)
 {
   const bool update_status_text = source == UpdateSource::User;
 
@@ -423,7 +422,7 @@ void CheatSearchWidget::UpdateTableVisibleCurrentValues(const UpdateSource sourc
     return;
 
   UpdateTableRows(Core::CPUThreadGuard{m_system}, GetVisibleRowsBeginIndex(),
-                  GetVisibleRowsEndIndex(), source);
+      GetVisibleRowsEndIndex(), source);
 }
 
 bool CheatSearchWidget::UpdateTableAllCurrentValues(const UpdateSource source)
@@ -498,10 +497,12 @@ void CheatSearchWidget::OnAddressTableContextMenu()
   menu->setAttribute(Qt::WA_DeleteOnClose, true);
 
   menu->addAction(tr("Show in memory"), [this, address] { emit ShowMemory(address); });
-  menu->addAction(tr("Add to watch"), this, [this, address] {
-    const QString name = QStringLiteral("mem_%1").arg(address, 8, 16, QLatin1Char('0'));
-    emit RequestWatch(name, address);
-  });
+  menu->addAction(tr("Add to watch"), this,
+      [this, address]
+      {
+        const QString name = QStringLiteral("mem_%1").arg(address, 8, 16, QLatin1Char('0'));
+        emit RequestWatch(name, address);
+      });
   menu->addAction(tr("Generate Action Replay Code(s)"), this, &CheatSearchWidget::GenerateARCodes);
 
   menu->exec(QCursor::pos());
@@ -612,8 +613,8 @@ void CheatSearchWidget::RecreateGUITable()
 
   m_address_table->clear();
   m_address_table->setColumnCount(4);
-  m_address_table->setHorizontalHeaderLabels(
-      {tr("Description"), tr("Address"), tr("Last Value"), tr("Current Value")});
+  m_address_table->setHorizontalHeaderLabels({tr("Description"), tr("Address"), tr("Last Value"),
+      tr("Current Value")});
 
   const size_t result_count = m_session->GetResultCount();
   const bool too_many_results = result_count > TABLE_MAX_ROWS;
@@ -644,8 +645,8 @@ void CheatSearchWidget::RecreateGUITable()
     const bool show_in_hex = m_display_values_in_hex_checkbox->isChecked();
     auto* last_value_item = new QTableWidgetItem();
     last_value_item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-    last_value_item->setText(
-        QString::fromStdString(m_session->GetResultValueAsString(i, show_in_hex)));
+    last_value_item->setText(QString::fromStdString(m_session->GetResultValueAsString(i,
+        show_in_hex)));
     last_value_item->setData(ADDRESS_TABLE_ADDRESS_ROLE, address);
     last_value_item->setData(ADDRESS_TABLE_RESULT_INDEX_ROLE, static_cast<u32>(i));
     m_address_table->setItem(i, ADDRESS_TABLE_COLUMN_INDEX_LAST_VALUE, last_value_item);

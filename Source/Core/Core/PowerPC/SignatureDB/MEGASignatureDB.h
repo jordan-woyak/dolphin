@@ -55,7 +55,7 @@ public:
   void Populate(const PPCSymbolDB* func_db, const std::string& filter = "") override;
 
   bool Add(const Core::CPUThreadGuard& guard, u32 startAddr, u32 size,
-           const std::string& name) override;
+      const std::string& name) override;
 
 private:
   std::vector<MEGASignature> m_signatures;

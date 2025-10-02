@@ -26,8 +26,8 @@ QVariant GridProxyModel::data(const QModelIndex& i, int role) const
   QModelIndex source_index = mapToSource(i);
   if (role == Qt::DisplayRole)
   {
-    return sourceModel()->data(
-        sourceModel()->index(source_index.row(), static_cast<int>(GameListModel::Column::Title)),
+    return sourceModel()->data(sourceModel()->index(source_index.row(),
+                                   static_cast<int>(GameListModel::Column::Title)),
         Qt::DisplayRole);
   }
   else if (role == Qt::DecorationRole)
@@ -43,8 +43,8 @@ QVariant GridProxyModel::data(const QModelIndex& i, int role) const
     {
       QPixmap banner = model
                            ->data(model->index(source_index.row(),
-                                               static_cast<int>(GameListModel::Column::Banner)),
-                                  Qt::DecorationRole)
+                                      static_cast<int>(GameListModel::Column::Banner)),
+                               Qt::DecorationRole)
                            .value<QPixmap>();
 
       banner = banner.scaled(pixmap.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -54,17 +54,18 @@ QVariant GridProxyModel::data(const QModelIndex& i, int role) const
       QPainter painter(&pixmap);
 
       painter.drawPixmap(0, pixmap.height() / 2 - banner.height() / 2, banner.width(),
-                         banner.height(), banner);
+          banner.height(), banner);
 
       return pixmap;
     }
     else
     {
-      pixmap = QPixmap::fromImage(QImage::fromData(
-          reinterpret_cast<const unsigned char*>(&buffer[0]), static_cast<int>(buffer.size())));
+      pixmap =
+          QPixmap::fromImage(QImage::fromData(reinterpret_cast<const unsigned char*>(&buffer[0]),
+              static_cast<int>(buffer.size())));
 
       return pixmap.scaled(QSize(160, 224) * model->GetScale() * pixmap.devicePixelRatio(),
-                           Qt::KeepAspectRatio, Qt::SmoothTransformation);
+          Qt::KeepAspectRatio, Qt::SmoothTransformation);
     }
   }
   return QVariant();

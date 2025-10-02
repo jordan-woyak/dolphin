@@ -226,7 +226,7 @@ std::vector<u8> TMDReader::GetRawView() const
 {
   // Base fields
   std::vector<u8> view(m_bytes.cbegin() + offsetof(TMDHeader, tmd_version),
-                       m_bytes.cbegin() + offsetof(TMDHeader, access_rights));
+      m_bytes.cbegin() + offsetof(TMDHeader, access_rights));
 
   const auto version = m_bytes.cbegin() + offsetof(TMDHeader, title_version);
   view.insert(view.end(), version, version + sizeof(TMDHeader::title_version));
@@ -460,14 +460,14 @@ std::array<u8, 16> TicketReader::GetTitleKey(const HLE::IOSC& iosc) const
   if (index >= HLE::IOSC::COMMON_KEY_HANDLES.size())
   {
     PanicAlertFmt("Bad common key index for title {:016x}: {} -- using common key 0", GetTitleId(),
-                  index);
+        index);
     index = 0;
   }
   auto common_key_handle = HLE::IOSC::COMMON_KEY_HANDLES[index];
 
   std::array<u8, 16> key;
   iosc.Decrypt(common_key_handle, iv, &m_bytes[offsetof(Ticket, title_key)], 16, key.data(),
-               PID_ES);
+      PID_ES);
   return key;
 }
 
@@ -529,7 +529,7 @@ HLE::ReturnCode TicketReader::Unpersonalise(HLE::IOSC& iosc)
 
   std::array<u8, 16> key{};
   ret = iosc.Decrypt(key_handle, iv.data(), &*ticket_begin + offsetof(Ticket, title_key),
-                     sizeof(Ticket::title_key), key.data(), PID_ES);
+      sizeof(Ticket::title_key), key.data(), PID_ES);
   // Finally, IOS copies the decrypted title key back to the ticket buffer.
   if (ret == IPC_SUCCESS)
     std::ranges::copy(key, ticket_begin + offsetof(Ticket, title_key));
@@ -597,9 +597,9 @@ std::string SharedContentMap::AddSharedContent(const std::array<u8, 20>& sha1)
 
   Entry& entry = m_entries.emplace_back();
   static_assert(sizeof(m_last_id) == 4,
-                "'m_last_id' must be represented by 8 characters when formatted in hexadecimal.");
+      "'m_last_id' must be represented by 8 characters when formatted in hexadecimal.");
   static_assert(std::tuple_size_v<decltype(entry.id)> == sizeof(m_last_id) * 2,
-                "'entry.id' must be a std::array capable of storing every nibble of 'm_last_id'.");
+      "'entry.id' must be a std::array capable of storing every nibble of 'm_last_id'.");
   fmt::format_to(entry.id.data(), "{:08x}", m_last_id);
   entry.sha1 = sha1;
 
@@ -622,8 +622,8 @@ bool SharedContentMap::WriteEntries() const
   const std::string temp_path = "/tmp/content.map";
   // Atomically write the new content map.
   {
-    constexpr HLE::FS::Modes modes{HLE::FS::Mode::ReadWrite, HLE::FS::Mode::ReadWrite,
-                                   HLE::FS::Mode::None};
+    constexpr HLE::FS::Modes modes{
+        HLE::FS::Mode::ReadWrite, HLE::FS::Mode::ReadWrite, HLE::FS::Mode::None};
     const auto file = m_fs->CreateAndOpenFile(PID_KERNEL, PID_KERNEL, temp_path, modes);
     if (!file || !file->Write(m_entries.data(), m_entries.size()))
       return false;
@@ -697,8 +697,8 @@ u32 UIDSys::GetOrInsertUIDForTitle(const u64 title_id)
   const u64 swapped_title_id = Common::swap64(title_id);
   const u32 swapped_uid = Common::swap32(uid);
 
-  constexpr HLE::FS::Modes modes{HLE::FS::Mode::ReadWrite, HLE::FS::Mode::ReadWrite,
-                                 HLE::FS::Mode::None};
+  constexpr HLE::FS::Modes modes{
+      HLE::FS::Mode::ReadWrite, HLE::FS::Mode::ReadWrite, HLE::FS::Mode::None};
   const auto file = m_fs->CreateAndOpenFile(PID_KERNEL, PID_KERNEL, UID_MAP_PATH, modes);
   if (!file || !file->Seek(0, HLE::FS::SeekMode::End) || !file->Write(&swapped_title_id, 1) ||
       !file->Write(&swapped_uid, 1))
@@ -723,10 +723,12 @@ CertReader::CertReader(std::vector<u8>&& bytes) : SignedBlobReader(std::move(byt
       {SignatureType::ECC, PublicKeyType::ECC, sizeof(CertECC)},
   }};
 
-  const auto info = std::ranges::find_if(types, [this](const CertStructInfo& entry) {
-    return m_bytes.size() >= std::get<2>(entry) && std::get<0>(entry) == GetSignatureType() &&
-           std::get<1>(entry) == GetPublicKeyType();
-  });
+  const auto info = std::ranges::find_if(types,
+      [this](const CertStructInfo& entry)
+      {
+        return m_bytes.size() >= std::get<2>(entry) && std::get<0>(entry) == GetSignatureType() &&
+               std::get<1>(entry) == GetPublicKeyType();
+      });
 
   if (info == types.cend())
     return;

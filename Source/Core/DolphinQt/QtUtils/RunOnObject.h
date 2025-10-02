@@ -64,7 +64,7 @@ auto RunOnObject(QObject* object, F&& functor)
   Common::Event event{};
   OptionalResultT result = std::nullopt;
   QCoreApplication::postEvent(object,
-                              new FnInvokeEvent(std::forward<F>(functor), object, event, result));
+      new FnInvokeEvent(std::forward<F>(functor), object, event, result));
   event.Wait();
   return result;
 }

@@ -79,9 +79,8 @@ void Watches::DisableWatch(std::size_t index)
 
 bool Watches::HasEnabledWatch(u32 address) const
 {
-  return std::ranges::any_of(m_watches, [address](const auto& watch) {
-    return watch.address == address && watch.is_enabled == Watch::State::Enabled;
-  });
+  return std::ranges::any_of(m_watches, [address](const auto& watch)
+      { return watch.address == address && watch.is_enabled == Watch::State::Enabled; });
 }
 
 void Watches::RemoveWatch(std::size_t index)

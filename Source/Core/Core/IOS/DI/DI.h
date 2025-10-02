@@ -127,7 +127,7 @@ private:
   std::optional<DIResult> WriteIfFits(const IOCtlRequest& request, u32 value);
   std::optional<DIResult> StartDMATransfer(u32 command_length, const IOCtlRequest& request);
   std::optional<DIResult> StartImmediateTransfer(const IOCtlRequest& request,
-                                                 bool write_to_buf = true);
+      bool write_to_buf = true);
 
   void ChangePartition(const DiscIO::Partition partition);
   void InitializeIfFirstTime();

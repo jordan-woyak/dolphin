@@ -103,7 +103,7 @@ void DSPHLE::DoState(PointerWrap& p)
   if (!is_hle && p.IsReadMode())
   {
     Core::DisplayMessage("State is incompatible with current DSP engine. Aborting load state.",
-                         3000);
+        3000);
     p.SetVerifyMode();
     return;
   }
@@ -199,7 +199,7 @@ u16 DSPHLE::DSP_WriteControlRegister(u16 value)
   if (m_dsp_control.DSPHalt != temp.DSPHalt)
   {
     INFO_LOG_FMT(DSPHLE, "DSP_CONTROL halt bit changed: {:04x} -> {:04x}", m_dsp_control.Hex,
-                 value);
+        value);
     m_mail_handler.SetHalted(temp.DSPHalt);
   }
 

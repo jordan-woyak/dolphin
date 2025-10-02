@@ -35,7 +35,7 @@ public:
   IOFile();
   IOFile(std::FILE* file);
   IOFile(const std::string& filename, const char openmode[],
-         SharedAccess sh = SharedAccess::Default);
+      SharedAccess sh = SharedAccess::Default);
 
   ~IOFile();
 
@@ -48,7 +48,7 @@ public:
   void Swap(IOFile& other) noexcept;
 
   bool Open(const std::string& filename, const char openmode[],
-            SharedAccess sh = SharedAccess::Default);
+      SharedAccess sh = SharedAccess::Default);
   bool Close();
 
   IOFile Duplicate(const char openmode[]) const;

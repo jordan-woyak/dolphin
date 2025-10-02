@@ -45,7 +45,7 @@ public:
     ResendTimeout,
   };
   TraversalClient(ENetHost* netHost, const std::string& server, const u16 port,
-                  const u16 port_alt = 0);
+      const u16 port_alt = 0);
   ~TraversalClient();
 
   TraversalHostId GetHostID() const;
@@ -110,6 +110,6 @@ extern ENet::ENetHostPtr g_MainNetHost;
 
 // Create g_TraversalClient and g_MainNetHost if necessary.
 bool EnsureTraversalClient(const std::string& server, u16 server_port, u16 server_port_alt = 0,
-                           u16 listen_port = 0);
+    u16 listen_port = 0);
 void ReleaseTraversalClient();
 }  // namespace Common

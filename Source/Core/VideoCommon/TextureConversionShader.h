@@ -43,7 +43,7 @@ std::pair<u32, u32> GetDispatchCount(const DecodingShaderInfo* info, u32 width, 
 
 // Returns the GLSL string containing the texture decoding shader for the specified format.
 std::string GenerateDecodingShader(TextureFormat format, std::optional<TLUTFormat> palette_format,
-                                   APIType api_type);
+    APIType api_type);
 
 // Returns the GLSL string containing the palette conversion shader for the specified format.
 std::string GeneratePaletteConversionShader(TLUTFormat palette_format, APIType api_type);

@@ -68,7 +68,7 @@ class BootSessionData
 public:
   BootSessionData();
   BootSessionData(std::optional<std::string> savestate_path,
-                  DeleteSavestateAfterBoot delete_savestate);
+      DeleteSavestateAfterBoot delete_savestate);
   BootSessionData(const BootSessionData& other) = delete;
   BootSessionData(BootSessionData&& other);
   BootSessionData& operator=(const BootSessionData& other) = delete;
@@ -78,7 +78,7 @@ public:
   const std::optional<std::string>& GetSavestatePath() const;
   DeleteSavestateAfterBoot GetDeleteSavestate() const;
   void SetSavestateData(std::optional<std::string> savestate_path,
-                        DeleteSavestateAfterBoot delete_savestate);
+      DeleteSavestateAfterBoot delete_savestate);
 
   using WiiSyncCleanupFunction = std::function<void()>;
 
@@ -87,7 +87,7 @@ public:
   const std::string& GetWiiSyncRedirectFolder() const;
   void InvokeWiiSyncCleanup() const;
   void SetWiiSyncData(std::unique_ptr<IOS::HLE::FS::FileSystem> fs, std::vector<u64> titles,
-                      std::string redirect_folder, WiiSyncCleanupFunction cleanup);
+      std::string redirect_folder, WiiSyncCleanupFunction cleanup);
 
   const NetPlay::NetSettings* GetNetplaySettings() const;
   void SetNetplaySettings(std::unique_ptr<NetPlay::NetSettings> netplay_settings);
@@ -139,11 +139,10 @@ struct BootParameters
     std::string dff_path;
   };
 
-  static std::unique_ptr<BootParameters>
-  GenerateFromFile(std::string boot_path, BootSessionData boot_session_data_ = BootSessionData());
-  static std::unique_ptr<BootParameters>
-  GenerateFromFile(std::vector<std::string> paths,
-                   BootSessionData boot_session_data_ = BootSessionData());
+  static std::unique_ptr<BootParameters> GenerateFromFile(std::string boot_path,
+      BootSessionData boot_session_data_ = BootSessionData());
+  static std::unique_ptr<BootParameters> GenerateFromFile(std::vector<std::string> paths,
+      BootSessionData boot_session_data_ = BootSessionData());
 
   using Parameters = std::variant<Disc, Executable, DiscIO::VolumeWAD, NANDTitle, IPL, DFF>;
   BootParameters(Parameters&& parameters_, BootSessionData boot_session_data_ = BootSessionData());
@@ -157,13 +156,13 @@ class CBoot
 {
 public:
   static bool BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
-                     std::unique_ptr<BootParameters> boot);
+      std::unique_ptr<BootParameters> boot);
 
 private:
   static bool DVDRead(Core::System& system, const DiscIO::VolumeDisc& disc, u64 dvd_offset,
-                      u32 output_address, u32 length, const DiscIO::Partition& partition);
+      u32 output_address, u32 length, const DiscIO::Partition& partition);
   static bool DVDReadDiscID(Core::System& system, const DiscIO::VolumeDisc& disc,
-                            u32 output_address);
+      u32 output_address);
   static void RunFunction(Core::System& system, u32 address);
 
   static bool Boot_WiiWAD(Core::System& system, const DiscIO::VolumeWAD& wad);
@@ -173,17 +172,17 @@ private:
   static void SetupHID(PowerPC::PowerPCState& ppc_state, bool is_wii);
   static void SetupBAT(Core::System& system, bool is_wii);
   static bool RunApploader(Core::System& system, const Core::CPUThreadGuard& guard, bool is_wii,
-                           const DiscIO::VolumeDisc& volume,
-                           const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
+      const DiscIO::VolumeDisc& volume,
+      const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
   static bool EmulatedBS2_GC(Core::System& system, const Core::CPUThreadGuard& guard,
-                             const DiscIO::VolumeDisc& volume,
-                             const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
+      const DiscIO::VolumeDisc& volume,
+      const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
   static bool EmulatedBS2_Wii(Core::System& system, const Core::CPUThreadGuard& guard,
-                              const DiscIO::VolumeDisc& volume,
-                              const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
+      const DiscIO::VolumeDisc& volume,
+      const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
   static bool EmulatedBS2(Core::System& system, const Core::CPUThreadGuard& guard, bool is_wii,
-                          const DiscIO::VolumeDisc& volume,
-                          const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
+      const DiscIO::VolumeDisc& volume,
+      const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches);
   static bool Load_BS2(Core::System& system, const std::string& boot_rom_filename);
 
   static void SetupGCMemory(Core::System& system, const Core::CPUThreadGuard& guard);
@@ -203,7 +202,7 @@ public:
   virtual bool IsWii() const = 0;
   virtual bool LoadIntoMemory(Core::System& system, bool only_in_mem1 = false) const = 0;
   virtual bool LoadSymbols(const Core::CPUThreadGuard& guard, PPCSymbolDB& ppc_symbol_db,
-                           const std::string& filename) const = 0;
+      const std::string& filename) const = 0;
 
 protected:
   std::vector<u8> m_bytes;
@@ -231,4 +230,4 @@ void UpdateStateFlags(std::function<void(StateFlags*)> update_function);
 void CreateSystemMenuTitleDirs();
 
 void AddRiivolutionPatches(BootParameters* boot_params,
-                           std::vector<DiscIO::Riivolution::Patch> riivolution_patches);
+    std::vector<DiscIO::Riivolution::Patch> riivolution_patches);

@@ -53,7 +53,7 @@ private:
   {
   public:
     TypedForce(ForceFeedbackDevice* parent, const char* name, LPDIRECTINPUTEFFECT effect,
-               const P& params);
+        const P& params);
 
   private:
     void UpdateEffect(int magnitude) override;

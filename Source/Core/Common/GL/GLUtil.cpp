@@ -80,7 +80,7 @@ GLuint CompileProgram(const std::string& vertexShader, const std::string& fragme
   if (Result && stringBufferUsage)
   {
     ERROR_LOG_FMT(VIDEO, "GLSL linker warnings:\n{}{}{}", stringBuffer, vertexShader,
-                  fragmentShader);
+        fragmentShader);
   }
   else if (!Result && !shader_errors)
   {

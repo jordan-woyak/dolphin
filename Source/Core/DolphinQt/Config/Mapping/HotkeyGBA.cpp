@@ -17,12 +17,12 @@ void HotkeyGBA::CreateMainLayout()
 {
   m_main_layout = new QHBoxLayout();
 
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Core"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_CORE)));
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Volume"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_VOLUME)));
-  m_main_layout->addWidget(
-      CreateGroupBox(tr("Window Size"), HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_SIZE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Core"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_CORE)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Volume"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_VOLUME)));
+  m_main_layout->addWidget(CreateGroupBox(tr("Window Size"),
+      HotkeyManagerEmu::GetHotkeyGroup(HKGP_GBA_SIZE)));
 
   setLayout(m_main_layout);
 }

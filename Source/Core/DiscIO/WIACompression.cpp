@@ -31,7 +31,7 @@ static u32 LZMA2DictionarySize(u8 p)
 Decompressor::~Decompressor() = default;
 
 bool NoneDecompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                  size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   const size_t length =
       std::min(in.bytes_written - *in_bytes_read, out->data.size() - out->bytes_written);
@@ -50,7 +50,7 @@ PurgeDecompressor::PurgeDecompressor(u64 decompressed_size) : m_decompressed_siz
 }
 
 bool PurgeDecompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                   size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   if (!m_started)
   {
@@ -68,7 +68,7 @@ bool PurgeDecompressor::Decompress(const DecompressionBuffer& in, DecompressionB
     if (m_segment_bytes_written == 0 && *in_bytes_read == in.data.size() - Common::SHA1::DIGEST_LEN)
     {
       const size_t zeroes_to_write = std::min<size_t>(m_decompressed_size - m_out_bytes_written,
-                                                      out->data.size() - out->bytes_written);
+          out->data.size() - out->bytes_written);
 
       std::memset(out->data.data() + out->bytes_written, 0, zeroes_to_write);
 
@@ -98,7 +98,7 @@ bool PurgeDecompressor::Decompress(const DecompressionBuffer& in, DecompressionB
           std::min(in.bytes_written - *in_bytes_read, sizeof(m_segment) - m_segment_bytes_written);
 
       std::memcpy(reinterpret_cast<u8*>(&m_segment) + m_segment_bytes_written,
-                  in.data.data() + *in_bytes_read, bytes_to_copy);
+          in.data.data() + *in_bytes_read, bytes_to_copy);
       m_sha1_context->Update(in.data.data() + *in_bytes_read, bytes_to_copy);
 
       *in_bytes_read += bytes_to_copy;
@@ -125,12 +125,12 @@ bool PurgeDecompressor::Decompress(const DecompressionBuffer& in, DecompressionB
 
     if (m_out_bytes_written >= offset && m_out_bytes_written < offset + size)
     {
-      const size_t bytes_to_copy = std::min(
-          std::min(offset + size - m_out_bytes_written, out->data.size() - out->bytes_written),
+      const size_t bytes_to_copy = std::min(std::min(offset + size - m_out_bytes_written,
+                                                out->data.size() - out->bytes_written),
           in.bytes_written - *in_bytes_read);
 
       std::memcpy(out->data.data() + out->bytes_written, in.data.data() + *in_bytes_read,
-                  bytes_to_copy);
+          bytes_to_copy);
       m_sha1_context->Update(in.data.data() + *in_bytes_read, bytes_to_copy);
 
       *in_bytes_read += bytes_to_copy;
@@ -153,7 +153,7 @@ Bzip2Decompressor::~Bzip2Decompressor()
 }
 
 bool Bzip2Decompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                   size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   if (!m_started)
   {
@@ -229,7 +229,7 @@ LZMADecompressor::~LZMADecompressor()
 }
 
 bool LZMADecompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                  size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   if (!m_started)
   {
@@ -267,7 +267,7 @@ ZstdDecompressor::~ZstdDecompressor()
 }
 
 bool ZstdDecompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                  size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   if (!m_stream)
     return false;
@@ -285,8 +285,7 @@ bool ZstdDecompressor::Decompress(const DecompressionBuffer& in, DecompressionBu
 }
 
 RVZPackDecompressor::RVZPackDecompressor(std::unique_ptr<Decompressor> decompressor,
-                                         DecompressionBuffer decompressed, u64 data_offset,
-                                         u32 rvz_packed_size)
+    DecompressionBuffer decompressed, u64 data_offset, u32 rvz_packed_size)
     : m_decompressor(std::move(decompressor)), m_decompressed(std::move(decompressed)),
       m_data_offset(data_offset), m_rvz_packed_size(rvz_packed_size)
 {
@@ -300,9 +299,7 @@ bool RVZPackDecompressor::IncrementBytesRead(size_t x)
 }
 
 std::optional<bool> RVZPackDecompressor::ReadToDecompressed(const DecompressionBuffer& in,
-                                                            size_t* in_bytes_read,
-                                                            size_t decompressed_bytes_read,
-                                                            size_t bytes_to_read)
+    size_t* in_bytes_read, size_t decompressed_bytes_read, size_t bytes_to_read)
 {
   if (m_decompressed.data.size() < decompressed_bytes_read + bytes_to_read)
     m_decompressed.data.resize(decompressed_bytes_read + bytes_to_read);
@@ -325,7 +322,7 @@ std::optional<bool> RVZPackDecompressor::ReadToDecompressed(const DecompressionB
 }
 
 bool RVZPackDecompressor::Decompress(const DecompressionBuffer& in, DecompressionBuffer* out,
-                                     size_t* in_bytes_read)
+    size_t* in_bytes_read)
 {
   while (out->data.size() != out->bytes_written && !Done())
   {
@@ -352,7 +349,7 @@ bool RVZPackDecompressor::Decompress(const DecompressionBuffer& in, Decompressio
         constexpr size_t BLOCK_SIZE = 0x8000;
 
         result = ReadToDecompressed(in, in_bytes_read, m_decompressed_bytes_read + sizeof(u32),
-                                    SEED_SIZE);
+            SEED_SIZE);
         if (result)
           return *result;
 
@@ -380,7 +377,7 @@ bool RVZPackDecompressor::Decompress(const DecompressionBuffer& in, Decompressio
             std::min(bytes_to_write, m_decompressed.bytes_written - m_decompressed_bytes_read);
 
         std::memcpy(out->data.data() + out->bytes_written,
-                    m_decompressed.data.data() + m_decompressed_bytes_read, bytes_to_write);
+            m_decompressed.data.data() + m_decompressed_bytes_read, bytes_to_write);
 
         m_decompressed_bytes_read += bytes_to_write;
         out->bytes_written += bytes_to_write;
@@ -457,7 +454,7 @@ bool PurgeCompressor::Compress(const u8* data, size_t size)
   // We could add support for calling this twice if we're fine with
   // making the code more complicated, but there's no need to support it
   ASSERT_MSG(DISCIO, m_bytes_written == 0,
-             "Calling PurgeCompressor::Compress() twice is not supported");
+      "Calling PurgeCompressor::Compress() twice is not supported");
 
   m_buffer.resize(size + sizeof(PurgeSegment) + Common::SHA1::DIGEST_LEN);
 
@@ -494,13 +491,13 @@ bool PurgeCompressor::Compress(const u8* data, size_t size)
 
     const u32 non_zero_data_length = static_cast<u32>(non_zero_data_end - non_zero_data_start);
 
-    const PurgeSegment segment{Common::swap32(non_zero_data_start),
-                               Common::swap32(non_zero_data_length)};
+    const PurgeSegment segment{
+        Common::swap32(non_zero_data_start), Common::swap32(non_zero_data_length)};
     std::memcpy(m_buffer.data() + m_bytes_written, &segment, sizeof(segment));
     m_bytes_written += sizeof(segment);
 
     std::memcpy(m_buffer.data() + m_bytes_written, data + non_zero_data_start,
-                non_zero_data_length);
+        non_zero_data_length);
     m_bytes_written += non_zero_data_length;
 
     bytes_read = non_zero_data_end;
@@ -545,7 +542,7 @@ Bzip2Compressor::~Bzip2Compressor()
 bool Bzip2Compressor::Start(std::optional<u64> size)
 {
   ASSERT_MSG(DISCIO, m_stream.state == nullptr,
-             "Called Bzip2Compressor::Start() twice without calling Bzip2Compressor::End()");
+      "Called Bzip2Compressor::Start() twice without calling Bzip2Compressor::End()");
 
   m_buffer.clear();
   m_stream.next_out = reinterpret_cast<char*>(m_buffer.data());
@@ -613,7 +610,7 @@ size_t Bzip2Compressor::GetSize() const
 }
 
 LZMACompressor::LZMACompressor(bool lzma2, int compression_level, u8 compressor_data_out[7],
-                               u8* compressor_data_size_out)
+    u8* compressor_data_size_out)
 {
   // lzma_lzma_preset returns false on success for some reason
   if (lzma_lzma_preset(&m_options, static_cast<uint32_t>(compression_level)))

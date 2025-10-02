@@ -83,7 +83,7 @@ public:
   static void Rumble(int pad_num, ControlState strength, SIDevices device);
 
   static void HandleMoviePadStatus(Movie::MovieManager& movie, int device_number,
-                                   GCPadStatus* pad_status);
+      GCPadStatus* pad_status);
 
 protected:
   void SetOrigin(const GCPadStatus& pad_status);

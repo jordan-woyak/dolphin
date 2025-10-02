@@ -11,8 +11,8 @@
 
 static GraphicsModConfig* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<GraphicsModConfig*>(
-      env->GetLongField(obj, IDCache::GetGraphicsModPointer()));
+  return reinterpret_cast<GraphicsModConfig*>(env->GetLongField(obj,
+      IDCache::GetGraphicsModPointer()));
 }
 
 extern "C" {
@@ -25,7 +25,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsMod_getName(JNIEnv*
 
 JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsMod_getCreator(JNIEnv* env,
-                                                                            jobject obj)
+    jobject obj)
 {
   return ToJString(env, GetPointer(env, obj)->m_author);
 }
@@ -38,15 +38,14 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsMod_getNotes(JNIEnv
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsMod_getEnabled(JNIEnv* env,
-                                                                            jobject obj)
+    jobject obj)
 {
   return static_cast<jboolean>(GetPointer(env, obj)->m_enabled);
 }
 
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsMod_setEnabledImpl(JNIEnv* env,
-                                                                                jobject obj,
-                                                                                jboolean enabled)
+    jobject obj, jboolean enabled)
 {
   GetPointer(env, obj)->m_enabled = static_cast<bool>(enabled);
 }

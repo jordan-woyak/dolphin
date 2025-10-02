@@ -18,11 +18,13 @@ MappingDouble::MappingDouble(MappingWidget* parent, ControllerEmu::NumericSettin
   if (const auto ui_description = m_setting.GetUIDescription())
     setToolTip(tr(ui_description));
 
-  connect(this, &QDoubleSpinBox::valueChanged, this, [this, parent](double value) {
-    m_setting.SetValue(value);
-    ConfigChanged();
-    parent->SaveSettings();
-  });
+  connect(this, &QDoubleSpinBox::valueChanged, this,
+      [this, parent](double value)
+      {
+        m_setting.SetValue(value);
+        ConfigChanged();
+        parent->SaveSettings();
+      });
 
   connect(parent, &MappingWidget::ConfigChanged, this, &MappingDouble::ConfigChanged);
   connect(parent, &MappingWidget::Update, this, &MappingDouble::Update);
@@ -77,14 +79,18 @@ MappingBool::MappingBool(MappingWidget* parent, ControllerEmu::NumericSetting<bo
     setToolTip(tr(ui_description));
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
-  connect(this, &QCheckBox::checkStateChanged, this, [this, parent](Qt::CheckState value) {
+  connect(this, &QCheckBox::checkStateChanged, this,
+      [this, parent](Qt::CheckState value)
+      {
 #else
-  connect(this, &QCheckBox::stateChanged, this, [this, parent](int value) {
+  connect(this, &QCheckBox::stateChanged, this,
+      [this, parent](int value)
+      {
 #endif
-    m_setting.SetValue(value != 0);
-    ConfigChanged();
-    parent->SaveSettings();
-  });
+        m_setting.SetValue(value != 0);
+        ConfigChanged();
+        parent->SaveSettings();
+      });
 
   connect(parent, &MappingWidget::ConfigChanged, this, &MappingBool::ConfigChanged);
   connect(parent, &MappingWidget::Update, this, &MappingBool::Update);

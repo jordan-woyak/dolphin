@@ -50,10 +50,12 @@ AsmEditor::AsmEditor(const QString& path, int editor_num, bool dark_scheme, QWid
   connect(this, &AsmEditor::blockCountChanged, this, &AsmEditor::UpdateLineNumberAreaWidth);
   connect(this, &AsmEditor::updateRequest, this, &AsmEditor::UpdateLineNumberArea);
   connect(this, &AsmEditor::cursorPositionChanged, this, &AsmEditor::HighlightCurrentLine);
-  connect(this, &AsmEditor::textChanged, this, [this] {
-    m_dirty = true;
-    emit DirtyChanged();
-  });
+  connect(this, &AsmEditor::textChanged, this,
+      [this]
+      {
+        m_dirty = true;
+        emit DirtyChanged();
+      });
 }
 
 int AsmEditor::LineNumberAreaWidth()
@@ -265,7 +267,7 @@ bool AsmEditor::event(QEvent* e)
       const QRect cursor_left = cursorRect(hover_cursor);
       const int area_width = CharWidth();
       check_rect = QRect(cursor_left.x() + LineNumberAreaWidth(), cursor_left.y(),
-                         cursor_left.x() + area_width, cursor_left.height());
+          cursor_left.x() + area_width, cursor_left.height());
     }
     else
     {
@@ -275,7 +277,7 @@ bool AsmEditor::event(QEvent* e)
                                static_cast<int>(info->error->col + info->error->len));
       const QRect cursor_right = cursorRect(hover_cursor);
       check_rect = QRect(cursor_left.x() + LineNumberAreaWidth(), cursor_left.y(),
-                         cursor_right.x() - cursor_left.x(), cursor_left.height());
+          cursor_right.x() - cursor_left.x(), cursor_left.height());
     }
     if (check_rect.contains(he->pos()))
     {
@@ -358,7 +360,7 @@ void AsmEditor::LineNumberAreaPaintEvent(QPaintEvent* event)
     {
       const QString num = QString::number(block_num + 1);
       painter.drawText(0, top, m_line_number_area->width(), fontMetrics().height(), Qt::AlignRight,
-                       num);
+          num);
     }
 
     block = block.next();

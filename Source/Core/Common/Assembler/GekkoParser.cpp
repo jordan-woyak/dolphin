@@ -166,8 +166,8 @@ void ParsePpcBuiltin(ParseState* state)
     state->plugin.OnTerminal(Terminal::So, tok);
     break;
   default:
-    state->EmitErrorHere(
-        fmt::format("Unexpected token '{}' in ppc builtin", state->lexer.LookaheadRef().ValStr()));
+    state->EmitErrorHere(fmt::format("Unexpected token '{}' in ppc builtin",
+        state->lexer.LookaheadRef().ValStr()));
     break;
   }
   if (state->error)
@@ -219,8 +219,8 @@ void ParseBaseexpr(ParseState* state)
     break;
 
   default:
-    state->EmitErrorHere(
-        fmt::format("Unexpected token '{}' in expression", state->lexer.LookaheadRef().ValStr()));
+    state->EmitErrorHere(fmt::format("Unexpected token '{}' in expression",
+        state->lexer.LookaheadRef().ValStr()));
     break;
   }
 }
@@ -515,8 +515,8 @@ void ParseOperandList(ParseState* state, ParseAlg alg)
     steps = {_Operand, _Comma, _Operand, _Comma, _Operand, _Comma, _Operand, _Comma, _Operand};
     break;
   case ParseAlg::Op1Off1Op2:
-    steps = {_Operand, _Comma, _Operand, _Lparen, _Operand,
-             _Rparen,  _Comma, _Operand, _Comma,  _Operand};
+    steps = {
+        _Operand, _Comma, _Operand, _Lparen, _Operand, _Rparen, _Comma, _Operand, _Comma, _Operand};
     break;
   default:
     ASSERT(false);
@@ -580,8 +580,8 @@ void ParseInstruction(ParseState* state)
     parse_info = extended_mnemonic_tokens.Find(mnemonic_token.token_val);
     if (parse_info == nullptr)
     {
-      state->EmitErrorHere(
-          fmt::format("Unknown or unsupported mnemonic '{}'", mnemonic_token.ValStr()));
+      state->EmitErrorHere(fmt::format("Unknown or unsupported mnemonic '{}'",
+          mnemonic_token.ValStr()));
       return;
     }
     is_extended = true;
@@ -847,8 +847,8 @@ void ParseProgram(ParseState* state)
     }
     else
     {
-      state->EmitErrorHere(
-          fmt::format("Unexpected token '{}' where line should have ended", tok.ValStr()));
+      state->EmitErrorHere(fmt::format("Unexpected token '{}' where line should have ended",
+          tok.ValStr()));
     }
   }
 }
@@ -893,8 +893,11 @@ void ParseState::EmitErrorHere(std::string&& message)
   else
   {
     error = AssemblerError{
-        std::move(message), lexer.CurrentLine(),        lexer.LineNumber(),
-        lexer.ColNumber(),  cur_token.token_val.size(),
+        std::move(message),
+        lexer.CurrentLine(),
+        lexer.LineNumber(),
+        lexer.ColNumber(),
+        cur_token.token_val.size(),
     };
   }
 }

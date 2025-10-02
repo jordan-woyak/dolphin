@@ -47,34 +47,32 @@ bool Gfx::IsHeadless() const
 }
 
 std::unique_ptr<AbstractTexture> Gfx::CreateTexture(const TextureConfig& config,
-                                                    std::string_view name)
+    std::string_view name)
 {
   return DXTexture::Create(config, name);
 }
 
 std::unique_ptr<AbstractStagingTexture> Gfx::CreateStagingTexture(StagingTextureType type,
-                                                                  const TextureConfig& config)
+    const TextureConfig& config)
 {
   return DXStagingTexture::Create(type, config);
 }
 
-std::unique_ptr<AbstractFramebuffer>
-Gfx::CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth_attachment,
-                       std::vector<AbstractTexture*> additional_color_attachments)
+std::unique_ptr<AbstractFramebuffer> Gfx::CreateFramebuffer(AbstractTexture* color_attachment,
+    AbstractTexture* depth_attachment, std::vector<AbstractTexture*> additional_color_attachments)
 {
   return DXFramebuffer::Create(static_cast<DXTexture*>(color_attachment),
-                               static_cast<DXTexture*>(depth_attachment),
-                               std::move(additional_color_attachments));
+      static_cast<DXTexture*>(depth_attachment), std::move(additional_color_attachments));
 }
 
-std::unique_ptr<AbstractShader>
-Gfx::CreateShaderFromSource(ShaderStage stage, std::string_view source, std::string_view name)
+std::unique_ptr<AbstractShader> Gfx::CreateShaderFromSource(ShaderStage stage,
+    std::string_view source, std::string_view name)
 {
   return DXShader::CreateFromSource(stage, source, name);
 }
 
 std::unique_ptr<AbstractShader> Gfx::CreateShaderFromBinary(ShaderStage stage, const void* data,
-                                                            size_t length, std::string_view name)
+    size_t length, std::string_view name)
 {
   return DXShader::CreateFromBytecode(stage, DXShader::CreateByteCode(data, length), name);
 }
@@ -86,8 +84,7 @@ Gfx::CreateNativeVertexFormat(const PortableVertexDeclaration& vtx_decl)
 }
 
 std::unique_ptr<AbstractPipeline> Gfx::CreatePipeline(const AbstractPipelineConfig& config,
-                                                      const void* cache_data,
-                                                      size_t cache_data_length)
+    const void* cache_data, size_t cache_data_length)
 {
   return DXPipeline::Create(config, cache_data, cache_data_length);
 }
@@ -103,7 +100,7 @@ void Gfx::WaitForGPUIdle()
 }
 
 void Gfx::ClearRegion(const MathUtil::Rectangle<int>& target_rc, bool color_enable,
-                      bool alpha_enable, bool z_enable, u32 color, u32 z)
+    bool alpha_enable, bool z_enable, u32 color, u32 z)
 {
   // Use a fast path without the shader if both color/alpha are enabled.
   const bool fast_color_clear = color_enable && alpha_enable;
@@ -116,11 +113,10 @@ void Gfx::ClearRegion(const MathUtil::Rectangle<int>& target_rc, bool color_enab
     {
       d3d_frame_buffer->TransitionRenderTargets();
 
-      const std::array<float, 4> clear_color = {
-          {static_cast<float>((color >> 16) & 0xFF) / 255.0f,
-           static_cast<float>((color >> 8) & 0xFF) / 255.0f,
-           static_cast<float>((color >> 0) & 0xFF) / 255.0f,
-           static_cast<float>((color >> 24) & 0xFF) / 255.0f}};
+      const std::array<float, 4> clear_color = {{static_cast<float>((color >> 16) & 0xFF) / 255.0f,
+          static_cast<float>((color >> 8) & 0xFF) / 255.0f,
+          static_cast<float>((color >> 0) & 0xFF) / 255.0f,
+          static_cast<float>((color >> 24) & 0xFF) / 255.0f}};
       d3d_frame_buffer->ClearRenderTargets(clear_color, &d3d_clear_rc);
       color_enable = false;
       alpha_enable = false;
@@ -184,8 +180,7 @@ void Gfx::BindFramebuffer(DXFramebuffer* fb)
         ->TransitionToState(D3D12_RESOURCE_STATE_DEPTH_WRITE);
   }
 
-  g_dx_context->GetCommandList()->OMSetRenderTargets(
-      fb->GetRTVDescriptorCount(),
+  g_dx_context->GetCommandList()->OMSetRenderTargets(fb->GetRTVDescriptorCount(),
       m_state.using_integer_rtv ? fb->GetIntRTVDescriptorArray() : fb->GetRTVDescriptorArray(),
       FALSE, fb->GetDSVDescriptorArray());
   m_current_framebuffer = fb;
@@ -216,7 +211,7 @@ void Gfx::SetAndDiscardFramebuffer(AbstractFramebuffer* framebuffer)
 }
 
 void Gfx::SetAndClearFramebuffer(AbstractFramebuffer* framebuffer, const ClearColor& color_value,
-                                 float depth_value)
+    float depth_value)
 {
   DXFramebuffer* dxfb = static_cast<DXFramebuffer*>(framebuffer);
   BindFramebuffer(dxfb);
@@ -295,7 +290,7 @@ void Gfx::UnbindTexture(const AbstractTexture* texture)
 }
 
 void Gfx::SetViewport(float x, float y, float width, float height, float near_depth,
-                      float far_depth)
+    float far_depth)
 {
   if (m_state.viewport.TopLeftX == x && m_state.viewport.TopLeftY == y &&
       m_state.viewport.Width == width && m_state.viewport.Height == height &&
@@ -334,7 +329,7 @@ void Gfx::DrawIndexed(u32 base_index, u32 num_indices, u32 base_vertex)
 }
 
 void Gfx::DispatchComputeShader(const AbstractShader* shader, u32 groupsize_x, u32 groupsize_y,
-                                u32 groupsize_z, u32 groups_x, u32 groups_y, u32 groups_z)
+    u32 groupsize_z, u32 groups_x, u32 groups_y, u32 groups_z)
 {
   SetRootSignatures();
   SetDescriptorHeaps();
@@ -355,9 +350,9 @@ void Gfx::DispatchComputeShader(const AbstractShader* shader, u32 groupsize_x, u
   cmdlist->SetComputeRootConstantBufferView(CS_ROOT_PARAMETER_CBV, m_state.constant_buffers[0]);
   cmdlist->SetComputeRootDescriptorTable(CS_ROOT_PARAMETER_SRV, m_state.srv_descriptor_base);
   cmdlist->SetComputeRootDescriptorTable(CS_ROOT_PARAMETER_SAMPLERS,
-                                         m_state.sampler_descriptor_base);
+      m_state.sampler_descriptor_base);
   cmdlist->SetComputeRootDescriptorTable(CS_ROOT_PARAMETER_UAV,
-                                         m_state.compute_uav_descriptor_base);
+      m_state.compute_uav_descriptor_base);
   cmdlist->Dispatch(groups_x, groups_y, groups_z);
 
   // Compute and graphics state share the same pipeline object? :(
@@ -406,8 +401,8 @@ void Gfx::PresentBackbuffer()
 SurfaceInfo Gfx::GetSurfaceInfo() const
 {
   return {m_swap_chain ? static_cast<u32>(m_swap_chain->GetWidth()) : 0,
-          m_swap_chain ? static_cast<u32>(m_swap_chain->GetHeight()) : 0, m_backbuffer_scale,
-          m_swap_chain ? m_swap_chain->GetFormat() : AbstractTextureFormat::Undefined};
+      m_swap_chain ? static_cast<u32>(m_swap_chain->GetHeight()) : 0, m_backbuffer_scale,
+      m_swap_chain ? m_swap_chain->GetFormat() : AbstractTextureFormat::Undefined};
 }
 
 void Gfx::OnConfigChanged(u32 bits)
@@ -475,7 +470,7 @@ void Gfx::SetPixelShaderUAV(D3D12_CPU_DESCRIPTOR_HANDLE handle)
 }
 
 void Gfx::SetVertexBuffer(D3D12_GPU_VIRTUAL_ADDRESS address, D3D12_CPU_DESCRIPTOR_HANDLE srv,
-                          u32 stride, u32 size)
+    u32 stride, u32 size)
 {
   if (m_state.vertex_buffer.BufferLocation != address ||
       m_state.vertex_buffer.StrideInBytes != stride || m_state.vertex_buffer.SizeInBytes != size)
@@ -521,10 +516,10 @@ bool Gfx::ApplyState()
   const u32 dirty_bits = m_dirty_bits;
   m_dirty_bits &=
       ~(DirtyState_Framebuffer | DirtyState_Pipeline | DirtyState_Viewport |
-        DirtyState_ScissorRect | DirtyState_PS_UAV | DirtyState_PS_CBV | DirtyState_VS_CBV |
-        DirtyState_GS_CBV | DirtyState_SRV_Descriptor | DirtyState_Sampler_Descriptor |
-        DirtyState_UAV_Descriptor | DirtyState_VertexBuffer | DirtyState_IndexBuffer |
-        DirtyState_PrimitiveTopology | DirtyState_VS_SRV_Descriptor | DirtyState_CUS_CBV);
+          DirtyState_ScissorRect | DirtyState_PS_UAV | DirtyState_PS_CBV | DirtyState_VS_CBV |
+          DirtyState_GS_CBV | DirtyState_SRV_Descriptor | DirtyState_Sampler_Descriptor |
+          DirtyState_UAV_Descriptor | DirtyState_VertexBuffer | DirtyState_IndexBuffer |
+          DirtyState_PrimitiveTopology | DirtyState_VS_SRV_Descriptor | DirtyState_CUS_CBV);
 
   auto* const cmdlist = g_dx_context->GetCommandList();
   auto* const pipeline = static_cast<const DXPipeline*>(m_current_pipeline);
@@ -555,7 +550,7 @@ bool Gfx::ApplyState()
   if (dirty_bits & DirtyState_Sampler_Descriptor)
   {
     cmdlist->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_PS_SAMPLERS,
-                                            m_state.sampler_descriptor_base);
+        m_state.sampler_descriptor_base);
   }
 
   if (pipeline->GetUsage() != AbstractPipelineUsage::Utility)
@@ -563,14 +558,15 @@ bool Gfx::ApplyState()
     if (dirty_bits & DirtyState_VS_CBV)
     {
       cmdlist->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_VS_CBV,
-                                                 m_state.constant_buffers[1]);
+          m_state.constant_buffers[1]);
       cmdlist->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_VS_CBV2,
-                                                 m_state.constant_buffers[1]);
+          m_state.constant_buffers[1]);
 
       if (g_ActiveConfig.bEnablePixelLighting)
       {
-        cmdlist->SetGraphicsRootConstantBufferView(
-            g_ActiveConfig.bBBoxEnable ? ROOT_PARAMETER_PS_CBV2 : ROOT_PARAMETER_PS_UAV_OR_CBV2,
+        cmdlist->SetGraphicsRootConstantBufferView(g_ActiveConfig.bBBoxEnable ?
+                                                       ROOT_PARAMETER_PS_CBV2 :
+                                                       ROOT_PARAMETER_PS_UAV_OR_CBV2,
             m_state.constant_buffers[1]);
       }
     }
@@ -578,27 +574,27 @@ bool Gfx::ApplyState()
     if (dirty_bits & DirtyState_CUS_CBV)
     {
       cmdlist->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_VS_CUS_CBV,
-                                                 m_state.constant_buffers[2]);
+          m_state.constant_buffers[2]);
       cmdlist->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_PS_CUS_CBV,
-                                                 m_state.constant_buffers[2]);
+          m_state.constant_buffers[2]);
     }
 
     if (dirty_bits & DirtyState_VS_SRV_Descriptor && UsesDynamicVertexLoader(pipeline))
     {
       cmdlist->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_VS_SRV,
-                                              m_state.vertex_srv_descriptor_base);
+          m_state.vertex_srv_descriptor_base);
     }
 
     if (dirty_bits & DirtyState_GS_CBV)
     {
       cmdlist->SetGraphicsRootConstantBufferView(ROOT_PARAMETER_GS_CBV,
-                                                 m_state.constant_buffers[3]);
+          m_state.constant_buffers[3]);
     }
 
     if (dirty_bits & DirtyState_UAV_Descriptor && g_ActiveConfig.bBBoxEnable)
     {
       cmdlist->SetGraphicsRootDescriptorTable(ROOT_PARAMETER_PS_UAV_OR_CBV2,
-                                              m_state.uav_descriptor_base);
+          m_state.uav_descriptor_base);
     }
   }
 
@@ -628,7 +624,7 @@ void Gfx::SetDescriptorHeaps()
   if (m_dirty_bits & DirtyState_DescriptorHeaps)
   {
     g_dx_context->GetCommandList()->SetDescriptorHeaps(g_dx_context->GetGPUDescriptorHeapCount(),
-                                                       g_dx_context->GetGPUDescriptorHeaps());
+        g_dx_context->GetGPUDescriptorHeaps());
     m_dirty_bits &= ~DirtyState_DescriptorHeaps;
   }
 }
@@ -646,7 +642,7 @@ void Gfx::UpdateDescriptorTables()
   if (texture_update_failed || sampler_update_failed || uav_update_failed || srv_update_failed)
   {
     WARN_LOG_FMT(VIDEO, "Executing command list while waiting for temporary {}",
-                 texture_update_failed ? "descriptors" : "samplers");
+        texture_update_failed ? "descriptors" : "samplers");
     ExecuteCommandList(false);
     SetRootSignatures();
     SetDescriptorHeaps();
@@ -664,12 +660,12 @@ bool Gfx::UpdateSRVDescriptorTable()
   DescriptorHandle dst_base_handle;
   const UINT dst_handle_sizes = VideoCommon::MAX_PIXEL_SHADER_SAMPLERS;
   if (!g_dx_context->GetDescriptorAllocator()->Allocate(VideoCommon::MAX_PIXEL_SHADER_SAMPLERS,
-                                                        &dst_base_handle))
+          &dst_base_handle))
     return false;
 
-  g_dx_context->GetDevice()->CopyDescriptors(
-      1, &dst_base_handle.cpu_handle, &dst_handle_sizes, VideoCommon::MAX_PIXEL_SHADER_SAMPLERS,
-      m_state.textures.data(), src_sizes.data(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+  g_dx_context->GetDevice()->CopyDescriptors(1, &dst_base_handle.cpu_handle, &dst_handle_sizes,
+      VideoCommon::MAX_PIXEL_SHADER_SAMPLERS, m_state.textures.data(), src_sizes.data(),
+      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   m_state.srv_descriptor_base = dst_base_handle.gpu_handle;
   m_dirty_bits = (m_dirty_bits & ~DirtyState_Textures) | DirtyState_SRV_Descriptor;
   return true;
@@ -678,7 +674,7 @@ bool Gfx::UpdateSRVDescriptorTable()
 bool Gfx::UpdateSamplerDescriptorTable()
 {
   if (!g_dx_context->GetSamplerAllocator()->GetGroupHandle(m_state.samplers,
-                                                           &m_state.sampler_descriptor_base))
+          &m_state.sampler_descriptor_base))
   {
     g_dx_context->ResetSamplerAllocators();
     return false;
@@ -699,7 +695,7 @@ bool Gfx::UpdateUAVDescriptorTable()
     return false;
 
   g_dx_context->GetDevice()->CopyDescriptorsSimple(1, handle.cpu_handle, m_state.ps_uav,
-                                                   D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   m_state.uav_descriptor_base = handle.gpu_handle;
   m_dirty_bits = (m_dirty_bits & ~DirtyState_PS_UAV) | DirtyState_UAV_Descriptor;
   return true;
@@ -717,7 +713,7 @@ bool Gfx::UpdateVSSRVDescriptorTable()
     return false;
 
   g_dx_context->GetDevice()->CopyDescriptorsSimple(1, handle.cpu_handle, m_state.vs_srv,
-                                                   D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+      D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   m_state.vertex_srv_descriptor_base = handle.gpu_handle;
   m_dirty_bits = (m_dirty_bits & ~DirtyState_VS_SRV) | DirtyState_VS_SRV_Descriptor;
   return true;
@@ -731,15 +727,15 @@ bool Gfx::UpdateComputeUAVDescriptorTable()
 
   if (m_state.compute_image_texture)
   {
-    g_dx_context->GetDevice()->CopyDescriptorsSimple(
-        1, handle.cpu_handle, m_state.compute_image_texture->GetUAVDescriptor().cpu_handle,
+    g_dx_context->GetDevice()->CopyDescriptorsSimple(1, handle.cpu_handle,
+        m_state.compute_image_texture->GetUAVDescriptor().cpu_handle,
         D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
   }
   else
   {
     constexpr D3D12_UNORDERED_ACCESS_VIEW_DESC null_uav_desc = {};
     g_dx_context->GetDevice()->CreateUnorderedAccessView(nullptr, nullptr, &null_uav_desc,
-                                                         handle.cpu_handle);
+        handle.cpu_handle);
   }
 
   m_dirty_bits &= ~DirtyState_ComputeImageTexture;

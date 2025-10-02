@@ -28,7 +28,7 @@ using ConfigurationOption = VideoCommon::PostProcessingConfiguration::Configurat
 using OptionType = ConfigurationOption::OptionType;
 
 PostProcessingConfigWindow::PostProcessingConfigWindow(EnhancementsWidget* parent,
-                                                       const std::string& shader)
+    const std::string& shader)
     : QDialog(parent), m_shader(shader)
 {
   if (g_presenter && g_presenter->GetPostProcessor())
@@ -232,7 +232,7 @@ PostProcessingConfigWindow::ConfigGroup::GetSubGroups() const noexcept
 }
 
 u32 PostProcessingConfigWindow::ConfigGroup::AddWidgets(PostProcessingConfigWindow* const parent,
-                                                        QGridLayout* const grid, const u32 row)
+    QGridLayout* const grid, const u32 row)
 {
   auto* const name = new QLabel(QString::fromStdString(m_config_option->m_gui_name));
   grid->addWidget(name, row, 0);
@@ -252,19 +252,19 @@ u32 PostProcessingConfigWindow::ConfigGroup::AddWidgets(PostProcessingConfigWind
 }
 
 u32 PostProcessingConfigWindow::ConfigGroup::AddBool(PostProcessingConfigWindow* const parent,
-                                                     QGridLayout* const grid, const u32 row)
+    QGridLayout* const grid, const u32 row)
 {
   m_checkbox = new QCheckBox();
   m_checkbox->setChecked(m_config_option->m_bool_value);
   QObject::connect(m_checkbox, &QCheckBox::toggled,
-                   [this, parent](bool checked) { parent->UpdateBool(this, checked); });
+      [this, parent](bool checked) { parent->UpdateBool(this, checked); });
   grid->addWidget(m_checkbox, row, 2);
 
   return row + 1;
 }
 
 u32 PostProcessingConfigWindow::ConfigGroup::AddInteger(PostProcessingConfigWindow* const parent,
-                                                        QGridLayout* const grid, u32 row)
+    QGridLayout* const grid, u32 row)
 {
   const size_t vector_size = m_config_option->m_integer_values.size();
 
@@ -278,9 +278,10 @@ u32 PostProcessingConfigWindow::ConfigGroup::AddInteger(PostProcessingConfigWind
     //  Round up so if it is outside our range, then set it to the minimum or maximum"
     const int steps =
         std::ceil(range / static_cast<double>(m_config_option->m_integer_step_values[i]));
-    const int current_value = std::round(
-        (m_config_option->m_integer_values[i] - m_config_option->m_integer_min_values[i]) /
-        static_cast<double>(m_config_option->m_integer_step_values[i]));
+    const int current_value =
+        std::round((m_config_option->m_integer_values[i] -
+                       m_config_option->m_integer_min_values[i]) /
+                   static_cast<double>(m_config_option->m_integer_step_values[i]));
 
     auto* const slider = new QSlider(Qt::Orientation::Horizontal);
     slider->setMinimum(0);
@@ -288,7 +289,7 @@ u32 PostProcessingConfigWindow::ConfigGroup::AddInteger(PostProcessingConfigWind
     slider->setValue(current_value);
     slider->setTickInterval(range / steps);
     QObject::connect(slider, &QSlider::valueChanged,
-                     [this, parent](int value) { parent->UpdateInteger(this, value); });
+        [this, parent](int value) { parent->UpdateInteger(this, value); });
 
     auto* const value_box = new QLineEdit(QString::number(m_config_option->m_integer_values[i]));
     value_box->setEnabled(false);
@@ -308,7 +309,7 @@ u32 PostProcessingConfigWindow::ConfigGroup::AddInteger(PostProcessingConfigWind
 }
 
 u32 PostProcessingConfigWindow::ConfigGroup::AddFloat(PostProcessingConfigWindow* const parent,
-                                                      QGridLayout* const grid, u32 row)
+    QGridLayout* const grid, u32 row)
 {
   const size_t vector_size = m_config_option->m_float_values.size();
 
@@ -327,7 +328,7 @@ u32 PostProcessingConfigWindow::ConfigGroup::AddFloat(PostProcessingConfigWindow
     slider->setValue(current_value);
     slider->setTickInterval(range / steps);
     QObject::connect(slider, &QSlider::valueChanged,
-                     [this, parent](int value) { parent->UpdateFloat(this, value); });
+        [this, parent](int value) { parent->UpdateFloat(this, value); });
 
     auto* const value_box =
         new QLineEdit(QString::asprintf("%f", m_config_option->m_float_values[i]));

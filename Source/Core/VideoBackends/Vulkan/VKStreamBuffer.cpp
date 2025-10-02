@@ -66,7 +66,7 @@ bool StreamBuffer::AllocateBuffer()
   VmaAllocation alloc = VK_NULL_HANDLE;
   VmaAllocationInfo alloc_info;
   VkResult res = vmaCreateBuffer(g_vulkan_context->GetMemoryAllocator(), &buffer_create_info,
-                                 &alloc_create_info, &buffer, &alloc, &alloc_info);
+      &alloc_create_info, &buffer, &alloc, &alloc_info);
   if (res != VK_SUCCESS)
   {
     LOG_VULKAN_ERROR(res, "vmaCreateBuffer failed: ");
@@ -96,7 +96,7 @@ bool StreamBuffer::ReserveMemory(u32 num_bytes, u32 alignment)
   if (required_bytes > m_size)
   {
     PanicAlertFmt("Attempting to allocate {} bytes from a {} byte stream buffer", num_bytes,
-                  m_size);
+        m_size);
 
     return false;
   }
@@ -163,7 +163,7 @@ void StreamBuffer::CommitMemory(u32 final_num_bytes)
   // For non-coherent mappings, flush the memory range
   // vmaFlushAllocation checks whether the allocation uses a coherent memory type internally
   vmaFlushAllocation(g_vulkan_context->GetMemoryAllocator(), m_alloc, m_current_offset,
-                     final_num_bytes);
+      final_num_bytes);
 
   m_current_offset += final_num_bytes;
 }
@@ -275,7 +275,7 @@ bool StreamBuffer::WaitForClearSpace(u32 num_bytes)
   // Wait until this fence is signaled. This will fire the callback, updating the GPU position.
   g_command_buffer_mgr->WaitForFenceCounter(iter->first);
   m_tracked_fences.erase(m_tracked_fences.begin(),
-                         m_current_offset == iter->second ? m_tracked_fences.end() : ++iter);
+      m_current_offset == iter->second ? m_tracked_fences.end() : ++iter);
   m_current_offset = new_offset;
   m_current_gpu_position = new_gpu_position;
   return true;

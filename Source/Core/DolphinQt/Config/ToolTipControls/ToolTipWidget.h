@@ -61,7 +61,7 @@ private:
     m_timer_id.reset();
 
     BalloonTip::ShowBalloon(m_title, m_description,
-                            this->parentWidget()->mapToGlobal(GetToolTipPosition()), this);
+        this->parentWidget()->mapToGlobal(GetToolTipPosition()), this);
 
     Derived::timerEvent(event);
   }

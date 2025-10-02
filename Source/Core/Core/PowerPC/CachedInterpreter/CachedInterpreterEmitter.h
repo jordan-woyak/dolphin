@@ -61,9 +61,10 @@ public:
   {
     // I would use std::is_trivial_v, but almost every operands struct uses
     // references instead of pointers to make the callback functions nicer.
-    static_assert(
-        std::is_trivially_copyable_v<Operands> && std::is_trivially_destructible_v<Operands> &&
-        alignof(Operands) <= alignof(AnyCallback) && sizeof(Operands) % alignof(AnyCallback) == 0);
+    static_assert(std::is_trivially_copyable_v<Operands> &&
+                  std::is_trivially_destructible_v<Operands> &&
+                  alignof(Operands) <= alignof(AnyCallback) &&
+                  sizeof(Operands) % alignof(AnyCallback) == 0);
     Write(AnyCallbackCast(callback), &operands, sizeof(Operands));
   }
   void Write(AnyCallback callback) { Write(callback, nullptr, 0); }

@@ -59,7 +59,7 @@ void ControlGroupContainer::UpdateGroupsReferences(
 }
 
 void EmulatedController::UpdateSingleControlReference(const ControllerInterface& devi,
-                                                      ControlReference* ref)
+    ControlReference* ref)
 {
   ciface::ExpressionParser::ControlEnvironment env(devi, GetDefaultDevice(), m_expression_vars);
 

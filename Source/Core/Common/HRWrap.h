@@ -31,7 +31,7 @@ struct fmt::formatter<Common::HRWrap>
   auto format(const Common::HRWrap& hr, FormatContext& ctx) const
   {
     return fmt::format_to(ctx.out(), "{} ({:#010x})", Common::GetHResultMessage(hr.m_hr),
-                          static_cast<u32>(hr.m_hr));
+        static_cast<u32>(hr.m_hr));
   }
 };
 

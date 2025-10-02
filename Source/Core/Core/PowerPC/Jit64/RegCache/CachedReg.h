@@ -255,7 +255,8 @@ private:
       return false;
     }
 
-    const bool is_loc_compatible = [&] {
+    const bool is_loc_compatible = [&]
+    {
       switch (loc)
       {
       case ConstraintLoc::Bound:
@@ -271,7 +272,8 @@ private:
       return false;
     }();
 
-    const bool is_mode_compatible = [&] {
+    const bool is_mode_compatible = [&]
+    {
       switch (mode)
       {
       case RCMode::Read:

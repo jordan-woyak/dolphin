@@ -11,10 +11,9 @@ namespace ExpansionInterface
 {
 
 CEXIETHERNET::TAPServerNetworkInterface::TAPServerNetworkInterface(CEXIETHERNET* eth_ref,
-                                                                   const std::string& destination)
+    const std::string& destination)
     : NetworkInterface(eth_ref),
-      m_tapserver_if(
-          destination,
+      m_tapserver_if(destination,
           std::bind(&TAPServerNetworkInterface::HandleReceivedFrame, this, std::placeholders::_1),
           BBA_RECV_SIZE)
 {
@@ -63,7 +62,7 @@ void CEXIETHERNET::TAPServerNetworkInterface::HandleReceivedFrame(std::string&& 
   if (data.size() > BBA_RECV_SIZE)
   {
     ERROR_LOG_FMT(SP1, "Received BBA frame of size {}, which is larger than maximum size {}",
-                  data.size(), BBA_RECV_SIZE);
+        data.size(), BBA_RECV_SIZE);
     return;
   }
 

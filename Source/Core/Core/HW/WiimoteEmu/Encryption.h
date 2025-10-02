@@ -23,7 +23,7 @@ public:
   using KeyData = std::array<u8, 6>;
 
   void GenerateTables(const RandData& rand, const KeyData& key, const SBox& sbox_a,
-                      const SBox& sbox_b);
+      const SBox& sbox_b);
 
   std::array<u8, 8> ft = {};
   std::array<u8, 8> sb = {};
@@ -40,33 +40,33 @@ public:
 
 protected:
   virtual EncryptionKey::KeyData GenerateKeyData(const EncryptionKey::RandData& rand,
-                                                 u32 idx) const = 0;
+      u32 idx) const = 0;
   virtual EncryptionKey GenerateTables(const EncryptionKey::RandData& rand,
-                                       const EncryptionKey::KeyData& key, u32 idx) const = 0;
+      const EncryptionKey::KeyData& key, u32 idx) const = 0;
   virtual EncryptionKey GenerateFallbackTables(const EncryptionKey::RandData& rand,
-                                               const EncryptionKey::KeyData& key) const = 0;
+      const EncryptionKey::KeyData& key) const = 0;
 };
 
 class KeyGen1stParty final : public KeyGen
 {
 private:
   EncryptionKey::KeyData GenerateKeyData(const EncryptionKey::RandData& rand,
-                                         u32 idx) const final override;
+      u32 idx) const final override;
   EncryptionKey GenerateTables(const EncryptionKey::RandData& rand,
-                               const EncryptionKey::KeyData& key, u32 idx) const final override;
+      const EncryptionKey::KeyData& key, u32 idx) const final override;
   EncryptionKey GenerateFallbackTables(const EncryptionKey::RandData& rand,
-                                       const EncryptionKey::KeyData& key) const final override;
+      const EncryptionKey::KeyData& key) const final override;
 };
 
 class KeyGen3rdParty final : public KeyGen
 {
 private:
   EncryptionKey::KeyData GenerateKeyData(const EncryptionKey::RandData& rand,
-                                         u32 idx) const final override;
+      u32 idx) const final override;
   EncryptionKey GenerateTables(const EncryptionKey::RandData& rand,
-                               const EncryptionKey::KeyData& key, u32 idx) const final override;
+      const EncryptionKey::KeyData& key, u32 idx) const final override;
   EncryptionKey GenerateFallbackTables(const EncryptionKey::RandData& rand,
-                                       const EncryptionKey::KeyData& key) const final override;
+      const EncryptionKey::KeyData& key) const final override;
 };
 
 }  // namespace WiimoteEmu

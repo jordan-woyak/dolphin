@@ -27,7 +27,7 @@ extern "C" {
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDriverInfo(JNIEnv* env,
-                                                                                        jobject)
+    jobject)
 {
   if (!Vulkan::LoadVulkanLibrary(true))
   {
@@ -36,7 +36,7 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDri
 
   u32 vk_api_version = 0;
   VkInstance instance = Vulkan::VulkanContext::CreateVulkanInstance(WindowSystemType::Headless,
-                                                                    false, false, &vk_api_version);
+      false, false, &vk_api_version);
   if (!instance)
   {
     return nullptr;
@@ -79,8 +79,8 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDri
 
   std::string driverVersion =
       fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(properties.driverVersion),
-                  VK_API_VERSION_MINOR(properties.driverVersion),
-                  VK_API_VERSION_PATCH(properties.driverVersion));
+          VK_API_VERSION_MINOR(properties.driverVersion),
+          VK_API_VERSION_PATCH(properties.driverVersion));
 
   vkDestroyInstance(instance, nullptr);
   Vulkan::UnloadVulkanLibrary();
@@ -108,8 +108,8 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_supportsForc
 }
 
 JNIEXPORT void JNICALL
-Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_forceMaxGpuClocks(
-    JNIEnv* env, jobject instance, jboolean enable)
+Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_forceMaxGpuClocks(JNIEnv* env,
+    jobject instance, jboolean enable)
 {
   adrenotools_set_turbo(enable);
 }
@@ -117,8 +117,8 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_forceMaxGpuC
 #else
 
 JNIEXPORT jobjectArray JNICALL
-Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDriverInfo(
-    JNIEnv* env, jobject instance)
+Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_getSystemDriverInfo(JNIEnv* env,
+    jobject instance)
 {
   auto array = env->NewObjectArray(0, env->FindClass("java/lang/String"), nullptr);
   return array;
@@ -139,8 +139,8 @@ Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_supportsForc
 }
 
 JNIEXPORT void JNICALL
-Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_forceMaxGpuClocks(
-    JNIEnv* env, jobject instance, jboolean enable)
+Java_org_dolphinemu_dolphinemu_utils_GpuDriverHelper_00024Companion_forceMaxGpuClocks(JNIEnv* env,
+    jobject instance, jboolean enable)
 {
 }
 

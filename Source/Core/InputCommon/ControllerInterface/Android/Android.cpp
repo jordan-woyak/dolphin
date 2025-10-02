@@ -455,9 +455,10 @@ void RegisterDevicesChangedCallbackIfNeeded(JNIEnv* env, jclass controller_inter
       env->GetStaticMethodID(global_controller_interface_class, "onDevicesChanged", "()V");
 
   g_controller_interface.RegisterDevicesChangedCallback(
-      [global_controller_interface_class, controller_interface_on_devices_changed] {
+      [global_controller_interface_class, controller_interface_on_devices_changed]
+      {
         IDCache::GetEnvForThread()->CallStaticVoidMethod(global_controller_interface_class,
-                                                         controller_interface_on_devices_changed);
+            controller_interface_on_devices_changed);
       });
 }
 
@@ -556,8 +557,8 @@ public:
   {
     if (m_is_suspended.load(std::memory_order_relaxed))
     {
-      IDCache::GetEnvForThread()->CallVoidMethod(
-          m_sensor_event_listener, s_sensor_event_listener_request_unsuspend_sensor, m_j_name);
+      IDCache::GetEnvForThread()->CallVoidMethod(m_sensor_event_listener,
+          s_sensor_event_listener_request_unsuspend_sensor, m_j_name);
 
       // m_is_suspended is intentionally not updated here. To prevent the C++ suspended status from
       // ending up desynced with the Java suspended status, we only update m_is_suspended when Java
@@ -598,7 +599,7 @@ public:
     if (old_state < 0.5 && state >= 0.5)
     {
       IDCache::GetEnvForThread()->CallStaticVoidMethod(s_controller_interface_class,
-                                                       s_controller_interface_vibrate, m_vibrator);
+          s_controller_interface_vibrate, m_vibrator);
     }
   }
 
@@ -671,8 +672,8 @@ public:
 private:
   void AddKeys(JNIEnv* env, jobject input_device)
   {
-    jbooleanArray keys_array = reinterpret_cast<jbooleanArray>(
-        env->CallObjectMethod(input_device, s_input_device_has_keys, s_keycodes_array));
+    jbooleanArray keys_array = reinterpret_cast<jbooleanArray>(env->CallObjectMethod(input_device,
+        s_input_device_has_keys, s_keycodes_array));
     jboolean* keys = env->GetBooleanArrayElements(keys_array, nullptr);
     jsize keys_count = env->GetArrayLength(keys_array);
     for (jsize i = 0; i < keys_count; ++i)
@@ -725,9 +726,8 @@ private:
     jobject local_sensor_event_listener;
     if (input_device)
     {
-      local_sensor_event_listener =
-          env->NewObject(s_sensor_event_listener_class,
-                         s_sensor_event_listener_constructor_input_device, input_device);
+      local_sensor_event_listener = env->NewObject(s_sensor_event_listener_class,
+          s_sensor_event_listener_constructor_input_device, input_device);
     }
     else
     {
@@ -739,11 +739,13 @@ private:
 
     env->DeleteLocalRef(local_sensor_event_listener);
 
-    jobjectArray j_axis_names = reinterpret_cast<jobjectArray>(
-        env->CallObjectMethod(sensor_event_listener, s_sensor_event_listener_get_axis_names));
+    jobjectArray j_axis_names =
+        reinterpret_cast<jobjectArray>(env->CallObjectMethod(sensor_event_listener,
+            s_sensor_event_listener_get_axis_names));
 
-    jbooleanArray j_negative_axes = reinterpret_cast<jbooleanArray>(
-        env->CallObjectMethod(sensor_event_listener, s_sensor_event_listener_get_negative_axes));
+    jbooleanArray j_negative_axes =
+        reinterpret_cast<jbooleanArray>(env->CallObjectMethod(sensor_event_listener,
+            s_sensor_event_listener_get_negative_axes));
     jboolean* negative_axes = env->GetBooleanArrayElements(j_negative_axes, nullptr);
 
     const jsize axis_count = env->GetArrayLength(j_axis_names);
@@ -765,24 +767,24 @@ private:
 
   void AddMotors(JNIEnv* env, jobject input_device)
   {
-    jobject vibrator_manager = env->CallStaticObjectMethod(
-        s_controller_interface_class, s_controller_interface_get_vibrator_manager, input_device);
+    jobject vibrator_manager = env->CallStaticObjectMethod(s_controller_interface_class,
+        s_controller_interface_get_vibrator_manager, input_device);
     AddMotorsFromManager(env, vibrator_manager);
     env->DeleteLocalRef(vibrator_manager);
   }
 
   void AddSystemMotors(JNIEnv* env)
   {
-    jobject vibrator_manager = env->CallStaticObjectMethod(
-        s_controller_interface_class, s_controller_interface_get_system_vibrator_manager);
+    jobject vibrator_manager = env->CallStaticObjectMethod(s_controller_interface_class,
+        s_controller_interface_get_system_vibrator_manager);
     AddMotorsFromManager(env, vibrator_manager);
     env->DeleteLocalRef(vibrator_manager);
   }
 
   void AddMotorsFromManager(JNIEnv* env, jobject vibrator_manager)
   {
-    jintArray j_vibrator_ids = reinterpret_cast<jintArray>(
-        env->CallObjectMethod(vibrator_manager, s_dolphin_vibrator_manager_get_vibrator_ids));
+    jintArray j_vibrator_ids = reinterpret_cast<jintArray>(env->CallObjectMethod(vibrator_manager,
+        s_dolphin_vibrator_manager_get_vibrator_ids));
     jint* vibrator_ids = env->GetIntArrayElements(j_vibrator_ids, nullptr);
 
     jint size = env->GetArrayLength(j_vibrator_ids);
@@ -879,11 +881,11 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
       env->GetStaticMethodID(s_controller_interface_class, "unregisterInputDeviceListener", "()V");
   s_controller_interface_get_vibrator_manager =
       env->GetStaticMethodID(s_controller_interface_class, "getVibratorManager",
-                             "(Landroid/view/InputDevice;)Lorg/dolphinemu/dolphinemu/features/"
-                             "input/model/DolphinVibratorManager;");
-  s_controller_interface_get_system_vibrator_manager = env->GetStaticMethodID(
-      s_controller_interface_class, "getSystemVibratorManager",
-      "()Lorg/dolphinemu/dolphinemu/features/input/model/DolphinVibratorManager;");
+          "(Landroid/view/InputDevice;)Lorg/dolphinemu/dolphinemu/features/"
+          "input/model/DolphinVibratorManager;");
+  s_controller_interface_get_system_vibrator_manager =
+      env->GetStaticMethodID(s_controller_interface_class, "getSystemVibratorManager",
+          "()Lorg/dolphinemu/dolphinemu/features/input/model/DolphinVibratorManager;");
   s_controller_interface_vibrate =
       env->GetStaticMethodID(s_controller_interface_class, "vibrate", "(Landroid/os/Vibrator;)V");
   env->DeleteLocalRef(controller_interface_class);
@@ -896,10 +898,10 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
       env->GetMethodID(s_sensor_event_listener_class, "<init>", "()V");
   s_sensor_event_listener_constructor_input_device =
       env->GetMethodID(s_sensor_event_listener_class, "<init>", "(Landroid/view/InputDevice;)V");
-  s_sensor_event_listener_set_device_qualifier = env->GetMethodID(
-      s_sensor_event_listener_class, "setDeviceQualifier", "(Ljava/lang/String;)V");
-  s_sensor_event_listener_request_unsuspend_sensor = env->GetMethodID(
-      s_sensor_event_listener_class, "requestUnsuspendSensor", "(Ljava/lang/String;)V");
+  s_sensor_event_listener_set_device_qualifier = env->GetMethodID(s_sensor_event_listener_class,
+      "setDeviceQualifier", "(Ljava/lang/String;)V");
+  s_sensor_event_listener_request_unsuspend_sensor = env->GetMethodID(s_sensor_event_listener_class,
+      "requestUnsuspendSensor", "(Ljava/lang/String;)V");
   s_sensor_event_listener_get_axis_names =
       env->GetMethodID(s_sensor_event_listener_class, "getAxisNames", "()[Ljava/lang/String;");
   s_sensor_event_listener_get_negative_axes =
@@ -921,7 +923,7 @@ InputBackend::InputBackend(ControllerInterface* controller_interface)
   env->DeleteLocalRef(keycodes_array);
 
   env->CallStaticVoidMethod(s_controller_interface_class,
-                            s_controller_interface_register_input_device_listener);
+      s_controller_interface_register_input_device_listener);
 
   RegisterDevicesChangedCallbackIfNeeded(env, s_controller_interface_class);
 }
@@ -931,7 +933,7 @@ InputBackend::~InputBackend()
   JNIEnv* env = IDCache::GetEnvForThread();
 
   env->CallStaticVoidMethod(s_controller_interface_class,
-                            s_controller_interface_unregister_input_device_listener);
+      s_controller_interface_unregister_input_device_listener);
 
   env->DeleteGlobalRef(s_input_device_class);
   env->DeleteGlobalRef(s_motion_range_class);
@@ -968,12 +970,12 @@ void InputBackend::AddDevice(JNIEnv* env, int device_id)
   qualifier.FromDevice(device.get());
 
   INFO_LOG_FMT(CONTROLLERINTERFACE, "Added device ID {} as {}", device_id,
-               device->GetQualifiedName());
+      device->GetQualifiedName());
   s_device_id_to_device_qualifier.emplace(device_id, qualifier);
 
   jstring j_qualifier = ToJString(env, qualifier.ToString());
   env->CallVoidMethod(device->GetSensorEventListener(),
-                      s_sensor_event_listener_set_device_qualifier, j_qualifier);
+      s_sensor_event_listener_set_device_qualifier, j_qualifier);
   env->DeleteLocalRef(j_qualifier);
 }
 
@@ -996,7 +998,7 @@ void InputBackend::AddSensorDevice(JNIEnv* env)
 
   jstring j_qualifier = ToJString(env, qualifier.ToString());
   env->CallVoidMethod(device->GetSensorEventListener(),
-                      s_sensor_event_listener_set_device_qualifier, j_qualifier);
+      s_sensor_event_listener_set_device_qualifier, j_qualifier);
   env->DeleteLocalRef(j_qualifier);
 }
 
@@ -1006,8 +1008,9 @@ void InputBackend::PopulateDevices()
 
   JNIEnv* env = IDCache::GetEnvForThread();
 
-  jintArray device_ids_array = reinterpret_cast<jintArray>(
-      env->CallStaticObjectMethod(s_input_device_class, s_input_device_get_device_ids));
+  jintArray device_ids_array =
+      reinterpret_cast<jintArray>(env->CallStaticObjectMethod(s_input_device_class,
+          s_input_device_get_device_ids));
   int* device_ids = env->GetIntArrayElements(device_ids_array, nullptr);
   jsize device_ids_count = env->GetArrayLength(device_ids_array);
   for (jsize i = 0; i < device_ids_count; ++i)
@@ -1052,7 +1055,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_dispatch
   if (!input)
   {
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "Could not find input {} in device {}", input_name,
-                  device->GetQualifiedName());
+        device->GetQualifiedName());
     return false;
   }
 
@@ -1061,7 +1064,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_dispatch
   const Clock::time_point last_polled = casted_input->GetLastPolled();
 
   DEBUG_LOG_FMT(CONTROLLERINTERFACE, "Set {} of {} to {}", input_name, device->GetQualifiedName(),
-                state);
+      state);
 
   return last_polled >= Clock::now() - ACTIVE_INPUT_TIMEOUT;
 }
@@ -1085,14 +1088,14 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_dispatch
     const std::string input_name = input->GetName();
     if (input_name.starts_with(axis_name_prefix))
     {
-      const std::string axis_id_str = input_name.substr(
-          axis_name_prefix.size(), input_name.size() - axis_name_prefix.size() - sizeof('+'));
+      const std::string axis_id_str = input_name.substr(axis_name_prefix.size(),
+          input_name.size() - axis_name_prefix.size() - sizeof('+'));
 
       int axis_id;
       if (!TryParse(axis_id_str, &axis_id))
       {
         ERROR_LOG_FMT(CONTROLLERINTERFACE, "Failed to parse \"{}\" from \"{}\" as axis ID",
-                      axis_id_str, input_name);
+            axis_id_str, input_name);
         continue;
       }
 
@@ -1103,7 +1106,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_dispatch
       last_polled = std::max(last_polled, casted_input->GetLastPolled());
 
       DEBUG_LOG_FMT(CONTROLLERINTERFACE, "Set {} of {} to {}", input_name,
-                    device->GetQualifiedName(), value);
+          device->GetQualifiedName(), value);
     }
   }
 
@@ -1164,7 +1167,7 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_notifySe
 
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_refreshDevices(JNIEnv* env,
-                                                                                       jclass)
+    jclass)
 {
   g_controller_interface.RefreshDevices();
 }
@@ -1177,8 +1180,8 @@ Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_getAllDe
 }
 
 JNIEXPORT jobject JNICALL
-Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_getDevice(
-    JNIEnv* env, jclass, jstring j_device_string)
+Java_org_dolphinemu_dolphinemu_features_input_model_ControllerInterface_getDevice(JNIEnv* env,
+    jclass, jstring j_device_string)
 {
   ciface::Core::DeviceQualifier qualifier;
   qualifier.FromString(GetJString(env, j_device_string));

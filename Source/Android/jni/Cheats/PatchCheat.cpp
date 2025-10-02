@@ -16,14 +16,14 @@
 
 static PatchEngine::Patch* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<PatchEngine::Patch*>(
-      env->GetLongField(obj, IDCache::GetPatchCheatPointer()));
+  return reinterpret_cast<PatchEngine::Patch*>(env->GetLongField(obj,
+      IDCache::GetPatchCheatPointer()));
 }
 
 jobject PatchCheatToJava(JNIEnv* env, const PatchEngine::Patch& patch)
 {
   return env->NewObject(IDCache::GetPatchCheatClass(), IDCache::GetPatchCheatConstructor(),
-                        reinterpret_cast<jlong>(new PatchEngine::Patch(patch)));
+      reinterpret_cast<jlong>(new PatchEngine::Patch(patch)));
 }
 
 extern "C" {
@@ -68,7 +68,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_PatchCheat_getCode(JNIEnv* 
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_PatchCheat_getUserDefined(JNIEnv* env,
-                                                                               jobject obj)
+    jobject obj)
 {
   return static_cast<jboolean>(GetPointer(env, obj)->user_defined);
 }
@@ -112,16 +112,14 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_features_cheats_model_Patc
 
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_PatchCheat_setEnabledImpl(JNIEnv* env,
-                                                                               jobject obj,
-                                                                               jboolean enabled)
+    jobject obj, jboolean enabled)
 {
   GetPointer(env, obj)->enabled = static_cast<bool>(enabled);
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_PatchCheat_loadCodes(JNIEnv* env, jclass,
-                                                                          jstring jGameID,
-                                                                          jint revision)
+    jstring jGameID, jint revision)
 {
   const std::string game_id = GetJString(env, jGameID);
   Common::IniFile game_ini_local;

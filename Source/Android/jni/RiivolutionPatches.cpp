@@ -17,8 +17,8 @@
 
 static std::vector<DiscIO::Riivolution::Disc>* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<std::vector<DiscIO::Riivolution::Disc>*>(
-      env->GetLongField(obj, IDCache::GetRiivolutionPatchesPointer()));
+  return reinterpret_cast<std::vector<DiscIO::Riivolution::Disc>*>(env->GetLongField(obj,
+      IDCache::GetRiivolutionPatchesPointer()));
 }
 
 static std::vector<DiscIO::Riivolution::Disc>& GetReference(JNIEnv* env, jobject obj)
@@ -30,14 +30,14 @@ extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_org_dolphinemu_dolphinemu_features_riivolution_model_RiivolutionPatches_initialize(JNIEnv* env,
-                                                                                        jclass obj)
+    jclass obj)
 {
   return reinterpret_cast<jlong>(new std::vector<DiscIO::Riivolution::Disc>);
 }
 
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_riivolution_model_RiivolutionPatches_finalize(JNIEnv* env,
-                                                                                      jobject obj)
+    jobject obj)
 {
   delete GetPointer(env, obj);
 }
@@ -83,8 +83,7 @@ JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_features_riivolution_model_RiivolutionPatches_getOptionName(
     JNIEnv* env, jobject obj, jint disc_index, jint section_index, jint option_index)
 {
-  return ToJString(
-      env,
+  return ToJString(env,
       GetReference(env, obj)[disc_index].m_sections[section_index].m_options[option_index].m_name);
 }
 
@@ -132,14 +131,14 @@ Java_org_dolphinemu_dolphinemu_features_riivolution_model_RiivolutionPatches_set
 }
 
 static std::optional<DiscIO::Riivolution::Config> LoadConfigXML(const std::string& root_directory,
-                                                                std::string_view game_id)
+    std::string_view game_id)
 {
   // The way Riivolution stores settings only makes sense for standard game IDs.
   if (!(game_id.size() == 4 || game_id.size() == 6))
     return std::nullopt;
 
-  return DiscIO::Riivolution::ParseConfigFile(
-      fmt::format("{}/riivolution/config/{}.xml", root_directory, game_id.substr(0, 4)));
+  return DiscIO::Riivolution::ParseConfigFile(fmt::format("{}/riivolution/config/{}.xml",
+      root_directory, game_id.substr(0, 4)));
 }
 
 JNIEXPORT void JNICALL
@@ -180,14 +179,15 @@ Java_org_dolphinemu_dolphinemu_features_riivolution_model_RiivolutionPatches_sav
       for (const auto& option : section.m_options)
       {
         std::string id = option.m_id.empty() ? (section.m_name + option.m_name) : option.m_id;
-        config.m_options.emplace_back(
-            DiscIO::Riivolution::ConfigOption{std::move(id), option.m_selected_choice});
+        config.m_options.emplace_back(DiscIO::Riivolution::ConfigOption{
+            std::move(id), option.m_selected_choice});
       }
     }
   }
 
   const std::string& root = File::GetUserPath(D_RIIVOLUTION_IDX);
-  DiscIO::Riivolution::WriteConfigFile(
-      fmt::format("{}/riivolution/config/{}.xml", root, game_id.substr(0, 4)), config);
+  DiscIO::Riivolution::WriteConfigFile(fmt::format("{}/riivolution/config/{}.xml", root,
+                                           game_id.substr(0, 4)),
+      config);
 }
 }

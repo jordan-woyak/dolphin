@@ -27,7 +27,7 @@ static GLenum GetGLShaderTypeForStage(ShaderStage stage)
 }
 
 OGLShader::OGLShader(ShaderStage stage, GLenum gl_type, GLuint gl_id, std::string source,
-                     std::string name)
+    std::string name)
     : AbstractShader(stage), m_id(ProgramShaderCache::GenerateShaderID()), m_type(gl_type),
       m_gl_id(gl_id), m_source(std::move(source)), m_name(std::move(name))
 {
@@ -57,7 +57,7 @@ OGLShader::~OGLShader()
 }
 
 std::unique_ptr<OGLShader> OGLShader::CreateFromSource(ShaderStage stage, std::string_view source,
-                                                       std::string_view name)
+    std::string_view name)
 {
   std::string source_str(source);
   std::string name_str(name);
@@ -69,7 +69,7 @@ std::unique_ptr<OGLShader> OGLShader::CreateFromSource(ShaderStage stage, std::s
       return nullptr;
 
     return std::make_unique<OGLShader>(stage, shader_type, shader_id, std::move(source_str),
-                                       std::move(name_str));
+        std::move(name_str));
   }
 
   // Compute shaders.

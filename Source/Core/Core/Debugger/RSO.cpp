@@ -395,7 +395,7 @@ void RSOView::Apply(const Core::CPUThreadGuard& guard, PPCSymbolDB* symbol_db) c
       {
         // Data symbol
         symbol_db->AddKnownSymbol(guard, address, 0, export_name, rso_name,
-                                  Common::Symbol::Type::Data);
+            Common::Symbol::Type::Data);
       }
     }
   }
@@ -448,10 +448,10 @@ const RSOImport& RSOView::GetImport(std::size_t index) const
 }
 
 std::string RSOView::GetImportName(const Core::CPUThreadGuard& guard,
-                                   const RSOImport& rso_import) const
+    const RSOImport& rso_import) const
 {
   return PowerPC::MMU::HostGetString(guard,
-                                     m_header.GetImportsNameTable() + rso_import.name_offset);
+      m_header.GetImportsNameTable() + rso_import.name_offset);
 }
 
 const std::vector<RSOImport>& RSOView::GetImports() const
@@ -470,10 +470,10 @@ const RSOExport& RSOView::GetExport(std::size_t index) const
 }
 
 std::string RSOView::GetExportName(const Core::CPUThreadGuard& guard,
-                                   const RSOExport& rso_export) const
+    const RSOExport& rso_export) const
 {
   return PowerPC::MMU::HostGetString(guard,
-                                     m_header.GetExportsNameTable() + rso_export.name_offset);
+      m_header.GetExportsNameTable() + rso_export.name_offset);
 }
 
 u32 RSOView::GetExportAddress(const RSOExport& rso_export) const
@@ -624,7 +624,7 @@ bool RSOChainView::LoadNextChain(const Core::CPUThreadGuard& guard, const RSOVie
     if (prev_address != next_node.GetPrevEntry())
     {
       ERROR_LOG_FMT(SYMBOLS, "RSOChain has an incoherent previous link {:08x} != {:08x} in {}",
-                    prev_address, next_node.GetPrevEntry(), next_node.GetName());
+          prev_address, next_node.GetPrevEntry(), next_node.GetName());
       return false;
     }
 
@@ -649,7 +649,7 @@ bool RSOChainView::LoadPrevChain(const Core::CPUThreadGuard& guard, const RSOVie
     if (next_address != prev_node.GetNextEntry())
     {
       ERROR_LOG_FMT(SYMBOLS, "RSOChain has an incoherent next link {:08x} != {:08x} in {}",
-                    next_address, prev_node.GetNextEntry(), prev_node.GetName());
+          next_address, prev_node.GetNextEntry(), prev_node.GetName());
       return false;
     }
 

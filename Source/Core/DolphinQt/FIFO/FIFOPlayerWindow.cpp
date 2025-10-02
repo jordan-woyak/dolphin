@@ -34,7 +34,7 @@
 #include "DolphinQt/Settings.h"
 
 FIFOPlayerWindow::FIFOPlayerWindow(FifoPlayer& fifo_player, FifoRecorder& fifo_recorder,
-                                   QWidget* parent)
+    QWidget* parent)
     : QWidget(parent), m_fifo_player(fifo_player), m_fifo_recorder(fifo_recorder)
 {
   setWindowTitle(tr("FIFO Player"));
@@ -49,34 +49,40 @@ FIFOPlayerWindow::FIFOPlayerWindow(FifoPlayer& fifo_player, FifoRecorder& fifo_r
 
   UpdateControls();
 
-  m_fifo_player.SetFileLoadedCallback(
-      [this] { QueueOnObject(this, &FIFOPlayerWindow::OnFIFOLoaded); });
-  m_fifo_player.SetFrameWrittenCallback([this] {
-    QueueOnObject(this, [this] {
-      UpdateInfo();
-      UpdateControls();
-    });
-  });
+  m_fifo_player.SetFileLoadedCallback([this]
+      { QueueOnObject(this, &FIFOPlayerWindow::OnFIFOLoaded); });
+  m_fifo_player.SetFrameWrittenCallback(
+      [this]
+      {
+        QueueOnObject(this,
+            [this]
+            {
+              UpdateInfo();
+              UpdateControls();
+            });
+      });
 
-  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
-    // We don't want to trigger OnEmulationStarted when going from Paused to Running,
-    // and nothing in UpdateControls treats Paused and Running differently
-    if (state == Core::State::Paused)
-      state = Core::State::Running;
+  connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
+      [this](Core::State state)
+      {
+        // We don't want to trigger OnEmulationStarted when going from Paused to Running,
+        // and nothing in UpdateControls treats Paused and Running differently
+        if (state == Core::State::Paused)
+          state = Core::State::Running;
 
-    // Skip redundant updates
-    if (state == m_emu_state)
-      return;
+        // Skip redundant updates
+        if (state == m_emu_state)
+          return;
 
-    UpdateControls();
+        UpdateControls();
 
-    if (state == Core::State::Running)
-      OnEmulationStarted();
-    else if (state == Core::State::Uninitialized)
-      OnEmulationStopped();
+        if (state == Core::State::Running)
+          OnEmulationStarted();
+        else if (state == Core::State::Uninitialized)
+          OnEmulationStopped();
 
-    m_emu_state = state;
-  });
+        m_emu_state = state;
+      });
 
   installEventFilter(this);
 }
@@ -233,7 +239,7 @@ void FIFOPlayerWindow::AddDescriptions()
 void FIFOPlayerWindow::LoadRecording()
 {
   QString path = DolphinFileDialog::getOpenFileName(this, tr("Open FIFO Log"), QString(),
-                                                    tr("Dolphin FIFO Log (*.dff)"));
+      tr("Dolphin FIFO Log (*.dff)"));
 
   if (path.isEmpty())
     return;
@@ -244,7 +250,7 @@ void FIFOPlayerWindow::LoadRecording()
 void FIFOPlayerWindow::SaveRecording()
 {
   QString path = DolphinFileDialog::getSaveFileName(this, tr("Save FIFO Log"), QString(),
-                                                    tr("Dolphin FIFO Log (*.dff)"));
+      tr("Dolphin FIFO Log (*.dff)"));
 
   if (path.isEmpty())
     return;
@@ -263,7 +269,7 @@ void FIFOPlayerWindow::StartRecording()
 {
   // Start recording
   m_fifo_recorder.StartRecording(m_frame_record_count->value(),
-                                 [this] { QueueOnObject(this, [this] { OnRecordingDone(); }); });
+      [this] { QueueOnObject(this, [this] { OnRecordingDone(); }); });
 
   UpdateControls();
 
@@ -307,9 +313,9 @@ void FIFOPlayerWindow::UpdateInfo()
   {
     FifoDataFile* file = m_fifo_player.GetFile();
     m_info_label->setText(tr("%1 frame(s)\n%2 object(s)\nCurrent Frame: %3")
-                              .arg(QString::number(file->GetFrameCount()),
-                                   QString::number(m_fifo_player.GetCurrentFrameObjectCount()),
-                                   QString::number(m_fifo_player.GetCurrentFrameNum())));
+            .arg(QString::number(file->GetFrameCount()),
+                QString::number(m_fifo_player.GetCurrentFrameObjectCount()),
+                QString::number(m_fifo_player.GetCurrentFrameNum())));
     return;
   }
 
@@ -327,8 +333,8 @@ void FIFOPlayerWindow::UpdateInfo()
     }
 
     m_info_label->setText(tr("%1 FIFO bytes\n%2 memory bytes\n%3 frames")
-                              .arg(QString::number(fifo_bytes), QString::number(mem_bytes),
-                                   QString::number(file->GetFrameCount())));
+            .arg(QString::number(fifo_bytes), QString::number(mem_bytes),
+                QString::number(file->GetFrameCount())));
     return;
   }
 
@@ -366,7 +372,7 @@ void FIFOPlayerWindow::OnFIFOLoaded()
 void FIFOPlayerWindow::OnConfigChanged()
 {
   Config::SetBase(Config::MAIN_FIFOPLAYER_EARLY_MEMORY_UPDATES,
-                  m_early_memory_updates->isChecked());
+      m_early_memory_updates->isChecked());
   Config::SetBase(Config::MAIN_FIFOPLAYER_LOOP_REPLAY, m_loop->isChecked());
 }
 

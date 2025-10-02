@@ -42,7 +42,8 @@ void SaveToSYSCONF(Config::LayerType layer, std::function<bool(const Config::Loc
   for (const Config::SYSCONFSetting& setting : Config::SYSCONF_SETTINGS)
   {
     std::visit(
-        [&](auto* info) {
+        [&](auto* info)
+        {
           if (predicate && !predicate(info->GetLocation()))
             return;
 
@@ -75,11 +76,9 @@ void SaveToSYSCONF(Config::LayerType layer, std::function<bool(const Config::Loc
 }
 
 const std::map<Config::System, int> system_to_ini = {
-    {Config::System::Main, F_DOLPHINCONFIG_IDX},
-    {Config::System::GCPad, F_GCPADCONFIG_IDX},
+    {Config::System::Main, F_DOLPHINCONFIG_IDX}, {Config::System::GCPad, F_GCPADCONFIG_IDX},
     {Config::System::WiiPad, F_WIIPADCONFIG_IDX},
-    {Config::System::GCKeyboard, F_GCKEYBOARDCONFIG_IDX},
-    {Config::System::GFX, F_GFXCONFIG_IDX},
+    {Config::System::GCKeyboard, F_GCKEYBOARDCONFIG_IDX}, {Config::System::GFX, F_GFXCONFIG_IDX},
     {Config::System::Logger, F_LOGGERCONFIG_IDX},
     {Config::System::DualShockUDPClient, F_DUALSHOCKUDPCLIENTCONFIG_IDX},
     {Config::System::FreeLook, F_FREELOOKCONFIG_IDX},
@@ -114,8 +113,8 @@ public:
         for (const auto& value : section_map)
         {
           const Config::Location location{system.first, section_name, value.first};
-          const bool load_disallowed = std::ranges::any_of(
-              s_setting_disallowed, [&location](const auto* l) { return *l == location; });
+          const bool load_disallowed = std::ranges::any_of(s_setting_disallowed,
+              [&location](const auto* l) { return *l == location; });
           if (load_disallowed)
             continue;
 
@@ -155,7 +154,7 @@ public:
       if (ini == inis.end())
       {
         ERROR_LOG_FMT(COMMON, "Config can't map system '{}' to an INI file!",
-                      Config::GetSystemName(location.system));
+            Config::GetSystemName(location.system));
         continue;
       }
 
@@ -190,7 +189,8 @@ private:
     for (const Config::SYSCONFSetting& setting : Config::SYSCONF_SETTINGS)
     {
       std::visit(
-          [&](auto* info) {
+          [&](auto* info)
+          {
             const Config::Location location = info->GetLocation();
             const std::string key = location.section + "." + location.key;
             if (setting.type == SysConf::Entry::Type::Long)
@@ -210,7 +210,7 @@ private:
               if (entry)
               {
                 std::memcpy(&value, entry->bytes.data(),
-                            std::min(entry->bytes.size(), sizeof(u32)));
+                    std::min(entry->bytes.size(), sizeof(u32)));
               }
               layer->Set(location, value);
             }

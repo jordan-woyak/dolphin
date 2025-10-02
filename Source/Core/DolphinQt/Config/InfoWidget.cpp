@@ -189,8 +189,8 @@ QWidget* InfoWidget::CreateBannerGraphic(const QPixmap& image)
   QHBoxLayout* layout = new QHBoxLayout();
 
   QLabel* banner = new QLabel();
-  banner->setPixmap(image.scaled(image.size().boundedTo(
-      QSize{DiscIO::WiiSaveBanner::BANNER_WIDTH, DiscIO::WiiSaveBanner::BANNER_HEIGHT})));
+  banner->setPixmap(image.scaled(image.size().boundedTo(QSize{
+      DiscIO::WiiSaveBanner::BANNER_WIDTH, DiscIO::WiiSaveBanner::BANNER_HEIGHT})));
 
   QPushButton* save = new QPushButton(tr("Save as..."));
   connect(save, &QPushButton::clicked, this, &InfoWidget::SaveBanner);
@@ -204,7 +204,7 @@ QWidget* InfoWidget::CreateBannerGraphic(const QPixmap& image)
 void InfoWidget::SaveBanner()
 {
   QString path = DolphinFileDialog::getSaveFileName(this, tr("Select a File"), QDir::currentPath(),
-                                                    tr("PNG image file (*.png);; All Files (*)"));
+      tr("PNG image file (*.png);; All Files (*)"));
   ToQPixmap(m_game.GetBannerImage()).save(path, "PNG");
 }
 
@@ -230,7 +230,7 @@ void InfoWidget::CreateLanguageSelector()
   for (DiscIO::Language language : m_game.GetLanguages())
   {
     m_language_selector->addItem(QString::fromStdString(DiscIO::GetName(language, true)),
-                                 static_cast<int>(language));
+        static_cast<int>(language));
     if (language == preferred_language)
       m_language_selector->setCurrentIndex(m_language_selector->count() - 1);
   }

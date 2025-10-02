@@ -150,7 +150,7 @@ void InputBackend::PopulateDevices()
   while (this_device)
   {
     INFO_LOG_FMT(CONTROLLERINTERFACE, "Found {} (interface {})", this_device->path,
-                 this_device->interface_number);
+        this_device->interface_number);
 
     if (this_device->interface_number == 2)
     {
@@ -186,8 +186,8 @@ void InputBackend::PopulateDevices()
     return;
   }
 
-  GetControllerInterface().RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == STEAMDECK_SOURCE_NAME; });
+  GetControllerInterface().RemoveDevice([](const auto* dev)
+      { return dev->GetSource() == STEAMDECK_SOURCE_NAME; });
 
   GetControllerInterface().AddDevice(std::make_shared<Device>(deck_dev));
 }

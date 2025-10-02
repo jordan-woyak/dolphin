@@ -19,7 +19,7 @@ DXShader::DXShader(ShaderStage stage, BinaryData bytecode, std::string_view name
 DXShader::~DXShader() = default;
 
 std::unique_ptr<DXShader> DXShader::CreateFromBytecode(ShaderStage stage, BinaryData bytecode,
-                                                       std::string_view name)
+    std::string_view name)
 {
   std::unique_ptr<DXShader> shader(new DXShader(stage, std::move(bytecode), name));
   if (stage == ShaderStage::Compute && !shader->CreateComputePipeline())
@@ -29,7 +29,7 @@ std::unique_ptr<DXShader> DXShader::CreateFromBytecode(ShaderStage stage, Binary
 }
 
 std::unique_ptr<DXShader> DXShader::CreateFromSource(ShaderStage stage, std::string_view source,
-                                                     std::string_view name)
+    std::string_view name)
 {
   auto bytecode = CompileShader(g_dx_context->GetFeatureLevel(), stage, source);
   if (!bytecode)
@@ -50,8 +50,8 @@ bool DXShader::CreateComputePipeline()
   desc.CS = GetD3DByteCode();
   desc.NodeMask = 1;
 
-  HRESULT hr = g_dx_context->GetDevice()->CreateComputePipelineState(
-      &desc, IID_PPV_ARGS(&m_compute_pipeline));
+  HRESULT hr = g_dx_context->GetDevice()->CreateComputePipelineState(&desc,
+      IID_PPV_ARGS(&m_compute_pipeline));
   ASSERT_MSG(VIDEO, SUCCEEDED(hr), "Creating compute pipeline failed: {}", DX12HRWrap(hr));
 
   if (m_compute_pipeline && !m_name.empty())

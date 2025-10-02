@@ -367,8 +367,8 @@ private:
 
     case Mode::Verify:
       DEBUG_ASSERT_MSG(COMMON, !memcmp(data, *m_ptr_current, size),
-                       "Savestate verification failure: buf {} != {} (size {}).\n", fmt::ptr(data),
-                       fmt::ptr(*m_ptr_current), size);
+          "Savestate verification failure: buf {} != {} (size {}).\n", fmt::ptr(data),
+          fmt::ptr(*m_ptr_current), size);
       break;
     }
 

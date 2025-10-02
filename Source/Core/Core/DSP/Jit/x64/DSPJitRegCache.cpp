@@ -33,30 +33,30 @@ static Gen::OpArg GetRegisterPointer(size_t reg)
   case DSP_REG_AR1:
   case DSP_REG_AR2:
   case DSP_REG_AR3:
-    return MDisp(
-        R15, static_cast<int>(offsetof(SDSP, r.ar) + sizeof(SDSP::r.ar[0]) * (reg - DSP_REG_AR0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ar) + sizeof(SDSP::r.ar[0]) * (reg - DSP_REG_AR0)));
   case DSP_REG_IX0:
   case DSP_REG_IX1:
   case DSP_REG_IX2:
   case DSP_REG_IX3:
-    return MDisp(
-        R15, static_cast<int>(offsetof(SDSP, r.ix) + sizeof(SDSP::r.ix[0]) * (reg - DSP_REG_IX0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ix) + sizeof(SDSP::r.ix[0]) * (reg - DSP_REG_IX0)));
   case DSP_REG_WR0:
   case DSP_REG_WR1:
   case DSP_REG_WR2:
   case DSP_REG_WR3:
-    return MDisp(
-        R15, static_cast<int>(offsetof(SDSP, r.wr) + sizeof(SDSP::r.wr[0]) * (reg - DSP_REG_WR0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.wr) + sizeof(SDSP::r.wr[0]) * (reg - DSP_REG_WR0)));
   case DSP_REG_ST0:
   case DSP_REG_ST1:
   case DSP_REG_ST2:
   case DSP_REG_ST3:
-    return MDisp(
-        R15, static_cast<int>(offsetof(SDSP, r.st) + sizeof(SDSP::r.st[0]) * (reg - DSP_REG_ST0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.st) + sizeof(SDSP::r.st[0]) * (reg - DSP_REG_ST0)));
   case DSP_REG_ACH0:
   case DSP_REG_ACH1:
-    return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ac[0].h) +
-                                       sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACH0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ac[0].h) + sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACH0)));
   case DSP_REG_CR:
     return MDisp(R15, static_cast<int>(offsetof(SDSP, r.cr)));
   case DSP_REG_SR:
@@ -71,20 +71,20 @@ static Gen::OpArg GetRegisterPointer(size_t reg)
     return MDisp(R15, static_cast<int>(offsetof(SDSP, r.prod.m2)));
   case DSP_REG_AXL0:
   case DSP_REG_AXL1:
-    return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ax[0].l) +
-                                       sizeof(SDSP::r.ax[0]) * (reg - DSP_REG_AXL0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ax[0].l) + sizeof(SDSP::r.ax[0]) * (reg - DSP_REG_AXL0)));
   case DSP_REG_AXH0:
   case DSP_REG_AXH1:
-    return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ax[0].h) +
-                                       sizeof(SDSP::r.ax[0]) * (reg - DSP_REG_AXH0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ax[0].h) + sizeof(SDSP::r.ax[0]) * (reg - DSP_REG_AXH0)));
   case DSP_REG_ACL0:
   case DSP_REG_ACL1:
-    return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ac[0].l) +
-                                       sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACL0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ac[0].l) + sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACL0)));
   case DSP_REG_ACM0:
   case DSP_REG_ACM1:
-    return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ac[0].m) +
-                                       sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACM0)));
+    return MDisp(R15,
+        static_cast<int>(offsetof(SDSP, r.ac[0].m) + sizeof(SDSP::r.ac[0]) * (reg - DSP_REG_ACM0)));
   case DSP_REG_AX0_32:
   case DSP_REG_AX1_32:
     return MDisp(R15, static_cast<int>(offsetof(SDSP, r.ax[0].val) +
@@ -305,21 +305,21 @@ void DSPJitRegCache::FlushRegs(DSPJitRegCache& cache, bool emit)
   for (size_t i = 0; i < m_xregs.size(); i++)
   {
     ASSERT_MSG(DSPLLE, m_xregs[i].guest_reg == cache.m_xregs[i].guest_reg,
-               "cache and current xreg guest_reg mismatch for {}", i);
+        "cache and current xreg guest_reg mismatch for {}", i);
   }
 
   for (size_t i = 0; i < m_regs.size(); i++)
   {
     ASSERT_MSG(DSPLLE, m_regs[i].loc.IsImm() == cache.m_regs[i].loc.IsImm(),
-               "cache and current reg loc mismatch for {}", i);
+        "cache and current reg loc mismatch for {}", i);
     ASSERT_MSG(DSPLLE, m_regs[i].loc.GetSimpleReg() == cache.m_regs[i].loc.GetSimpleReg(),
-               "cache and current reg loc mismatch for {}", i);
+        "cache and current reg loc mismatch for {}", i);
     ASSERT_MSG(DSPLLE, m_regs[i].dirty || !cache.m_regs[i].dirty,
-               "cache and current reg dirty mismatch for {}", i);
+        "cache and current reg dirty mismatch for {}", i);
     ASSERT_MSG(DSPLLE, m_regs[i].used == cache.m_regs[i].used,
-               "cache and current reg used mismatch for {}", i);
+        "cache and current reg used mismatch for {}", i);
     ASSERT_MSG(DSPLLE, m_regs[i].shift == cache.m_regs[i].shift,
-               "cache and current reg shift mismatch for {}", i);
+        "cache and current reg shift mismatch for {}", i);
   }
 
   m_use_ctr = cache.m_use_ctr;
@@ -367,38 +367,38 @@ void DSPJitRegCache::FlushRegs()
   }
 
   ASSERT_MSG(DSPLLE, m_xregs[RSP].guest_reg == DSP_REG_STATIC, "wrong xreg state for {}",
-             Common::ToUnderlying(RSP));
+      Common::ToUnderlying(RSP));
   ASSERT_MSG(DSPLLE, m_xregs[RBX].guest_reg == DSP_REG_STATIC, "wrong xreg state for {}",
-             Common::ToUnderlying(RBX));
+      Common::ToUnderlying(RBX));
   ASSERT_MSG(DSPLLE, m_xregs[RBP].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(RBP));
+      Common::ToUnderlying(RBP));
   ASSERT_MSG(DSPLLE, m_xregs[RSI].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(RSI));
+      Common::ToUnderlying(RSI));
   ASSERT_MSG(DSPLLE, m_xregs[RDI].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(RDI));
+      Common::ToUnderlying(RDI));
 #ifdef STATIC_REG_ACCS
   ASSERT_MSG(DSPLLE, m_xregs[R8].guest_reg == DSP_REG_STATIC, "wrong xreg state for {}",
-             Common::ToUnderlying(R8));
+      Common::ToUnderlying(R8));
   ASSERT_MSG(DSPLLE, m_xregs[R9].guest_reg == DSP_REG_STATIC, "wrong xreg state for {}",
-             Common::ToUnderlying(R9));
+      Common::ToUnderlying(R9));
 #else
   ASSERT_MSG(DSPLLE, m_xregs[R8].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R8));
+      Common::ToUnderlying(R8));
   ASSERT_MSG(DSPLLE, m_xregs[R9].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R9));
+      Common::ToUnderlying(R9));
 #endif
   ASSERT_MSG(DSPLLE, m_xregs[R10].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R10));
+      Common::ToUnderlying(R10));
   ASSERT_MSG(DSPLLE, m_xregs[R11].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R11));
+      Common::ToUnderlying(R11));
   ASSERT_MSG(DSPLLE, m_xregs[R12].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R12));
+      Common::ToUnderlying(R12));
   ASSERT_MSG(DSPLLE, m_xregs[R13].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R13));
+      Common::ToUnderlying(R13));
   ASSERT_MSG(DSPLLE, m_xregs[R14].guest_reg == DSP_REG_NONE, "wrong xreg state for {}",
-             Common::ToUnderlying(R14));
+      Common::ToUnderlying(R14));
   ASSERT_MSG(DSPLLE, m_xregs[R15].guest_reg == DSP_REG_STATIC, "wrong xreg state for {}",
-             Common::ToUnderlying(R15));
+      Common::ToUnderlying(R15));
 
   m_use_ctr = 0;
 }
@@ -466,8 +466,8 @@ void DSPJitRegCache::PushRegs()
     }
 
     ASSERT_MSG(DSPLLE,
-               m_xregs[i].guest_reg == DSP_REG_NONE || m_xregs[i].guest_reg == DSP_REG_STATIC,
-               "register {} is still used", i);
+        m_xregs[i].guest_reg == DSP_REG_NONE || m_xregs[i].guest_reg == DSP_REG_STATIC,
+        "register {} is still used", i);
   }
 }
 
@@ -510,7 +510,7 @@ void DSPJitRegCache::MovToHostReg(size_t reg, X64Reg host_reg, bool load)
 {
   ASSERT_MSG(DSPLLE, reg < m_regs.size(), "bad register name {}", reg);
   ASSERT_MSG(DSPLLE, m_regs[reg].parentReg == DSP_REG_NONE, "register {} is proxy for {}", reg,
-             m_regs[reg].parentReg);
+      m_regs[reg].parentReg);
   ASSERT_MSG(DSPLLE, !m_regs[reg].used, "moving to host reg in use guest reg {}", reg);
   X64Reg old_reg = m_regs[reg].loc.GetSimpleReg();
   if (old_reg == host_reg)
@@ -553,7 +553,7 @@ void DSPJitRegCache::MovToHostReg(size_t reg, bool load)
 {
   ASSERT_MSG(DSPLLE, reg < m_regs.size(), "bad register name {}", reg);
   ASSERT_MSG(DSPLLE, m_regs[reg].parentReg == DSP_REG_NONE, "register {} is proxy for {}", reg,
-             m_regs[reg].parentReg);
+      m_regs[reg].parentReg);
   ASSERT_MSG(DSPLLE, !m_regs[reg].used, "moving to host reg in use guest reg {}", reg);
 
   if (m_regs[reg].loc.IsSimpleReg())
@@ -583,7 +583,7 @@ void DSPJitRegCache::RotateHostReg(size_t reg, int shift, bool emit)
 {
   ASSERT_MSG(DSPLLE, reg < m_regs.size(), "bad register name {}", reg);
   ASSERT_MSG(DSPLLE, m_regs[reg].parentReg == DSP_REG_NONE, "register {} is proxy for {}", reg,
-             m_regs[reg].parentReg);
+      m_regs[reg].parentReg);
   ASSERT_MSG(DSPLLE, m_regs[reg].loc.IsSimpleReg(), "register {} is not a simple reg", reg);
   ASSERT_MSG(DSPLLE, !m_regs[reg].used, "rotating in use guest reg {}", reg);
 
@@ -624,7 +624,7 @@ void DSPJitRegCache::MovToMemory(size_t reg)
 {
   ASSERT_MSG(DSPLLE, reg < m_regs.size(), "bad register name {}", reg);
   ASSERT_MSG(DSPLLE, m_regs[reg].parentReg == DSP_REG_NONE, "register {} is proxy for {}", reg,
-             m_regs[reg].parentReg);
+      m_regs[reg].parentReg);
   ASSERT_MSG(DSPLLE, !m_regs[reg].used, "moving to memory in use guest reg {}", reg);
 
   if (m_regs[reg].used)
@@ -984,15 +984,15 @@ void DSPJitRegCache::SpillXReg(X64Reg reg)
   if (m_xregs[reg].guest_reg <= DSP_REG_MAX_MEM_BACKED)
   {
     ASSERT_MSG(DSPLLE, !m_regs[m_xregs[reg].guest_reg].used,
-               "to be spilled host reg {:#x} (guest reg {:#x}) still in use!",
-               Common::ToUnderlying(reg), m_xregs[reg].guest_reg);
+        "to be spilled host reg {:#x} (guest reg {:#x}) still in use!", Common::ToUnderlying(reg),
+        m_xregs[reg].guest_reg);
 
     MovToMemory(m_xregs[reg].guest_reg);
   }
   else
   {
     ASSERT_MSG(DSPLLE, m_xregs[reg].guest_reg == DSP_REG_NONE,
-               "to be spilled host reg {:#x} still in use!", Common::ToUnderlying(reg));
+        "to be spilled host reg {:#x} still in use!", Common::ToUnderlying(reg));
   }
 }
 

@@ -54,35 +54,36 @@ GameConfigHighlighter::GameConfigHighlighter(QTextDocument* parent) : QObject(pa
     num_format.setForeground(Qt::darkBlue);
 
   m_rules.emplace_back(HighlightingRule{QRegularExpression(QStringLiteral("=")), equal_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("^\\[.*?\\]")), section_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("\\bTrue\\b")), const_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("\\bFalse\\b")), const_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("\\b[0-9a-fA-F]+\\b")), num_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("^\\[.*?\\]")), section_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("\\bTrue\\b")), const_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("\\bFalse\\b")), const_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("\\b[0-9a-fA-F]+\\b")), num_format});
 
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("^#.*")), comment_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("^\\$.*")), comment_format});
-  m_rules.emplace_back(
-      HighlightingRule{QRegularExpression(QStringLiteral("^\\*.*")), comment_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("^#.*")), comment_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("^\\$.*")), comment_format});
+  m_rules.emplace_back(HighlightingRule{
+      QRegularExpression(QStringLiteral("^\\*.*")), comment_format});
 
   // Highlight block on change.
   // We're manually highlighting blocks because QSyntaxHighlighter
   // hangs with large (>2MB) files for some reason.
   connect(parent, &QTextDocument::contentsChange, this,
-          [this, parent](const int pos, int /* removed */, const int added) {
-            QTextBlock block = parent->findBlock(pos);
-            const auto pos_end = pos + added;
-            while (block.isValid() && block.position() <= pos_end)
-            {
-              HighlightBlock(block);
-              block = block.next();
-            }
-          });
+      [this, parent](const int pos, int /* removed */, const int added)
+      {
+        QTextBlock block = parent->findBlock(pos);
+        const auto pos_end = pos + added;
+        while (block.isValid() && block.position() <= pos_end)
+        {
+          HighlightBlock(block);
+          block = block.next();
+        }
+      });
 
   // Highlight all blocks right now.
   for (QTextBlock block = parent->begin(); block.isValid(); block = block.next())
@@ -100,8 +101,8 @@ void GameConfigHighlighter::HighlightBlock(const QTextBlock& block)
     {
       const auto match = it.next();
       format_ranges.emplace_back(QTextLayout::FormatRange{.start = int(match.capturedStart()),
-                                                          .length = int(match.capturedLength()),
-                                                          .format = rule.format});
+          .length = int(match.capturedLength()),
+          .format = rule.format});
     }
   }
 

@@ -41,8 +41,7 @@ using ws_ssize_t = ssize_t;
 #endif
 
 TAPServerConnection::TAPServerConnection(const std::string& destination,
-                                         std::function<void(std::string&&)> recv_cb,
-                                         std::size_t max_frame_size)
+    std::function<void(std::string&&)> recv_cb, std::size_t max_frame_size)
     : m_destination(destination), m_recv_cb(recv_cb), m_max_frame_size(max_frame_size)
 {
 }
@@ -126,7 +125,7 @@ static int ConnectToDestination(const std::string& destination)
   if (connect(fd, reinterpret_cast<sockaddr*>(&ss), ss_size) == -1)
   {
     INFO_LOG_FMT(SP1, "Couldn't connect socket ({}), unable to create tapserver connection\n",
-                 Common::StrNetworkError());
+        Common::StrNetworkError());
     closesocket(fd);
     return -1;
   }
@@ -208,8 +207,8 @@ bool TAPServerConnection::SendAndRemoveAllHDLCFrames(std::string* send_buf)
     if (u32(written_bytes) != size)
     {
       ERROR_LOG_FMT(SP1,
-                    "SendAndRemoveAllHDLCFrames(): expected to write {} bytes, instead wrote {}",
-                    size, written_bytes);
+          "SendAndRemoveAllHDLCFrames(): expected to write {} bytes, instead wrote {}", size,
+          written_bytes);
       return false;
     }
     *send_buf = send_buf->substr(end_offset);
@@ -235,7 +234,7 @@ bool TAPServerConnection::SendFrame(const u8* frame, u32 size)
   if (u32(written_bytes) != size)
   {
     ERROR_LOG_FMT(SP1, "SendFrame(): expected to write {} bytes, instead wrote {}", size,
-                  written_bytes);
+        written_bytes);
     return false;
   }
   return true;
@@ -307,7 +306,7 @@ void TAPServerConnection::ReadThreadHandler()
       else
       {
         ERROR_LOG_FMT(SP1, "Failed to read size field from destination: {}",
-                      Common::StrNetworkError());
+            Common::StrNetworkError());
       }
       break;
     }
@@ -320,7 +319,7 @@ void TAPServerConnection::ReadThreadHandler()
       if (bytes_read != 1)
       {
         ERROR_LOG_FMT(SP1, "Failed to read split size field from destination: {}",
-                      Common::StrNetworkError());
+            Common::StrNetworkError());
         break;
       }
       frame_bytes_expected |= (size_high << 8);
@@ -341,7 +340,7 @@ void TAPServerConnection::ReadThreadHandler()
     {
       const std::size_t bytes_to_read = frame_data.size() - frame_bytes_received;
       const ws_ssize_t bytes_read = recv(m_fd, frame_data.data() + frame_bytes_received,
-                                         static_cast<ws_ssize_t>(bytes_to_read), 0);
+          static_cast<ws_ssize_t>(bytes_to_read), 0);
       if (bytes_read <= 0)
       {
         ERROR_LOG_FMT(SP1, "Failed to read data from destination: {}", Common::StrNetworkError());

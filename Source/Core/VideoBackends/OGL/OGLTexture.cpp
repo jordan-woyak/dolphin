@@ -125,7 +125,7 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
     : AbstractTexture(tex_config), m_name(name)
 {
   DEBUG_ASSERT_MSG(VIDEO, !tex_config.IsMultisampled() || tex_config.levels == 1,
-                   "OpenGL does not support multisampled textures with mip levels");
+      "OpenGL does not support multisampled textures with mip levels");
 
   const GLenum target = GetGLTarget();
   glGenTextures(1, &m_texId);
@@ -152,13 +152,13 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
       if (g_ogl_config.SupportedMultisampleTexStorage != MultisampleTexStorageType::TexStorageNone)
       {
         glTexStorage3DMultisample(target, tex_config.samples, gl_internal_format, m_config.width,
-                                  m_config.height, m_config.layers, GL_FALSE);
+            m_config.height, m_config.layers, GL_FALSE);
       }
       else
       {
         ASSERT(!g_ogl_config.bIsES);
         glTexImage3DMultisample(target, tex_config.samples, gl_internal_format, m_config.width,
-                                m_config.height, m_config.layers, GL_FALSE);
+            m_config.height, m_config.layers, GL_FALSE);
       }
     }
     else if (m_config.type == AbstractTextureType::Texture_2D)
@@ -166,13 +166,13 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
       if (g_ogl_config.SupportedMultisampleTexStorage != MultisampleTexStorageType::TexStorageNone)
       {
         glTexStorage2DMultisample(target, tex_config.samples, gl_internal_format, m_config.width,
-                                  m_config.height, GL_FALSE);
+            m_config.height, GL_FALSE);
       }
       else
       {
         ASSERT(!g_ogl_config.bIsES);
         glTexImage2DMultisample(target, tex_config.samples, gl_internal_format, m_config.width,
-                                m_config.height, GL_FALSE);
+            m_config.height, GL_FALSE);
       }
     }
     else
@@ -185,7 +185,7 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
     if (m_config.type == AbstractTextureType::Texture_2DArray)
     {
       glTexStorage3D(target, m_config.levels, gl_internal_format, m_config.width, m_config.height,
-                     m_config.layers);
+          m_config.layers);
     }
     else if (m_config.type == AbstractTextureType::Texture_2D)
     {
@@ -206,9 +206,9 @@ OGLTexture::OGLTexture(const TextureConfig& tex_config, std::string_view name)
       for (u32 level = 0; level < m_config.levels; level++)
       {
         glTexImage3D(target, level, gl_internal_format, std::max(m_config.width >> level, 1u),
-                     std::max(m_config.height >> level, 1u), m_config.layers, 0,
-                     GetGLFormatForTextureFormat(m_config.format),
-                     GetGLTypeForTextureFormat(m_config.format), nullptr);
+            std::max(m_config.height >> level, 1u), m_config.layers, 0,
+            GetGLFormatForTextureFormat(m_config.format),
+            GetGLTypeForTextureFormat(m_config.format), nullptr);
       }
     }
   }
@@ -221,9 +221,8 @@ OGLTexture::~OGLTexture()
 }
 
 void OGLTexture::CopyRectangleFromTexture(const AbstractTexture* src,
-                                          const MathUtil::Rectangle<int>& src_rect, u32 src_layer,
-                                          u32 src_level, const MathUtil::Rectangle<int>& dst_rect,
-                                          u32 dst_layer, u32 dst_level)
+    const MathUtil::Rectangle<int>& src_rect, u32 src_layer, u32 src_level,
+    const MathUtil::Rectangle<int>& dst_rect, u32 dst_layer, u32 dst_level)
 {
   const OGLTexture* src_gltex = static_cast<const OGLTexture*>(src);
   ASSERT(src_rect.GetWidth() == dst_rect.GetWidth() &&
@@ -231,33 +230,32 @@ void OGLTexture::CopyRectangleFromTexture(const AbstractTexture* src,
   if (g_ogl_config.bSupportsCopySubImage)
   {
     glCopyImageSubData(src_gltex->m_texId, src_gltex->GetGLTarget(), src_level, src_rect.left,
-                       src_rect.top, src_layer, m_texId, GetGLTarget(), dst_level, dst_rect.left,
-                       dst_rect.top, dst_layer, dst_rect.GetWidth(), dst_rect.GetHeight(), 1);
+        src_rect.top, src_layer, m_texId, GetGLTarget(), dst_level, dst_rect.left, dst_rect.top,
+        dst_layer, dst_rect.GetWidth(), dst_rect.GetHeight(), 1);
   }
   else
   {
     BlitFramebuffer(const_cast<OGLTexture*>(src_gltex), src_rect, src_layer, src_level, dst_rect,
-                    dst_layer, dst_level);
+        dst_layer, dst_level);
   }
 }
 
 void OGLTexture::BlitFramebuffer(OGLTexture* srcentry, const MathUtil::Rectangle<int>& src_rect,
-                                 u32 src_layer, u32 src_level,
-                                 const MathUtil::Rectangle<int>& dst_rect, u32 dst_layer,
-                                 u32 dst_level)
+    u32 src_layer, u32 src_level, const MathUtil::Rectangle<int>& dst_rect, u32 dst_layer,
+    u32 dst_level)
 {
   GetOGLGfx()->BindSharedReadFramebuffer();
   glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, srcentry->m_texId, src_level,
-                            src_layer);
+      src_layer);
   GetOGLGfx()->BindSharedDrawFramebuffer();
   glFramebufferTextureLayer(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_texId, dst_level,
-                            dst_layer);
+      dst_layer);
 
   // glBlitFramebuffer is still affected by the scissor test, which is enabled by default.
   glDisable(GL_SCISSOR_TEST);
 
   glBlitFramebuffer(src_rect.left, src_rect.top, src_rect.right, src_rect.bottom, dst_rect.left,
-                    dst_rect.top, dst_rect.right, dst_rect.bottom, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+      dst_rect.top, dst_rect.right, dst_rect.bottom, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
   // The default state for the scissor test is enabled. We don't need to do a full state
   // restore, as the framebuffer and scissor test are the only things we changed.
@@ -266,7 +264,7 @@ void OGLTexture::BlitFramebuffer(OGLTexture* srcentry, const MathUtil::Rectangle
 }
 
 void OGLTexture::ResolveFromTexture(const AbstractTexture* src,
-                                    const MathUtil::Rectangle<int>& rect, u32 layer, u32 level)
+    const MathUtil::Rectangle<int>& rect, u32 layer, u32 level)
 {
   const OGLTexture* srcentry = static_cast<const OGLTexture*>(src);
   DEBUG_ASSERT(m_config.samples > 1 && m_config.width == srcentry->m_config.width &&
@@ -277,7 +275,7 @@ void OGLTexture::ResolveFromTexture(const AbstractTexture* src,
 }
 
 void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8* buffer,
-                      size_t buffer_size, u32 layer)
+    size_t buffer_size, u32 layer)
 {
   if (level >= m_config.levels)
     PanicAlertFmt("Texture only has {} levels, can't update level {}", m_config.levels, level);
@@ -290,7 +288,7 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
   if (width != expected_width || height != expected_height)
   {
     PanicAlertFmt("Size of level {} must be {}x{}, but {}x{} requested", level, expected_width,
-                  expected_height, width, height);
+        expected_height, width, height);
   }
 
   const GLenum target = GetGLTarget();
@@ -308,13 +306,12 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       if (g_ogl_config.bSupportsTextureStorage)
       {
         glCompressedTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, level, 0, 0, width,
-                                  height, gl_internal_format, static_cast<GLsizei>(buffer_size),
-                                  buffer);
+            height, gl_internal_format, static_cast<GLsizei>(buffer_size), buffer);
       }
       else
       {
         glCompressedTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, level, gl_internal_format,
-                               width, height, 0, static_cast<GLsizei>(buffer_size), buffer);
+            width, height, 0, static_cast<GLsizei>(buffer_size), buffer);
       }
     }
     else if (m_config.type == AbstractTextureType::Texture_2D)
@@ -322,12 +319,12 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       if (g_ogl_config.bSupportsTextureStorage)
       {
         glCompressedTexSubImage2D(target, level, 0, 0, width, height, gl_internal_format,
-                                  static_cast<GLsizei>(buffer_size), buffer);
+            static_cast<GLsizei>(buffer_size), buffer);
       }
       else
       {
         glCompressedTexImage2D(target, level, gl_internal_format, width, height, 0,
-                               static_cast<GLsizei>(buffer_size), buffer);
+            static_cast<GLsizei>(buffer_size), buffer);
       }
     }
     else if (m_config.type == AbstractTextureType::Texture_2DArray)
@@ -335,12 +332,12 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       if (g_ogl_config.bSupportsTextureStorage)
       {
         glCompressedTexSubImage3D(target, level, 0, 0, layer, width, height, 1, gl_internal_format,
-                                  static_cast<GLsizei>(buffer_size), buffer);
+            static_cast<GLsizei>(buffer_size), buffer);
       }
       else
       {
         glCompressedTexImage3D(target, level, gl_internal_format, width, height, 1, 0,
-                               static_cast<GLsizei>(buffer_size), buffer);
+            static_cast<GLsizei>(buffer_size), buffer);
       }
     }
     else
@@ -357,12 +354,12 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       if (g_ogl_config.bSupportsTextureStorage)
       {
         glTexSubImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, level, 0, 0, width, height,
-                        gl_format, gl_type, buffer);
+            gl_format, gl_type, buffer);
       }
       else
       {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + layer, level, gl_internal_format, width,
-                     height, 0, gl_format, gl_type, buffer);
+            height, 0, gl_format, gl_type, buffer);
       }
     }
     else if (m_config.type == AbstractTextureType::Texture_2D)
@@ -374,7 +371,7 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       else
       {
         glTexImage2D(target, level, gl_internal_format, width, height, 0, gl_format, gl_type,
-                     buffer);
+            buffer);
       }
     }
     else if (m_config.type == AbstractTextureType::Texture_2DArray)
@@ -386,7 +383,7 @@ void OGLTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8
       else
       {
         glTexImage3D(target, level, gl_internal_format, width, height, 1, 0, gl_format, gl_type,
-                     buffer);
+            buffer);
       }
     }
     else
@@ -405,8 +402,7 @@ GLenum OGLTexture::GetGLFormatForImageTexture() const
 }
 
 OGLStagingTexture::OGLStagingTexture(StagingTextureType type, const TextureConfig& config,
-                                     GLenum target, GLuint buffer_name, size_t buffer_size,
-                                     char* map_ptr, size_t map_stride)
+    GLenum target, GLuint buffer_name, size_t buffer_size, char* map_ptr, size_t map_stride)
     : AbstractStagingTexture(type, config), m_target(target), m_buffer_name(buffer_name),
       m_buffer_size(buffer_size)
 {
@@ -429,7 +425,7 @@ OGLStagingTexture::~OGLStagingTexture()
 }
 
 std::unique_ptr<OGLStagingTexture> OGLStagingTexture::Create(StagingTextureType type,
-                                                             const TextureConfig& config)
+    const TextureConfig& config)
 {
   size_t stride = config.GetStride();
   size_t buffer_size = stride * config.height;
@@ -469,18 +465,18 @@ std::unique_ptr<OGLStagingTexture> OGLStagingTexture::Create(StagingTextureType 
   {
     // Otherwise, fallback to mapping the buffer each time.
     glBufferData(target, buffer_size, nullptr,
-                 type == StagingTextureType::Readback ? GL_STREAM_READ : GL_STREAM_DRAW);
+        type == StagingTextureType::Readback ? GL_STREAM_READ : GL_STREAM_DRAW);
     buffer_ptr = nullptr;
   }
   glBindBuffer(target, 0);
 
-  return std::unique_ptr<OGLStagingTexture>(
-      new OGLStagingTexture(type, config, target, buffer, buffer_size, buffer_ptr, stride));
+  return std::unique_ptr<OGLStagingTexture>(new OGLStagingTexture(type, config, target, buffer,
+      buffer_size, buffer_ptr, stride));
 }
 
 void OGLStagingTexture::CopyFromTexture(const AbstractTexture* src,
-                                        const MathUtil::Rectangle<int>& src_rect, u32 src_layer,
-                                        u32 src_level, const MathUtil::Rectangle<int>& dst_rect)
+    const MathUtil::Rectangle<int>& src_rect, u32 src_layer, u32 src_level,
+    const MathUtil::Rectangle<int>& dst_rect)
 {
   ASSERT(m_type == StagingTextureType::Readback || m_type == StagingTextureType::Mutable);
   ASSERT(src_rect.GetWidth() == dst_rect.GetWidth() &&
@@ -504,8 +500,7 @@ void OGLStagingTexture::CopyFromTexture(const AbstractTexture* src,
   // Prefer glGetTextureSubImage(), when available.
   if (g_ogl_config.bSupportsTextureSubImage)
   {
-    glGetTextureSubImage(
-        gltex->GetGLTextureId(), src_level, src_rect.left, src_rect.top, src_layer,
+    glGetTextureSubImage(gltex->GetGLTextureId(), src_level, src_rect.left, src_rect.top, src_layer,
         src_rect.GetWidth(), src_rect.GetHeight(), 1, GetGLFormatForTextureFormat(src->GetFormat()),
         GetGLTypeForTextureFormat(src->GetFormat()),
         static_cast<GLsizei>(m_buffer_size - dst_offset), reinterpret_cast<void*>(dst_offset));
@@ -518,17 +513,17 @@ void OGLStagingTexture::CopyFromTexture(const AbstractTexture* src,
     {
       glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 0, 0, 0);
       glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, gltex->GetGLTextureId(),
-                                src_level, src_layer);
+          src_level, src_layer);
     }
     else
     {
       glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, gltex->GetGLTextureId(),
-                                src_level, src_layer);
+          src_level, src_layer);
       glFramebufferTextureLayer(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 0, 0, 0);
     }
     glReadPixels(src_rect.left, src_rect.top, src_rect.GetWidth(), src_rect.GetHeight(),
-                 GetGLFormatForTextureFormat(src->GetFormat()),
-                 GetGLTypeForTextureFormat(src->GetFormat()), reinterpret_cast<void*>(dst_offset));
+        GetGLFormatForTextureFormat(src->GetFormat()), GetGLTypeForTextureFormat(src->GetFormat()),
+        reinterpret_cast<void*>(dst_offset));
     GetOGLGfx()->RestoreFramebufferBinding();
   }
 
@@ -550,9 +545,7 @@ void OGLStagingTexture::CopyFromTexture(const AbstractTexture* src,
 }
 
 void OGLStagingTexture::CopyToTexture(const MathUtil::Rectangle<int>& src_rect,
-                                      AbstractTexture* dst,
-                                      const MathUtil::Rectangle<int>& dst_rect, u32 dst_layer,
-                                      u32 dst_level)
+    AbstractTexture* dst, const MathUtil::Rectangle<int>& dst_rect, u32 dst_layer, u32 dst_level)
 {
   ASSERT(m_type == StagingTextureType::Upload || m_type == StagingTextureType::Mutable);
   ASSERT(src_rect.GetWidth() == dst_rect.GetWidth() &&
@@ -591,8 +584,8 @@ void OGLStagingTexture::CopyToTexture(const MathUtil::Rectangle<int>& src_rect,
   glActiveTexture(GL_MUTABLE_TEXTURE_INDEX);
   glBindTexture(target, gltex->GetGLTextureId());
   glTexSubImage3D(target, 0, dst_rect.left, dst_rect.top, dst_layer, dst_rect.GetWidth(),
-                  dst_rect.GetHeight(), 1, GetGLFormatForTextureFormat(dst->GetFormat()),
-                  GetGLTypeForTextureFormat(dst->GetFormat()), reinterpret_cast<void*>(src_offset));
+      dst_rect.GetHeight(), 1, GetGLFormatForTextureFormat(dst->GetFormat()),
+      GetGLTypeForTextureFormat(dst->GetFormat()), reinterpret_cast<void*>(src_offset));
   glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 
@@ -657,13 +650,11 @@ void OGLStagingTexture::Unmap()
 }
 
 OGLFramebuffer::OGLFramebuffer(AbstractTexture* color_attachment, AbstractTexture* depth_attachment,
-                               std::vector<AbstractTexture*> additional_color_attachments,
-                               AbstractTextureFormat color_format,
-                               AbstractTextureFormat depth_format, u32 width, u32 height,
-                               u32 layers, u32 samples, GLuint fbo)
+    std::vector<AbstractTexture*> additional_color_attachments, AbstractTextureFormat color_format,
+    AbstractTextureFormat depth_format, u32 width, u32 height, u32 layers, u32 samples, GLuint fbo)
     : AbstractFramebuffer(color_attachment, depth_attachment,
-                          std::move(additional_color_attachments), color_format, depth_format,
-                          width, height, layers, samples),
+          std::move(additional_color_attachments), color_format, depth_format, width, height,
+          layers, samples),
       m_fbo(fbo)
 {
 }
@@ -673,9 +664,8 @@ OGLFramebuffer::~OGLFramebuffer()
   glDeleteFramebuffers(1, &m_fbo);
 }
 
-std::unique_ptr<OGLFramebuffer>
-OGLFramebuffer::Create(OGLTexture* color_attachment, OGLTexture* depth_attachment,
-                       std::vector<AbstractTexture*> additional_color_attachments)
+std::unique_ptr<OGLFramebuffer> OGLFramebuffer::Create(OGLTexture* color_attachment,
+    OGLTexture* depth_attachment, std::vector<AbstractTexture*> additional_color_attachments)
 {
   if (!ValidateConfig(color_attachment, depth_attachment, additional_color_attachments))
     return nullptr;
@@ -700,12 +690,12 @@ OGLFramebuffer::Create(OGLTexture* color_attachment, OGLTexture* depth_attachmen
     if (color_attachment->GetConfig().layers > 1)
     {
       glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, color_attachment->GetGLTextureId(),
-                           0);
+          0);
     }
     else
     {
       glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                                color_attachment->GetGLTextureId(), 0, 0);
+          color_attachment->GetGLTextureId(), 0, 0);
     }
     buffers.push_back(GL_COLOR_ATTACHMENT0);
   }
@@ -722,7 +712,7 @@ OGLFramebuffer::Create(OGLTexture* color_attachment, OGLTexture* depth_attachmen
     else
     {
       glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment, depth_attachment->GetGLTextureId(), 0,
-                                0);
+          0);
     }
   }
 
@@ -737,7 +727,7 @@ OGLFramebuffer::Create(OGLTexture* color_attachment, OGLTexture* depth_attachmen
     else
     {
       glFramebufferTextureLayer(GL_FRAMEBUFFER, attachment_enum, attachment->GetGLTextureId(), 0,
-                                0);
+          0);
     }
     buffers.push_back(attachment_enum);
   }
@@ -748,8 +738,8 @@ OGLFramebuffer::Create(OGLTexture* color_attachment, OGLTexture* depth_attachmen
   GetOGLGfx()->RestoreFramebufferBinding();
 
   return std::make_unique<OGLFramebuffer>(color_attachment, depth_attachment,
-                                          std::move(additional_color_attachments), color_format,
-                                          depth_format, width, height, layers, samples, fbo);
+      std::move(additional_color_attachments), color_format, depth_format, width, height, layers,
+      samples, fbo);
 }
 
 void OGLFramebuffer::UpdateDimensions(u32 width, u32 height)

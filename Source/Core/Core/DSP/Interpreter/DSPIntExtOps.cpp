@@ -172,7 +172,7 @@ void Interpreter::lsn(const UDSPInstruction opc)
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[0]));
   WriteToBackLog(1, DSP_REG_AR3, IncrementAddressRegister(DSP_REG_AR3));
   WriteToBackLog(2, DSP_REG_AR0,
-                 IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
+      IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
 }
 
 // LSM $axD.D, $acS.m
@@ -191,7 +191,7 @@ void Interpreter::lsm(const UDSPInstruction opc)
 
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[0]));
   WriteToBackLog(1, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
   WriteToBackLog(2, DSP_REG_AR0, IncrementAddressRegister(DSP_REG_AR0));
 }
 
@@ -212,9 +212,9 @@ void Interpreter::lsnm(const UDSPInstruction opc)
 
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[0]));
   WriteToBackLog(1, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
   WriteToBackLog(2, DSP_REG_AR0,
-                 IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
+      IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
 }
 
 // SL $acS.m, $axD.D
@@ -252,7 +252,7 @@ void Interpreter::sln(const UDSPInstruction opc)
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[3]));
   WriteToBackLog(1, DSP_REG_AR3, IncrementAddressRegister(DSP_REG_AR3));
   WriteToBackLog(2, DSP_REG_AR0,
-                 IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
+      IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
 }
 
 // SLM $acS.m, $axD.D
@@ -271,7 +271,7 @@ void Interpreter::slm(const UDSPInstruction opc)
 
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[3]));
   WriteToBackLog(1, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
   WriteToBackLog(2, DSP_REG_AR0, IncrementAddressRegister(DSP_REG_AR0));
 }
 
@@ -291,9 +291,9 @@ void Interpreter::slnm(const UDSPInstruction opc)
 
   WriteToBackLog(0, dreg, state.ReadDMEM(state.r.ar[3]));
   WriteToBackLog(1, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
   WriteToBackLog(2, DSP_REG_AR0,
-                 IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
+      IncreaseAddressRegister(DSP_REG_AR0, static_cast<s16>(state.r.ix[0])));
 }
 
 // LD $ax0.D, $ax1.R, @$arS
@@ -410,7 +410,7 @@ void Interpreter::ldm(const UDSPInstruction opc)
   WriteToBackLog(2, sreg, IncrementAddressRegister(sreg));
 
   WriteToBackLog(3, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
 }
 
 // LDAXM $axR, @$arS
@@ -431,7 +431,7 @@ void Interpreter::ldaxm(const UDSPInstruction opc)
   WriteToBackLog(2, sreg, IncrementAddressRegister(sreg));
 
   WriteToBackLog(3, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
 }
 
 // LDNM $ax0.D, $ax1.R, @$arS
@@ -453,7 +453,7 @@ void Interpreter::ldnm(const UDSPInstruction opc)
   WriteToBackLog(2, sreg, IncreaseAddressRegister(sreg, static_cast<s16>(state.r.ix[sreg])));
 
   WriteToBackLog(3, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
 }
 
 // LDAXNM $axR, @$arS
@@ -474,7 +474,7 @@ void Interpreter::ldaxnm(const UDSPInstruction opc)
   WriteToBackLog(2, sreg, IncreaseAddressRegister(sreg, static_cast<s16>(state.r.ix[sreg])));
 
   WriteToBackLog(3, DSP_REG_AR3,
-                 IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
+      IncreaseAddressRegister(DSP_REG_AR3, static_cast<s16>(state.r.ix[3])));
 }
 
 void Interpreter::nop_ext(const UDSPInstruction)

@@ -29,13 +29,13 @@ u32 CEXIDummy::ImmRead(u32 size)
 void CEXIDummy::DMAWrite(u32 address, u32 size)
 {
   INFO_LOG_FMT(EXPANSIONINTERFACE, "EXI DUMMY {} DMAWrite: {:08x} bytes, from {:08x} to device",
-               m_name, size, address);
+      m_name, size, address);
 }
 
 void CEXIDummy::DMARead(u32 address, u32 size)
 {
   INFO_LOG_FMT(EXPANSIONINTERFACE, "EXI DUMMY {} DMARead:  {:08x} bytes, from device to {:08x}",
-               m_name, size, address);
+      m_name, size, address);
 }
 
 bool CEXIDummy::IsPresent() const

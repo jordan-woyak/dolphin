@@ -17,13 +17,13 @@
 // Uncomment this to write the system data of the memorycard from directory to disc
 // #define _WRITE_MC_HEADER 1
 void MigrateFromMemcardFile(const std::string& directory_name, ExpansionInterface::Slot card_slot,
-                            DiscIO::Region region);
+    DiscIO::Region region);
 
 class GCMemcardDirectory : public MemoryCardBase
 {
 public:
   GCMemcardDirectory(const std::string& directory, ExpansionInterface::Slot slot,
-                     const Memcard::HeaderData& header_data, u32 game_id);
+      const Memcard::HeaderData& header_data, u32 game_id);
   ~GCMemcardDirectory() override;
 
   GCMemcardDirectory(const GCMemcardDirectory&) = delete;
@@ -32,7 +32,7 @@ public:
   GCMemcardDirectory& operator=(GCMemcardDirectory&&) = delete;
 
   static std::vector<std::string> GetFileNamesForGameID(const std::string& directory,
-                                                        const std::string& game_id);
+      const std::string& game_id);
   void FlushToFile();
   void FlushThread();
   s32 Read(u32 src_address, s32 length, u8* dest_address) override;

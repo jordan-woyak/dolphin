@@ -18,14 +18,14 @@
 
 static ActionReplay::ARCode* GetPointer(JNIEnv* env, jobject obj)
 {
-  return reinterpret_cast<ActionReplay::ARCode*>(
-      env->GetLongField(obj, IDCache::GetARCheatPointer()));
+  return reinterpret_cast<ActionReplay::ARCode*>(env->GetLongField(obj,
+      IDCache::GetARCheatPointer()));
 }
 
 jobject ARCheatToJava(JNIEnv* env, const ActionReplay::ARCode& code)
 {
   return env->NewObject(IDCache::GetARCheatClass(), IDCache::GetARCheatConstructor(),
-                        reinterpret_cast<jlong>(new ActionReplay::ARCode(code)));
+      reinterpret_cast<jlong>(new ActionReplay::ARCode(code)));
 }
 
 extern "C" {
@@ -70,7 +70,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_ARCheat_getCode(JNIEnv* env
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_ARCheat_getUserDefined(JNIEnv* env,
-                                                                            jobject obj)
+    jobject obj)
 {
   return static_cast<jboolean>(GetPointer(env, obj)->user_defined);
 }
@@ -133,8 +133,7 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_features_cheats_model_ARCh
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_dolphinemu_dolphinemu_features_cheats_model_ARCheat_loadCodes(JNIEnv* env, jclass,
-                                                                       jstring jGameID,
-                                                                       jint revision)
+    jstring jGameID, jint revision)
 {
   const std::string game_id = GetJString(env, jGameID);
   Common::IniFile game_ini_local;

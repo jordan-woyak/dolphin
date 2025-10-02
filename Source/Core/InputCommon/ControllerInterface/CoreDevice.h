@@ -258,7 +258,7 @@ public:
 
   void Start(const DeviceContainer& container, std::span<const std::string> device_strings);
   void Update(std::chrono::milliseconds initial_wait, std::chrono::milliseconds confirmation_wait,
-              std::chrono::milliseconds maximum_wait);
+      std::chrono::milliseconds maximum_wait);
   bool IsComplete() const;
 
   const Results& GetResults() const;

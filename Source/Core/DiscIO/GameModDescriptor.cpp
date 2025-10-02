@@ -66,7 +66,7 @@ ParseRiivolutionOptions(const picojson::array& array)
 }
 
 static GameModDescriptorRiivolution ParseRiivolutionObject(const std::string& json_directory,
-                                                           const picojson::object& object)
+    const picojson::object& object)
 {
   GameModDescriptorRiivolution r;
   for (const auto& [element_key, element_value] : object)
@@ -95,7 +95,7 @@ static GameModDescriptorRiivolution ParseRiivolutionObject(const std::string& js
 }
 
 std::optional<GameModDescriptor> ParseGameModDescriptorString(std::string_view json,
-                                                              std::string_view json_path)
+    std::string_view json_path)
 {
   std::string json_directory;
   SplitPath(json_path, &json_directory, nullptr, nullptr);
@@ -206,7 +206,7 @@ std::string WriteGameModDescriptorString(const GameModDescriptor& descriptor, bo
 }
 
 bool WriteGameModDescriptorFile(const std::string& filename, const GameModDescriptor& descriptor,
-                                bool pretty)
+    bool pretty)
 {
   auto json = WriteGameModDescriptorString(descriptor, pretty);
   if (json.empty())

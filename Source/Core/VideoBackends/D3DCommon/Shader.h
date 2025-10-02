@@ -20,7 +20,7 @@ public:
   BinaryData GetBinary() const override;
 
   static std::optional<BinaryData> CompileShader(D3D_FEATURE_LEVEL feature_level, ShaderStage stage,
-                                                 std::string_view source);
+      std::string_view source);
 
   static BinaryData CreateByteCode(const void* data, size_t length);
 

@@ -38,7 +38,7 @@ void ControllerInterfaceWindow::CreateMainLayout()
   else
   {
     main_layout->addWidget(new QLabel(tr("Nothing to configure")), 0,
-                           Qt::AlignVCenter | Qt::AlignHCenter);
+        Qt::AlignVCenter | Qt::AlignHCenter);
   }
   main_layout->addWidget(m_button_box);
   setLayout(main_layout);

@@ -153,7 +153,8 @@ void GekkoIRPlugin::OnDirectivePost(GekkoDirective directive)
   case GekkoDirective::Float:
   case GekkoDirective::Double:
     std::visit(
-        [this](auto&& vec) {
+        [this](auto&& vec)
+        {
           for (auto&& val : vec)
           {
             AddBytes(val);
@@ -502,8 +503,8 @@ void GekkoIRPlugin::AddBinaryEvaluator(u32 (*evaluator)(u32, u32))
   m_fixup_stack.pop();
   std::function<u32()> lhs = std::move(m_fixup_stack.top());
   m_fixup_stack.pop();
-  m_fixup_stack.emplace(
-      [evaluator, lhs = std::move(lhs), rhs = std::move(rhs)] { return evaluator(lhs(), rhs()); });
+  m_fixup_stack.emplace([evaluator, lhs = std::move(lhs), rhs = std::move(rhs)]
+      { return evaluator(lhs(), rhs()); });
 }
 
 void GekkoIRPlugin::AddUnaryEvaluator(u32 (*evaluator)(u32))
@@ -539,7 +540,8 @@ void GekkoIRPlugin::AddSymbolResolve(std::string_view sym, bool absolute)
   };
 
   m_fixup_stack.emplace(
-      [this, sym, absolute, source_address, err_on_fail = std::move(err_on_fail)] {
+      [this, sym, absolute, source_address, err_on_fail = std::move(err_on_fail)]
+      {
         auto label_it = m_labels.find(sym);
         if (label_it != m_labels.end())
         {
@@ -576,7 +578,8 @@ void GekkoIRPlugin::AddNumLabelSymResolve(std::string_view sym, u32 num)
   // Searching forward only
   size_t search_start_idx = static_cast<size_t>(m_numlabs.size());
   m_fixup_stack.emplace(
-      [this, num, source_address, search_start_idx, err_on_fail = std::move(err_on_fail)] {
+      [this, num, source_address, search_start_idx, err_on_fail = std::move(err_on_fail)]
+      {
         for (size_t i = search_start_idx; i < m_numlabs.size(); i++)
         {
           if (num == m_numlabs[i].first)
@@ -764,7 +767,7 @@ void GekkoIRPlugin::EvalTerminalRel(Terminal type, const AssemblerToken& tok)
     ASSERT(mval.has_value());
     u32 val = *mval;
     if (auto label_it = std::find_if(m_numlabs.rbegin(), m_numlabs.rend(),
-                                     [val](std::pair<u32, u32> p) { return p.first == val; });
+            [val](std::pair<u32, u32> p) { return p.first == val; });
         label_it != m_numlabs.rend())
     {
       AddLiteral(label_it->second - CurrentAddress());
@@ -810,7 +813,8 @@ void GekkoIRPlugin::EvalTerminalAbs(Terminal type, const AssemblerToken& tok)
   case Terminal::Flt:
   {
     std::visit(
-        [&tok](auto&& vec) {
+        [&tok](auto&& vec)
+        {
           auto opt = tok.EvalToken<typename std::decay_t<decltype(vec)>::value_type>();
           ASSERT(opt.has_value());
           vec.push_back(*opt);
@@ -835,8 +839,8 @@ void GekkoIRPlugin::EvalTerminalAbs(Terminal type, const AssemblerToken& tok)
     }
     else
     {
-      m_owner->EmitErrorHere(
-          fmt::format("Undefined reference to Label/Constant '{}'", tok.ValStr()));
+      m_owner->EmitErrorHere(fmt::format("Undefined reference to Label/Constant '{}'",
+          tok.ValStr()));
       return;
     }
     break;
@@ -853,7 +857,7 @@ void GekkoIRPlugin::EvalTerminalAbs(Terminal type, const AssemblerToken& tok)
     ASSERT(mval.has_value());
     u32 val = *mval;
     if (auto label_it = std::find_if(m_numlabs.rbegin(), m_numlabs.rend(),
-                                     [val](std::pair<u32, u32> p) { return p.first == val; });
+            [val](std::pair<u32, u32> p) { return p.first == val; });
         label_it != m_numlabs.rend())
     {
       m_eval_stack.push_back(label_it->second);
@@ -878,28 +882,29 @@ void GekkoIRPlugin::EvalTerminalAbs(Terminal type, const AssemblerToken& tok)
 u32 IRBlock::BlockEndAddress() const
 {
   return std::accumulate(chunks.begin(), chunks.end(), block_address,
-                         [](u32 acc, const ChunkVariant& chunk) {
-                           size_t size;
-                           if (std::holds_alternative<InstChunk>(chunk))
-                           {
-                             size = std::get<InstChunk>(chunk).size() * 4;
-                           }
-                           else if (std::holds_alternative<ByteChunk>(chunk))
-                           {
-                             size = std::get<ByteChunk>(chunk).size();
-                           }
-                           else if (std::holds_alternative<PadChunk>(chunk))
-                           {
-                             size = std::get<PadChunk>(chunk);
-                           }
-                           else
-                           {
-                             ASSERT(false);
-                             size = 0;
-                           }
+      [](u32 acc, const ChunkVariant& chunk)
+      {
+        size_t size;
+        if (std::holds_alternative<InstChunk>(chunk))
+        {
+          size = std::get<InstChunk>(chunk).size() * 4;
+        }
+        else if (std::holds_alternative<ByteChunk>(chunk))
+        {
+          size = std::get<ByteChunk>(chunk).size();
+        }
+        else if (std::holds_alternative<PadChunk>(chunk))
+        {
+          size = std::get<PadChunk>(chunk);
+        }
+        else
+        {
+          ASSERT(false);
+          size = 0;
+        }
 
-                           return acc + static_cast<u32>(size);
-                         });
+        return acc + static_cast<u32>(size);
+      });
 }
 
 FailureOr<GekkoIR> ParseToIR(std::string_view assembly, u32 base_virtual_address)

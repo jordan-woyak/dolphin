@@ -46,7 +46,7 @@ std::string GetDeviceName(const LPDIRECTINPUTDEVICE8 device)
   else
   {
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "GetProperty(DIPROP_PRODUCTNAME) failed: {}",
-                  Common::HRWrap(hr));
+        Common::HRWrap(hr));
   }
 
   return result;
@@ -58,7 +58,7 @@ void PopulateDevices(HWND hwnd)
   if (!s_idi8)
   {
     HRESULT hr = DirectInput8Create(GetModuleHandle(nullptr), DIRECTINPUT_VERSION,
-                                    IID_IDirectInput8, (LPVOID*)&s_idi8, nullptr);
+        IID_IDirectInput8, (LPVOID*)&s_idi8, nullptr);
     if (FAILED(hr))
     {
       ERROR_LOG_FMT(CONTROLLERINTERFACE, "DirectInput8Create failed: {}", Common::HRWrap(hr));
@@ -71,8 +71,8 @@ void PopulateDevices(HWND hwnd)
   // will mean that a device with index "2" could persist while there is no device with index "0".
   // This is slightly inconsistent as when we refresh all devices, they will instead reset, and
   // that happens a lot (for uncontrolled reasons, like starting/stopping the emulation).
-  g_controller_interface.RemoveDevice(
-      [](const auto* dev) { return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsValid(); });
+  g_controller_interface.RemoveDevice([](const auto* dev)
+      { return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsValid(); });
 
   InitKeyboardMouse(s_idi8, hwnd);
   InitJoystick(s_idi8, hwnd);
@@ -84,11 +84,8 @@ void ChangeWindow(HWND hwnd)
   {
     // The KeyboardMouse device is marked as virtual device, so we avoid removing it.
     // We need to force all the DInput joysticks to be destroyed now, or recreation would fail.
-    g_controller_interface.RemoveDevice(
-        [](const auto* dev) {
-          return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsVirtualDevice();
-        },
-        true);
+    g_controller_interface.RemoveDevice([](const auto* dev)
+        { return dev->GetSource() == DINPUT_SOURCE_NAME && !dev->IsVirtualDevice(); }, true);
 
     SetKeyboardMouseWindow(hwnd);
     InitJoystick(s_idi8, hwnd);

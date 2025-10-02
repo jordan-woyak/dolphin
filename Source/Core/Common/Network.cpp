@@ -51,7 +51,7 @@ MACAddress GenerateMacAddress(const MACConsumer type)
 std::string MacAddressToString(const MACAddress& mac)
 {
   return fmt::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}", mac[0], mac[1], mac[2], mac[3],
-                     mac[4], mac[5]);
+      mac[4], mac[5]);
 }
 
 std::optional<MACAddress> StringToMacAddress(std::string_view mac_string)
@@ -130,7 +130,7 @@ u8 IPv4Header::DefinedSize() const
 TCPHeader::TCPHeader() = default;
 
 TCPHeader::TCPHeader(const sockaddr_in& from, const sockaddr_in& to, u32 seq, const u8* data,
-                     u16 length)
+    u16 length)
 {
   std::memcpy(&source_port, &from.sin_port, 2);
   std::memcpy(&destination_port, &to.sin_port, 2);
@@ -306,7 +306,7 @@ u16 ComputeNetworkChecksum(const void* data, u16 length, u32 initial_value)
 
 // Compute the TCP checksum with its pseudo header
 u16 ComputeTCPNetworkChecksum(const IPAddress& from, const IPAddress& to, const void* data,
-                              u16 length, u8 protocol)
+    u16 length, u8 protocol)
 {
   const u32 source_addr = ntohl(std::bit_cast<u32>(from));
   const u32 destination_addr = ntohl(std::bit_cast<u32>(to));
@@ -351,7 +351,7 @@ std::vector<u8> ARPPacket::Build() const
 TCPPacket::TCPPacket() = default;
 
 TCPPacket::TCPPacket(const MACAddress& destination, const MACAddress& source,
-                     const sockaddr_in& from, const sockaddr_in& to, u32 seq, u32 ack, u16 flags)
+    const sockaddr_in& from, const sockaddr_in& to, u32 seq, u32 ack, u16 flags)
     : eth_header(destination, source, IPV4_ETHERTYPE),
       ip_header(Common::TCPHeader::SIZE, IPPROTO_TCP, from, to),
       tcp_header(from, to, seq, ack, flags)
@@ -391,8 +391,8 @@ std::vector<u8> TCPPacket::Build() const
 
   auto checksum_bitcast_ptr = Common::BitCastPtr<u16>(tcp_ptr + offsetof(TCPHeader, checksum));
   checksum_bitcast_ptr = u16(0);
-  checksum_bitcast_ptr = ComputeTCPNetworkChecksum(
-      ip_header.source_addr, ip_header.destination_addr, tcp_ptr, tcp_length, IPPROTO_TCP);
+  checksum_bitcast_ptr = ComputeTCPNetworkChecksum(ip_header.source_addr,
+      ip_header.destination_addr, tcp_ptr, tcp_length, IPPROTO_TCP);
 
   return result;
 }
@@ -405,7 +405,7 @@ u16 TCPPacket::Size() const
 UDPPacket::UDPPacket() = default;
 
 UDPPacket::UDPPacket(const MACAddress& destination, const MACAddress& source,
-                     const sockaddr_in& from, const sockaddr_in& to, const std::vector<u8>& payload)
+    const sockaddr_in& from, const sockaddr_in& to, const std::vector<u8>& payload)
     : eth_header(destination, source, IPV4_ETHERTYPE),
       ip_header(static_cast<u16>(payload.size() + Common::UDPHeader::SIZE), IPPROTO_UDP, from, to),
       udp_header(from, to, static_cast<u16>(payload.size())), data(payload)
@@ -441,8 +441,8 @@ std::vector<u8> UDPPacket::Build() const
 
   auto checksum_bitcast_ptr = Common::BitCastPtr<u16>(udp_ptr + offsetof(UDPHeader, checksum));
   checksum_bitcast_ptr = u16(0);
-  checksum_bitcast_ptr = ComputeTCPNetworkChecksum(
-      ip_header.source_addr, ip_header.destination_addr, udp_ptr, udp_length, IPPROTO_UDP);
+  checksum_bitcast_ptr = ComputeTCPNetworkChecksum(ip_header.source_addr,
+      ip_header.destination_addr, udp_ptr, udp_length, IPPROTO_UDP);
 
   return result;
 }
@@ -556,8 +556,8 @@ const char* DecodeNetworkError(s32 error_code)
 #ifdef _WIN32
   FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
                      FORMAT_MESSAGE_MAX_WIDTH_MASK,
-                 nullptr, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buffer,
-                 sizeof(buffer), nullptr);
+      nullptr, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buffer, sizeof(buffer),
+      nullptr);
   return buffer;
 #else
   return Common::StrErrorWrapper(error_code, buffer, sizeof(buffer));

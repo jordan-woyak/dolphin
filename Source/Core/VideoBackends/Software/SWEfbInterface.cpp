@@ -478,7 +478,7 @@ static u32 GetColor(u16 x, u16 y)
 }
 
 static u32 VerticalFilter(const std::array<u32, 3>& colors,
-                          const std::array<u8, 7>& filterCoefficients)
+    const std::array<u8, 7>& filterCoefficients)
 {
   u8 in_colors[3][4];
   std::memcpy(&in_colors, colors.data(), sizeof(in_colors));
@@ -505,8 +505,8 @@ static u32 VerticalFilter(const std::array<u32, 3>& colors,
     {
       sum =
           in_colors[1][i] * (filterCoefficients[0] + filterCoefficients[1] + filterCoefficients[2] +
-                             filterCoefficients[3] + filterCoefficients[4] + filterCoefficients[5] +
-                             filterCoefficients[6]);
+                                filterCoefficients[3] + filterCoefficients[4] +
+                                filterCoefficients[5] + filterCoefficients[6]);
     }
     else
     {
@@ -533,8 +533,8 @@ static u32 GammaCorrection(u32 color, const float gamma_rcp)
   u8 out_color[4];
   for (int i = BLU_C; i <= RED_C; i++)
   {
-    out_color[i] = static_cast<u8>(
-        std::clamp(std::pow(in_colors[i] / 255.0f, gamma_rcp) * 255.0f, 0.0f, 255.0f));
+    out_color[i] = static_cast<u8>(std::clamp(std::pow(in_colors[i] / 255.0f, gamma_rcp) * 255.0f,
+        0.0f, 255.0f));
   }
 
   u32 out_color32;
@@ -575,7 +575,7 @@ u8* GetPixelPointer(u16 x, u16 y, bool depth)
 }
 
 void EncodeXFB(u8* xfb_in_ram, u32 memory_stride, const MathUtil::Rectangle<int>& source_rect,
-               float y_scale, float gamma)
+    float y_scale, float gamma)
 {
   if (!xfb_in_ram)
   {
@@ -614,8 +614,9 @@ void EncodeXFB(u8* xfb_in_ram, u32 memory_stride, const MathUtil::Rectangle<int>
     //         In our implementation, the garbage just so happens to be the top or bottom row.
     //         Statistically, that could happen.
     const u16 y_prev = static_cast<u16>(std::max(clamp_top ? source_rect.top : 0, y - 1));
-    const u16 y_next = static_cast<u16>(
-        std::min<int>((clamp_bottom ? source_rect.bottom : EFB_HEIGHT) - 1, y + 1));
+    const u16 y_next =
+        static_cast<u16>(std::min<int>((clamp_bottom ? source_rect.bottom : EFB_HEIGHT) - 1,
+            y + 1));
 
     // Get a scanline of YUV pixels in 4:4:4 format
     for (int i = 1, x = left; x < right; i++, x++)
@@ -660,7 +661,7 @@ void EncodeXFB(u8* xfb_in_ram, u32 memory_stride, const MathUtil::Rectangle<int>
   const int dst_height = src_height * y_scale;
 
   SW::CopyRegion(source.data(), src_width, src_height, reinterpret_cast<yuv422_packed*>(xfb_in_ram),
-                 dst_width, dst_height);
+      dst_width, dst_height);
 }
 
 bool ZCompare(u16 x, u16 y, u32 z)

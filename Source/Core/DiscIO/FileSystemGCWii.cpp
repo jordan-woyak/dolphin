@@ -146,7 +146,7 @@ bool FileInfoGCWii::NameCaseInsensitiveEquals(std::string_view other) const
       // other is in UTF-8 and this is in Shift-JIS, so we convert so that we can compare correctly
       const std::string this_utf8 = SHIFTJISToUTF8(this_ptr);
       return std::equal(this_utf8.cbegin(), this_utf8.cend(), other.cbegin() + i, other.cend(),
-                        [](char a, char b) { return Common::ToLower(a) == Common::ToLower(b); });
+          [](char a, char b) { return Common::ToLower(a) == Common::ToLower(b); });
     }
     else if (Common::ToLower(*this_ptr) != Common::ToLower(*other_ptr))
     {
@@ -305,7 +305,7 @@ std::unique_ptr<FileInfo> FileSystemGCWii::FindFileInfo(std::string_view path) c
 }
 
 std::unique_ptr<FileInfo> FileSystemGCWii::FindFileInfo(std::string_view path,
-                                                        const FileInfo& file_info) const
+    const FileInfo& file_info) const
 {
   // Given a path like "directory1/directory2/fileA.bin", this function will
   // find directory1 and then call itself to search for "directory2/fileA.bin".

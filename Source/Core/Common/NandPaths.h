@@ -36,7 +36,7 @@ std::string GetMiiDatabasePath(std::optional<FromWhichRoot> from = {});
 
 // Returns whether a path is within an installed title's directory.
 bool IsTitlePath(const std::string& path, std::optional<FromWhichRoot> from = {},
-                 u64* title_id = nullptr);
+    u64* title_id = nullptr);
 
 // Escapes characters that are invalid or have special meanings in the host file system
 std::string EscapeFileName(const std::string& filename);
