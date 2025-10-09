@@ -471,7 +471,12 @@ void Wiimote::Update(const WiimoteEmu::DesiredWiimoteState& target_state)
   // We duplicate data reports to accomplish this.
   // Unfortunately this breaks detection of motion gestures in some games.
   // e.g. Sonic and the Secret Rings, Jett Rocket
+  //
+  // If we observe ~200Hz reporting from the remote, sniff mode has been enabled somehow.
+  // Perhaps some fancy new DolphinBar firmware, or some other outside HCI command injection?
+  // We don't need to repeat reports if this is the case.
   const bool repeat_reports_to_maintain_200hz =
+      !m_200hz_reporting_observed.load(std::memory_order_relaxed) &&
       Config::Get(Config::MAIN_REAL_WII_REMOTE_REPEAT_REPORTS);
 
   const Report& rpt = ProcessReadQueue(repeat_reports_to_maintain_200hz);
@@ -800,6 +805,9 @@ void Wiimote::ReadThreadFunc()
 {
   Common::SetCurrentThreadName("Wiimote Read Thread");
 
+  u32 input_counter = 0;
+  TimePoint input_counter_start_time = Clock::now();
+
   while (m_run_thread.IsSet())
   {
     if (!Read())
@@ -808,6 +816,22 @@ void Wiimote::ReadThreadFunc()
       m_run_thread.Clear();
       m_write_event.Set();
       break;
+    }
+
+    // Set a flag when we notice ~200Hz input report frequency.
+    if (!m_200hz_reporting_observed.load(std::memory_order_relaxed) && ++input_counter == 200)
+    {
+      const auto now = Clock::now();
+      const auto total_duration = now - input_counter_start_time;
+
+      input_counter = 0;
+      input_counter_start_time = now;
+
+      if (total_duration < std::chrono::milliseconds{1200})
+      {
+        INFO_LOG_FMT(WIIMOTE, "~200Hz reporting observed on Wiimote {}.", m_index + 1);
+        m_200hz_reporting_observed.store(true, std::memory_order_relaxed);
+      }
     }
   }
 }

@@ -174,6 +174,10 @@ private:
   int m_balance_board_dump_port = 0;
 
   Config::ConfigChangedCallbackID m_config_changed_callback_id;
+
+  // Set when observing an input report frequency implying sniff mode has been established.
+  // Used to avoid unnecessary repeating of input reports.
+  std::atomic_bool m_200hz_reporting_observed{};
 };
 
 class WiimoteScannerBackend
