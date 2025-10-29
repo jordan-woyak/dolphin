@@ -1,9 +1,15 @@
 // Copyright 2020 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <algorithm>
 #include <array>
+#include <latch>
+#include <thread>
+
 #include <gtest/gtest.h>
 
+#include "Common/BitUtils.h"
+#include "Common/DirectIOFile.h"
 #include "Common/FileUtil.h"
 
 class FileUtilTest : public testing::Test
@@ -146,4 +152,139 @@ TEST_F(FileUtilTest, CreateFullPath)
   EXPECT_TRUE(File::IsFile(p3file));
   EXPECT_FALSE(File::CreateFullPath(p3file + "/"));
   EXPECT_TRUE(File::IsFile(p3file));
+}
+
+TEST_F(FileUtilTest, DirectIOFile)
+{
+  static constexpr std::array<u8, 3> u8_test_data = {42, 7, 99};
+  static constexpr std::array<u16, 3> u16_test_data = {0xdead, 0xbeef, 0xf00d};
+
+  constexpr int u16_data_offset = 73;
+
+  File::DirectIOFile file;
+  EXPECT_FALSE(file.IsOpen());
+
+  // Read mode fails with a non-existing file.
+  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read));
+
+  std::array<u8, u8_test_data.size()> u8_buffer = {};
+
+  // Everything fails when a file isn't open.
+  EXPECT_FALSE(file.Write(u8_buffer));
+  EXPECT_FALSE(file.Read(u8_buffer));
+  EXPECT_FALSE(file.Seek(12, File::SeekOrigin::Begin));
+  EXPECT_EQ(file.Tell(), 0);
+  EXPECT_EQ(file.GetSize(), 0);
+
+  // Open a file for writing.
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+  EXPECT_TRUE(file.IsOpen());
+
+  // Note: Double Open() currently ASSERTs. It's not obvious if that should succeed or fail.
+
+  EXPECT_TRUE(file.Write(u8_buffer.data(), 0));  // write of 0 succeeds.
+  EXPECT_FALSE(file.Read(u8_buffer.data(), 0));  // read of 0 (in write mode) fails.
+
+  EXPECT_EQ(file.GetSize(), 0);
+  EXPECT_TRUE(file.Write(u8_test_data));
+  EXPECT_EQ(file.GetSize(), u8_test_data.size());  // size changed
+  EXPECT_EQ(file.Tell(), u8_test_data.size());     // file position changed
+
+  // Relative seek works.
+  EXPECT_TRUE(file.Seek(0, File::SeekOrigin::End));
+  EXPECT_EQ(file.Tell(), file.GetSize());
+  EXPECT_TRUE(file.Seek(-int(u8_test_data.size()), File::SeekOrigin::Current));
+  EXPECT_EQ(file.Tell(), 0);
+
+  // Read while in "write mode" fails
+  EXPECT_FALSE(file.Read(u8_buffer));
+  EXPECT_EQ(file.Tell(), 0);
+
+  // Seeking past the end works.
+  EXPECT_TRUE(file.Seek(u16_data_offset, File::SeekOrigin::Begin));
+  EXPECT_EQ(file.Tell(), u16_data_offset);
+  EXPECT_EQ(file.GetSize(), u8_test_data.size());  // no change in size
+  EXPECT_TRUE(file.Write(Common::AsU8Span(u16_test_data)));
+  EXPECT_EQ(file.GetSize(), u16_data_offset + sizeof(u16_test_data));  // size changes after write
+
+  EXPECT_FALSE(file.Seek(-1, File::SeekOrigin::Begin));  // seek before begin fails
+  EXPECT_EQ(file.Tell(), file.GetSize());                // unchanged position
+
+  EXPECT_TRUE(file.Close());
+  EXPECT_FALSE(file.IsOpen());
+
+  EXPECT_EQ(file.Tell(), 0);
+  EXPECT_EQ(file.GetSize(), 0);
+
+  EXPECT_FALSE(file.Close());  // Double close fails.
+
+  // Open file for reading.
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Read));
+
+  // We can seek beyond the end.
+  constexpr int big_offset = 9999;
+  EXPECT_TRUE(file.Seek(big_offset, File::SeekOrigin::End));
+  EXPECT_EQ(file.Tell(), file.GetSize() + big_offset);
+
+  constexpr size_t thread_count = 4;
+
+  File::DirectIOFile closed_file;
+
+  std::latch do_reads{1};
+
+  // Concurrent access with copied handles works.
+  std::vector<std::thread> threads(thread_count);
+  for (auto& t : threads)
+  {
+    t = std::thread{[&do_reads, file, closed_file]() mutable {
+      EXPECT_FALSE(closed_file.IsOpen());  // a copied closed file is still closed
+
+      EXPECT_EQ(file.Tell(), file.GetSize() + big_offset);  // current position is copied
+
+      std::array<u8, 1> one_byte{};
+
+      constexpr u64 small_offset = 3;
+
+      do_reads.wait();
+
+      EXPECT_TRUE(file.Seek(small_offset, File::SeekOrigin::Begin));
+      EXPECT_EQ(file.Tell(), small_offset);
+
+      // writes fail in read mode.
+      EXPECT_FALSE(file.Write(u8_test_data));
+      EXPECT_FALSE(file.OffsetWrite(0, u8_test_data.data(), 0));
+      EXPECT_EQ(file.Tell(), small_offset);
+
+      EXPECT_TRUE(file.Read(one_byte.data(), 0));  // read of zero succeeds.
+      EXPECT_EQ(file.Tell(), small_offset);        // unchanged position
+
+      // Reading at an explicit offset doesn't change the position
+      EXPECT_TRUE(file.OffsetRead(u8_test_data.size() - 1, one_byte));
+      EXPECT_EQ(file.Tell(), small_offset);
+      EXPECT_EQ(one_byte[0], u8_test_data.back());
+
+      EXPECT_EQ(file.GetSize(), u16_data_offset + sizeof(u16_test_data));
+      EXPECT_TRUE(file.Seek(-int(sizeof(u16_test_data)), File::SeekOrigin::End));
+
+      // We can't read beyond the end of the file.
+      EXPECT_FALSE(file.OffsetRead(big_offset, one_byte));
+      // A read of zero beyond the end works.
+      EXPECT_TRUE(file.OffsetRead(big_offset, one_byte.data(), 0));
+
+      // Reading the previously written data works.
+      std::array<u16, u16_test_data.size()> u16_buffer = {};
+      EXPECT_TRUE(file.Read(Common::AsWritableU8Span(u16_buffer)));
+      EXPECT_TRUE(std::ranges::equal(u16_buffer, u16_test_data));
+
+      // We can't read at the end of the file.
+      EXPECT_FALSE(file.Read(one_byte));
+      EXPECT_EQ(file.Tell(), file.GetSize());  // The position is unchanged.
+    }};
+  }
+
+  // We can close the file on our end before the other threads use it.
+  file.Close();
+  do_reads.count_down();
+
+  std::ranges::for_each(threads, &std::thread::join);
 }
