@@ -611,6 +611,17 @@ const Info<bool> MAIN_WII_SPEAK_MUTED{{System::Main, "EmulatedUSBDevices", "WiiS
 const Info<s16> MAIN_WII_SPEAK_VOLUME_MODIFIER{
     {System::Main, "EmulatedUSBDevices", "WiiSpeakVolumeModifier"}, 0};
 
+const Info<bool> MAIN_EMULATE_LOGITECH_MIC_1{
+    {System::Main, "EmulatedUSBDevices", "EmulateLogitechMic1"}, false};
+
+const Info<std::string> MAIN_LOGITECH_MIC_1_MICROPHONE{
+    {System::Main, "EmulatedUSBDevices", "LogitechMic1Microphone"}, ""};
+
+const Info<bool> MAIN_LOGITECH_MIC_1_MUTED{
+    {System::Main, "EmulatedUSBDevices", "LogitechMic1Muted"}, true};
+const Info<s16> MAIN_LOGITECH_MIC_1_VOLUME_MODIFIER{
+    {System::Main, "EmulatedUSBDevices", "LogitechMic1VolumeModifier"}, 0};
+
 // The reason we need this function is because some memory card code
 // expects to get a non-NTSC-K region even if we're emulating an NTSC-K Wii.
 DiscIO::Region ToGameCubeRegion(DiscIO::Region region)
