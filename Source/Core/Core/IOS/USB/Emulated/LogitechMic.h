@@ -48,18 +48,19 @@ enum LogitechMicrophoneEndpointControlSelectors
   AUDIO_PITCH_CONTROL = 0x02
 };
 
-struct LogitechMicState
+class LogitechMicState final : public MicrophoneState
 {
+public:
   // Use atomic for members concurrently used by the data callback
   std::atomic<bool> mute;
   std::array<u8, 2> vol;
-  std::array<u32, 2> srate;
-  int freq;
-  int gain;
-  bool ec_reset;
-  bool sp_on;
+  std::array<u32, 2> srate{DEFAULT_SAMPLING_RATE, DEFAULT_SAMPLING_RATE};
 
   static constexpr u32 DEFAULT_SAMPLING_RATE = 48000;
+
+  bool IsSampleOn() const;
+  bool IsMuted() const;
+  u32 GetDefaultSamplingRate() const;
 };
 
 class LogitechMic final : public Device

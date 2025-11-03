@@ -10,6 +10,21 @@
 
 namespace IOS::HLE::USB
 {
+bool WiiSpeakState::IsSampleOn() const
+{
+  return sample_on;
+}
+
+bool WiiSpeakState::IsMuted() const
+{
+  return mute;
+}
+
+u32 WiiSpeakState::GetDefaultSamplingRate() const
+{
+  return DEFAULT_SAMPLING_RATE;
+}
+
 WiiSpeak::WiiSpeak()
 {
   m_id = u64(m_vid) << 32 | u64(m_pid) << 16 | u64(9) << 8 | u64(1);
@@ -44,7 +59,10 @@ bool WiiSpeak::Attach()
 
   DEBUG_LOG_FMT(IOS_USB, "[{:04x}:{:04x}] Opening device", m_vid, m_pid);
   if (!m_microphone)
-    m_microphone = std::make_unique<Microphone>(m_sampler);
+  {
+    m_microphone = std::make_unique<MicrophoneWiiSpeak>(m_sampler);
+    m_microphone->Initialize();
+  }
   m_device_attached = true;
   return true;
 }

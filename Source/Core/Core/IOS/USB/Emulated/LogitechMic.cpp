@@ -10,6 +10,21 @@
 
 namespace IOS::HLE::USB
 {
+bool LogitechMicState::IsSampleOn() const
+{
+  return true;
+}
+
+bool LogitechMicState::IsMuted() const
+{
+  return mute;
+}
+
+u32 LogitechMicState::GetDefaultSamplingRate() const
+{
+  return DEFAULT_SAMPLING_RATE;
+}
+
 LogitechMic::LogitechMic()
 {
   m_id = u64(m_vid) << 32 | u64(m_pid) << 16 | u64(9) << 8 | u64(1);
@@ -44,7 +59,10 @@ bool LogitechMic::Attach()
 
   DEBUG_LOG_FMT(IOS_USB, "[{:04x}:{:04x}] Opening device", m_vid, m_pid);
   if (!m_microphone)
+  {
     m_microphone = std::make_unique<MicrophoneLogitech>(m_sampler);
+    m_microphone->Initialize();
+  }
   m_device_attached = true;
   return true;
 }
@@ -586,17 +604,6 @@ int LogitechMic::SubmitTransfer(std::unique_ptr<IntrMessage> cmd)
 {
   cmd->GetEmulationKernel().EnqueueIPCReply(cmd->ios_request, IPC_SUCCESS);
   return IPC_SUCCESS;
-}
-
-static constexpr std::array<u8, 800> dummyData()
-{
-  std::array<u8, 800> a{};
-  for (std::size_t i = 0; i < 800; i += 2)
-  {
-    a[i] = (0x7fff + i * 0xa3) & 0xff;
-    a[i + 1] = static_cast<u8>((0x7fff + i * 0xa3) >> 8);
-  }
-  return a;
 }
 
 int LogitechMic::SubmitTransfer(std::unique_ptr<IsoMessage> cmd)

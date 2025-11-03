@@ -8,13 +8,13 @@
 
 namespace IOS::HLE::USB
 {
-class LogitechMicState;
+class WiiSpeakState;
 
-class MicrophoneLogitech final : public Microphone
+class MicrophoneWiiSpeak final : public Microphone
 {
 public:
-  MicrophoneLogitech(const LogitechMicState& sampler);
-  ~MicrophoneLogitech();
+  MicrophoneWiiSpeak(const WiiSpeakState& sampler);
+  ~MicrophoneWiiSpeak();
 
 private:
 #ifdef HAVE_CUBEB
@@ -28,6 +28,6 @@ private:
   bool IsMicrophoneMuted() const override;
   u32 GetStreamSize() const override;
 
-  const LogitechMicState& m_sampler;
+  const WiiSpeakState& m_sampler;
 };
 }  // namespace IOS::HLE::USB

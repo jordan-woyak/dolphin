@@ -24,7 +24,6 @@
 
 LogitechMicWindow::LogitechMicWindow(QWidget* parent) : QWidget(parent)
 {
-  // i18n: Window for managing the Wii Speak microphone
   setWindowTitle(tr("Logitech USB Microphone Manager"));
   setObjectName(QStringLiteral("logitech_mic_manager"));
   setMinimumSize(QSize(700, 200));
