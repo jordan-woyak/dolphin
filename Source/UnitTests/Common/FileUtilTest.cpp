@@ -159,7 +159,7 @@ TEST_F(FileUtilTest, DirectIOFile)
   static constexpr std::array<u8, 3> u8_test_data = {42, 7, 99};
   static constexpr std::array<u16, 3> u16_test_data = {0xdead, 0xbeef, 0xf00d};
 
-  constexpr int u16_data_offset = 73;
+  static constexpr int u16_data_offset = 73;
 
   File::DirectIOFile file;
   EXPECT_FALSE(file.IsOpen());
@@ -176,16 +176,30 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_EQ(file.Tell(), 0);
   EXPECT_EQ(file.GetSize(), 0);
 
+  // Fail to open non-existing file.
+  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::OpenExisting));
+  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::OpenExisting));
+
   // Open a file for writing.
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::CreateNew));
   EXPECT_TRUE(file.IsOpen());
 
   // Note: Double Open() currently ASSERTs. It's not obvious if that should succeed or fail.
 
+  EXPECT_TRUE(file.Close());
+  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::CreateNew));
+
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::OpenExisting));
+  EXPECT_TRUE(file.Close());
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+
   EXPECT_TRUE(file.Write(u8_buffer.data(), 0));  // write of 0 succeeds.
   EXPECT_FALSE(file.Read(u8_buffer.data(), 0));  // read of 0 (in write mode) fails.
 
-  EXPECT_EQ(file.GetSize(), 0);
+  // Resize through handle works.
+  EXPECT_TRUE(Resize(file, 1));
+  EXPECT_EQ(file.GetSize(), 1);
+
   EXPECT_TRUE(file.Write(u8_test_data));
   EXPECT_EQ(file.GetSize(), u8_test_data.size());  // size changed
   EXPECT_EQ(file.Tell(), u8_test_data.size());     // file position changed
@@ -204,8 +218,11 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_TRUE(file.Seek(u16_data_offset, File::SeekOrigin::Begin));
   EXPECT_EQ(file.Tell(), u16_data_offset);
   EXPECT_EQ(file.GetSize(), u8_test_data.size());  // no change in size
+
+  static constexpr u64 final_file_size = u16_data_offset + sizeof(u16_test_data);
+
   EXPECT_TRUE(file.Write(Common::AsU8Span(u16_test_data)));
-  EXPECT_EQ(file.GetSize(), u16_data_offset + sizeof(u16_test_data));  // size changes after write
+  EXPECT_EQ(file.GetSize(), final_file_size);  // size changes after write
 
   EXPECT_FALSE(file.Seek(-1, File::SeekOrigin::Begin));  // seek before begin fails
   EXPECT_EQ(file.Tell(), file.GetSize());                // unchanged position
@@ -219,18 +236,28 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_FALSE(file.Close());  // Double close fails.
 
   // Open file for reading.
+  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::CreateNew));
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::OpenExisting));
+  EXPECT_TRUE(file.Close());
   EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Read));
 
+  static constexpr int big_offset = 999;
+
   // We can seek beyond the end.
-  constexpr int big_offset = 9999;
   EXPECT_TRUE(file.Seek(big_offset, File::SeekOrigin::End));
   EXPECT_EQ(file.Tell(), file.GetSize() + big_offset);
+
+  // Resize through handle fails when in read mode.
+  EXPECT_FALSE(Resize(file, big_offset));
+  EXPECT_EQ(file.GetSize(), final_file_size);
 
   constexpr size_t thread_count = 4;
 
   File::DirectIOFile closed_file;
 
   std::latch do_reads{1};
+
+  EXPECT_TRUE(file.Seek(u16_data_offset, File::SeekOrigin::Begin));
 
   // Concurrent access with copied handles works.
   std::vector<std::thread> threads(thread_count);
@@ -239,7 +266,7 @@ TEST_F(FileUtilTest, DirectIOFile)
     t = std::thread{[&do_reads, file, closed_file]() mutable {
       EXPECT_FALSE(closed_file.IsOpen());  // a copied closed file is still closed
 
-      EXPECT_EQ(file.Tell(), file.GetSize() + big_offset);  // current position is copied
+      EXPECT_EQ(file.Tell(), u16_data_offset);  // current position is copied
 
       std::array<u8, 1> one_byte{};
 
@@ -263,7 +290,7 @@ TEST_F(FileUtilTest, DirectIOFile)
       EXPECT_EQ(file.Tell(), small_offset);
       EXPECT_EQ(one_byte[0], u8_test_data.back());
 
-      EXPECT_EQ(file.GetSize(), u16_data_offset + sizeof(u16_test_data));
+      EXPECT_EQ(file.GetSize(), final_file_size);
       EXPECT_TRUE(file.Seek(-int(sizeof(u16_test_data)), File::SeekOrigin::End));
 
       // We can't read beyond the end of the file.
@@ -282,9 +309,42 @@ TEST_F(FileUtilTest, DirectIOFile)
     }};
   }
 
-  // We can close the file on our end before the other threads use it.
+  // We may close the file on our end before the other threads use it.
   file.Close();
+
+  // What if someone else opens the file?
+  File::IOFile other_user_of_file(m_file_path, "ab+");
+  EXPECT_TRUE(other_user_of_file.IsOpen());
+
+  // Let the threads read.
   do_reads.count_down();
+
+  // Write mode does not truncate existing files.
+  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+  EXPECT_EQ(file.GetSize(), final_file_size);
+
+  const std::string destination_path_1 = m_file_path + ".destination";
+
+  // Rename with bad path fails.
+  EXPECT_FALSE(Rename(file, m_file_path + ".bad", destination_path_1));
+
+  // Rename through handle works when opened elsewhere.
+  EXPECT_TRUE(Rename(file, m_file_path, destination_path_1));
+  EXPECT_FALSE(File::Exists(m_file_path));
+  EXPECT_TRUE(File::Exists(destination_path_1));
+
+  const std::string destination_path_2 = m_file_path + ".another_file";
+  File::DirectIOFile another_file{destination_path_2, File::OpenMode::Write};
+  EXPECT_TRUE(another_file.IsOpen());
+  EXPECT_EQ(File::GetSize(destination_path_2), 0);
+
+  // Rename overwrites existing files.
+  EXPECT_TRUE(Rename(file, destination_path_1, destination_path_2));
+  EXPECT_EQ(File::GetSize(destination_path_2), final_file_size);
+
+  // Delete through handle works.
+  EXPECT_TRUE(Delete(file, destination_path_2));
+  EXPECT_FALSE(File::Exists(destination_path_2));
 
   std::ranges::for_each(threads, &std::thread::join);
 }
