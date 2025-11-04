@@ -8,6 +8,9 @@
 #if defined(_WIN32)
 #include <windows.h>
 
+#include <cstring>
+
+#include "Common/Buffer.h"
 #include "Common/CommonFuncs.h"
 #include "Common/StringUtil.h"
 #else
@@ -63,23 +66,23 @@ bool DirectIOFile::Open(const std::string& path, OpenMode open_mode, CreateMode 
   ASSERT(!IsOpen());
 
 #if defined(_WIN32)
-  DWORD desired_access = 0;
-  DWORD share_mode = FILE_SHARE_DELETE;  // Always allow deletes and renames through our handle.
+  DWORD desired_access = GENERIC_READ | GENERIC_WRITE;
+  if (open_mode == OpenMode::Read)
+    desired_access = GENERIC_READ;
+  else if (open_mode == OpenMode::Write)
+    desired_access = GENERIC_WRITE;
+
+  // Allow deleting through our handle.
+  desired_access |= DELETE;
+
+  // All sharing is allowed to more closely match default behavior on other OSes.
+  constexpr DWORD share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+
   DWORD creation_disposition = OPEN_EXISTING;
-
-  if (IsOpenModeBitSet(open_mode, OpenMode::Read))
-  {
-    desired_access |= GENERIC_READ;
-    share_mode |= FILE_SHARE_READ;
-  }
-  if (IsOpenModeBitSet(open_mode, OpenMode::Write))
-  {
-    desired_access |= GENERIC_WRITE;
-    share_mode |= FILE_SHARE_WRITE;
+  if (create_mode == CreateMode::CreateNew)
+    creation_disposition = CREATE_NEW;
+  else if (create_mode == CreateMode::Default && open_mode != OpenMode::Read)
     creation_disposition = OPEN_ALWAYS;
-  }
-
-  // TODO: implement create_mode
 
   m_handle = CreateFile(UTF8ToTStr(path).c_str(), desired_access, share_mode, nullptr,
                         creation_disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -265,9 +268,10 @@ bool Resize(DirectIOFile& file, u64 size)
 {
 #if defined(_WIN32)
   // This operation is not "atomic", but it's the only thing we're using the file pointer for.
-  // Concurrent `Resize` would need some external synchronization to prevent race, regardless.
-  return (SetFilePointerEx(file.GetHandle(), size, NULL, FILE_BEGIN) != 0) &&
-         (SetEndOfFile(m_handle) != 0);
+  // Concurrent `Resize` would need some external synchronization to prevent race regardless.
+  const LARGE_INTEGER distance{.QuadPart = LONGLONG(size)};
+  return (SetFilePointerEx(file.GetHandle(), distance, nullptr, FILE_BEGIN) != 0) &&
+         (SetEndOfFile(file.GetHandle()) != 0);
 #else
   return ftruncate(file.GetHandle(), off_t(size)) == 0;
 #endif
@@ -277,15 +281,21 @@ bool Rename(DirectIOFile& file [[maybe_unused]], const std::string& source_path,
             const std::string& destination_path)
 {
 #if defined(_WIN32)
-  // TODO:
-  FILE_RENAME_INFO* info;
-  size_t size = sizeof(FILE_RENAME_INFO) + (wcslen(newName) + 1) * sizeof(wchar_t);
-  // info = malloc(size);
-  info->ReplaceIfExists = TRUE;
-  info->RootDirectory = NULL;
-  wcscpy_s(info->FileName, wcslen(newName) + 1, newName);
-  info->FileNameLength = (DWORD)(wcslen(newName) * sizeof(wchar_t));
-  SetFileInformationByHandle(file.GetHandle(), FileRenameInfo, &info, sizeof(info));
+  const auto dest_name = UTF8ToWString(destination_path);
+  const auto dest_name_byte_size = DWORD(dest_name.size() * sizeof(WCHAR));
+  FILE_RENAME_INFO info{
+      .ReplaceIfExists = TRUE,
+      .FileNameLength = dest_name_byte_size,  // The size in bytes, not including null termination.
+  };
+
+  // TODO: make sure this handles 1 char filenames just fine.
+  constexpr auto filename_struct_offset = offsetof(FILE_RENAME_INFO, FileName);
+  Common::UniqueBuffer<u8> buffer(filename_struct_offset + dest_name_byte_size + sizeof(WCHAR));
+  std::memcpy(buffer.data(), &info, filename_struct_offset);
+  std::memcpy(buffer.data() + filename_struct_offset, dest_name.c_str(),
+              dest_name_byte_size + sizeof(WCHAR));
+  return SetFileInformationByHandle(file.GetHandle(), FileRenameInfo, buffer.data(),
+                                    DWORD(buffer.size())) != 0;
 #else
   return Rename(source_path, destination_path);
 #endif
@@ -295,9 +305,82 @@ bool Delete(DirectIOFile& file [[maybe_unused]], const std::string& filename)
 {
 #if defined(_WIN32)
   FILE_DISPOSITION_INFO info{.DeleteFile = TRUE};
-  SetFileInformationByHandle(file.GetHandle(), FileDispositionInfo, &info, sizeof(info));
+  return SetFileInformationByHandle(file.GetHandle(), FileDispositionInfo, &info, sizeof(info)) !=
+         0;
 #else
   return Delete(filename, IfAbsentBehavior::NoConsoleWarning);
+#endif
+}
+
+#if defined(_WIN32)
+static bool LockExHelper(DirectIOFile& file, u64 offset, u64 size, DWORD flags)
+{
+  OVERLAPPED overlapped{};
+  overlapped.Offset = DWORD(offset);
+  overlapped.OffsetHigh = DWORD(offset >> 32);
+  return LockFileEx(file.GetHandle(), flags, 0, DWORD(size), DWORD(size >> 32), &overlapped) != 0;
+}
+static bool UnlockExHelper(DirectIOFile& file, u64 offset, u64 size)
+{
+  OVERLAPPED overlapped{};
+  overlapped.Offset = DWORD(offset);
+  overlapped.OffsetHigh = DWORD(offset >> 32);
+  return UnlockFileEx(file.GetHandle(), 0, DWORD(size), DWORD(size >> 32), &overlapped) != 0;
+}
+#endif
+
+void Mutex::lock()
+{
+#if defined(_WIN32)
+  ASSERT(LockExHelper(m_file, m_offset, m_size, LOCKFILE_EXCLUSIVE_LOCK));
+#else
+
+#endif
+}
+
+bool Mutex::try_lock()
+{
+#if defined(_WIN32)
+  return LockExHelper(m_file, m_offset, m_size,
+                      LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY);
+#else
+
+#endif
+}
+
+void Mutex::unlock()
+{
+#if defined(_WIN32)
+  ASSERT(UnlockExHelper(m_file, m_offset, m_size));
+#else
+
+#endif
+}
+
+void Mutex::lock_shared()
+{
+#if defined(_WIN32)
+  ASSERT(LockExHelper(m_file, m_offset, m_size, 0));
+#else
+
+#endif
+}
+
+bool Mutex::try_lock_shared()
+{
+#if defined(_WIN32)
+  return LockExHelper(m_file, m_offset, m_size, LOCKFILE_FAIL_IMMEDIATELY);
+#else
+
+#endif
+}
+
+void Mutex::unlock_shared()
+{
+#if defined(_WIN32)
+  ASSERT(UnlockExHelper(m_file, m_offset, m_size));
+#else
+
 #endif
 }
 

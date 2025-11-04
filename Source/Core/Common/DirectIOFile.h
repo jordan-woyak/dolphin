@@ -21,9 +21,9 @@ enum class OpenMode
 
 enum class CreateMode
 {
-  // Requires the file already exist unless `Write` mode is set.
-  Default,
-  // These are not implemented on Android. It will fall back to Default.
+  Default,  // Requires the file already exist unless `Write` mode is set.
+
+  // These are not implemented on Android. It will fall back to `Default`.
   CreateNew,     // Always create a new file. Fail if one already exists.
   OpenExisting,  // Always open an existing file. Fail if one doesn't exist.
 };
@@ -133,5 +133,25 @@ bool Rename(DirectIOFile& file, const std::string& source_path,
             const std::string& destination_path);
 // Note: Ditto, only Windows uses the file handle.
 bool Delete(DirectIOFile& file, const std::string& filename);
+
+class Mutex
+{
+  Mutex(DirectIOFile file, u64 offset, u64 size) : m_file{m_file}, m_offset{offset}, m_size{size} {}
+
+  // TODO: delete copy and move ctors
+
+  void lock();
+  bool try_lock();
+  void unlock();
+
+  void lock_shared();
+  bool try_lock_shared();
+  void unlock_shared();
+
+private:
+  DirectIOFile m_file;
+  const u64 m_offset;
+  const u64 m_size;
+};
 
 }  // namespace File

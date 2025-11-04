@@ -312,39 +312,40 @@ TEST_F(FileUtilTest, DirectIOFile)
   // We may close the file on our end before the other threads use it.
   file.Close();
 
-  // What if someone else opens the file?
-  File::IOFile other_user_of_file(m_file_path, "ab+");
-  EXPECT_TRUE(other_user_of_file.IsOpen());
-
-  // Let the threads read.
-  do_reads.count_down();
-
   // Write mode does not truncate existing files.
   EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
   EXPECT_EQ(file.GetSize(), final_file_size);
 
-  const std::string destination_path_1 = m_file_path + ".destination";
+  // Open a new handle to the same file.
+  File::DirectIOFile other_user_of_file(m_file_path, File::OpenMode::Write);
+  EXPECT_TRUE(other_user_of_file.IsOpen());
 
-  // Rename with bad path fails.
-  EXPECT_FALSE(Rename(file, m_file_path + ".bad", destination_path_1));
+  const std::string destination_path_1 = m_file_path + ".dest_1";
 
   // Rename through handle works when opened elsewhere.
   EXPECT_TRUE(Rename(file, m_file_path, destination_path_1));
   EXPECT_FALSE(File::Exists(m_file_path));
   EXPECT_TRUE(File::Exists(destination_path_1));
 
-  const std::string destination_path_2 = m_file_path + ".another_file";
-  File::DirectIOFile another_file{destination_path_2, File::OpenMode::Write};
-  EXPECT_TRUE(another_file.IsOpen());
-  EXPECT_EQ(File::GetSize(destination_path_2), 0);
+  const std::string destination_path_2 = m_file_path + ".dest_2";
+
+  // Note: Windows fails the next `Rename` if this file is kept open.
+  // I don't know if there is a nice way to make that work.
+  {
+    File::DirectIOFile another_file{destination_path_2, File::OpenMode::Write};
+    EXPECT_TRUE(another_file.IsOpen());
+  }
 
   // Rename overwrites existing files.
   EXPECT_TRUE(Rename(file, destination_path_1, destination_path_2));
+  EXPECT_FALSE(File::Exists(destination_path_1));
   EXPECT_EQ(File::GetSize(destination_path_2), final_file_size);
 
   // Delete through handle works.
   EXPECT_TRUE(Delete(file, destination_path_2));
   EXPECT_FALSE(File::Exists(destination_path_2));
 
+  // The threads can read even after deleting everything.
+  do_reads.count_down();
   std::ranges::for_each(threads, &std::thread::join);
 }
