@@ -11,11 +11,21 @@
 
 namespace File
 {
-enum class OpenMode : u8
+// Files are always opened in "binary" mode.
+enum class OpenMode
 {
-  Read = 0x01,
-  Write = 0x02,
-  ReadAndWrite = Read | Write,
+  Read,
+  Write,
+  ReadAndWrite,
+};
+
+enum class CreateMode
+{
+  Default,  // Requires the file already exist unless `Write` mode is set.
+
+  // These are not implemented on Android. It will fall back to `Default`.
+  CreateNew,     // Always create a new file. Fail if one already exists.
+  OpenExisting,  // Always open an existing file. Fail if one doesn't exist.
 };
 
 // This file wrapper avoids use of the underlying system file position.
@@ -33,9 +43,11 @@ public:
   DirectIOFile(DirectIOFile&&);
   DirectIOFile& operator=(DirectIOFile&&);
 
-  // Files are always opened in "binary" mode.
-  explicit DirectIOFile(const std::string& path, OpenMode open_mode);
-  bool Open(const std::string& path, OpenMode open_mode);
+  explicit DirectIOFile(const std::string& path, OpenMode open_mode,
+                        CreateMode create_mode = CreateMode::Default);
+
+  bool Open(const std::string& path, OpenMode open_mode,
+            CreateMode create_mode = CreateMode::Default);
 
   bool Close();
 
@@ -76,6 +88,7 @@ public:
   }
   bool Write(std::span<const u8> in_data) { return Write(in_data.data(), in_data.size()); }
 
+  // TODO: Make this not a member function
   // Returns 0 on error.
   u64 GetSize() const;
 
@@ -83,6 +96,15 @@ public:
 
   // Returns 0 when not open.
   u64 Tell() const { return m_current_offset; }
+
+  auto GetHandle() const
+  {
+#if defined(_WIN32)
+    return m_handle;
+#else
+    return m_fd;
+#endif
+  }
 
 private:
   void Swap(DirectIOFile& other);
@@ -94,10 +116,23 @@ private:
   using HandleType = void*;
   HandleType m_handle{HandleType(-1)};
 #else
-  int m_fd{-1};
+  using HandleType = int;
+  HandleType m_fd{-1};
 #endif
 
   u64 m_current_offset{};
 };
+
+// These take an open file handle to avoid failures from other processes trying to open our files.
+// This is mainly an issue on Windows.
+
+bool Resize(DirectIOFile& file, u64 size);
+
+// Attempts to replace a destination file if one already exists.
+// Note: On Windows the file handle is used. Elsewhere the source_path is used.
+bool Rename(DirectIOFile& file, const std::string& source_path,
+            const std::string& destination_path);
+// Note: Ditto, only Windows uses the file handle.
+bool Delete(DirectIOFile& file, const std::string& filename);
 
 }  // namespace File

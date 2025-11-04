@@ -8,6 +8,9 @@
 #if defined(_WIN32)
 #include <windows.h>
 
+#include <cstring>
+
+#include "Common/Buffer.h"
 #include "Common/CommonFuncs.h"
 #include "Common/StringUtil.h"
 #else
@@ -16,18 +19,14 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "Common/FileUtil.h"
 #endif
 
 #include "Common/Assert.h"
-#include "Common/EnumUtils.h"
 
 namespace File
 {
-static constexpr auto IsOpenModeBitSet(OpenMode lhs, OpenMode rhs)
-{
-  return (Common::ToUnderlying(lhs) & Common::ToUnderlying(rhs)) != 0;
-}
-
 DirectIOFile::DirectIOFile() = default;
 
 DirectIOFile::~DirectIOFile()
@@ -57,38 +56,40 @@ DirectIOFile& DirectIOFile::operator=(DirectIOFile&& other)
   return *this;
 }
 
-DirectIOFile::DirectIOFile(const std::string& path, OpenMode open_mode)
+DirectIOFile::DirectIOFile(const std::string& path, OpenMode open_mode, CreateMode create_mode)
 {
-  Open(path, open_mode);
+  Open(path, open_mode, create_mode);
 }
 
-bool DirectIOFile::Open(const std::string& path, OpenMode open_mode)
+bool DirectIOFile::Open(const std::string& path, OpenMode open_mode, CreateMode create_mode)
 {
   ASSERT(!IsOpen());
 
-#ifdef _WIN32
-  DWORD desired_access = 0;
-  DWORD share_mode = 0;
-  DWORD creation_disposition = OPEN_EXISTING;
+#if defined(_WIN32)
+  DWORD desired_access = GENERIC_READ | GENERIC_WRITE;
+  if (open_mode == OpenMode::Read)
+    desired_access = GENERIC_READ;
+  else if (open_mode == OpenMode::Write)
+    desired_access = GENERIC_WRITE;
 
-  if (IsOpenModeBitSet(open_mode, OpenMode::Read))
-  {
-    desired_access |= GENERIC_READ;
-    share_mode |= FILE_SHARE_READ;
-  }
-  if (IsOpenModeBitSet(open_mode, OpenMode::Write))
-  {
-    desired_access |= GENERIC_WRITE;
-    share_mode |= FILE_SHARE_WRITE;
+  // Allow deleting through our handle.
+  desired_access |= DELETE;
+
+  // All sharing is allowed to more closely match default behavior on other OSes.
+  constexpr DWORD share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+
+  DWORD creation_disposition = OPEN_EXISTING;
+  if (create_mode == CreateMode::CreateNew)
+    creation_disposition = CREATE_NEW;
+  else if (create_mode == CreateMode::Default && open_mode != OpenMode::Read)
     creation_disposition = OPEN_ALWAYS;
-  }
 
   m_handle = CreateFile(UTF8ToTStr(path).c_str(), desired_access, share_mode, nullptr,
                         creation_disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (!IsOpen())
     WARN_LOG_FMT(COMMON, "CreateFile: {}", Common::GetLastErrorString());
-#else
-  // Leveraging IOFile to avoid reimplementing OS-specific opening procedures.
+#elif defined(ANDROID)
+  // Leveraging IOFile to avoid reimplementing things.
   std::string open_mode_str;
 
   if (IsOpenModeBitSet(open_mode, OpenMode::Read))
@@ -98,6 +99,20 @@ bool DirectIOFile::Open(const std::string& path, OpenMode open_mode)
 
   if (IOFile file(path, open_mode_str.c_str()); file.IsOpen())
     m_fd = dup(fileno(file.GetHandle()));
+#else
+
+  int flags = O_RDWR;
+  if (open_mode == OpenMode::Read)
+    flags = O_RDONLY;
+  else if (open_mode == OpenMode::Write)
+    flags = O_WRONLY;
+
+  if (create_mode == CreateMode::CreateNew)
+    flags |= O_CREAT | O_EXCL;
+  else if (create_mode == CreateMode::Default && open_mode != OpenMode::Read)
+    flags |= O_CREAT;
+
+  m_fd = open(path.c_str(), flags, 0666);
 #endif
 
   return IsOpen();
@@ -247,6 +262,52 @@ DirectIOFile DirectIOFile::Duplicate() const
   result.m_current_offset = m_current_offset;
 
   return result;
+}
+
+bool Resize(DirectIOFile& file, u64 size)
+{
+#if defined(_WIN32)
+  // This operation is not "atomic", but it's the only thing we're using the file pointer for.
+  // Concurrent `Resize` would need some external synchronization to prevent race regardless.
+  const LARGE_INTEGER distance{.QuadPart = LONGLONG(size)};
+  return (SetFilePointerEx(file.GetHandle(), distance, nullptr, FILE_BEGIN) != 0) &&
+         (SetEndOfFile(file.GetHandle()) != 0);
+#else
+  return ftruncate(file.GetHandle(), off_t(size)) == 0;
+#endif
+}
+
+bool Rename(DirectIOFile& file [[maybe_unused]], const std::string& source_path [[maybe_unused]],
+            const std::string& destination_path)
+{
+#if defined(_WIN32)
+  const auto dest_name = UTF8ToWString(destination_path);
+  const auto dest_name_byte_size = DWORD(dest_name.size() * sizeof(WCHAR));
+  FILE_RENAME_INFO info{
+      .ReplaceIfExists = TRUE,
+      .FileNameLength = dest_name_byte_size,  // The size in bytes, not including null termination.
+  };
+  constexpr auto filename_struct_offset = offsetof(FILE_RENAME_INFO, FileName);
+  Common::UniqueBuffer<u8> buffer(filename_struct_offset + dest_name_byte_size + sizeof(WCHAR));
+  std::memcpy(buffer.data(), &info, filename_struct_offset);
+  std::memcpy(buffer.data() + filename_struct_offset, dest_name.c_str(),
+              dest_name_byte_size + sizeof(WCHAR));
+  return SetFileInformationByHandle(file.GetHandle(), FileRenameInfo, buffer.data(),
+                                    DWORD(buffer.size())) != 0;
+#else
+  return Rename(source_path, destination_path);
+#endif
+}
+
+bool Delete(DirectIOFile& file [[maybe_unused]], const std::string& filename)
+{
+#if defined(_WIN32)
+  FILE_DISPOSITION_INFO info{.DeleteFile = TRUE};
+  return SetFileInformationByHandle(file.GetHandle(), FileDispositionInfo, &info, sizeof(info)) !=
+         0;
+#else
+  return Delete(filename, IfAbsentBehavior::NoConsoleWarning);
+#endif
 }
 
 }  // namespace File
