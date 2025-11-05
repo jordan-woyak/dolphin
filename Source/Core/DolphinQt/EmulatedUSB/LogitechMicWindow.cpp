@@ -20,11 +20,13 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/System.h"
+#include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
 LogitechMicWindow::LogitechMicWindow(QWidget* parent) : QWidget(parent)
 {
   setWindowTitle(tr("Logitech USB Microphone Manager"));
+  setWindowIcon(Resources::GetAppIcon());
   setObjectName(QStringLiteral("logitech_mic_manager"));
   setMinimumSize(QSize(700, 200));
 

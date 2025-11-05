@@ -54,6 +54,6 @@ bool MicrophoneLogitech::IsMicrophoneMuted() const
 
 u32 MicrophoneLogitech::GetStreamSize() const
 {
-  return BUFF_SIZE_SAMPLES * m_sampler.srate[0] / 250;
+  return BUFF_SIZE_SAMPLES * m_sampler.srate / 250;
 }
 }  // namespace IOS::HLE::USB

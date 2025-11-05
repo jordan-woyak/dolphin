@@ -104,7 +104,7 @@ int LogitechMic::SetAltSetting(u8 alt_setting)
   return 0;
 }
 
-constexpr u32 USBGETAID(u8 cs, u8 request, u16 index)
+static constexpr u32 USBGETAID(u8 cs, u8 request, u16 index)
 {
   return static_cast<u32>((cs << 24) | (request << 16) | index);
 }
@@ -123,44 +123,44 @@ int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
                 USBGETAID(cs, cmd->request, cmd->index));
   switch (USBGETAID(cs, cmd->request, cmd->index))
   {
-  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_GET_CUR, 0x0300):
+  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_GET_CUR, 0x0200):
   {
     memory.Write_U8(m_sampler.mute ? 1 : 0, cmd->data_address);
     ret = 1;
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_CUR, 0x0300):
+  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_CUR, 0x0200):
   {
-    if (cn < 2 || cn == 0xff)
+    if (cn < 1 || cn == 0xff)
     {
-      const uint16_t vol = (m_sampler.vol[cn == 1 ? 1 : 0] * 0x8800 + 127) / 255 + 0x8000;
+      const uint16_t vol = (m_sampler.vol * 0x8800 + 127) / 255 + 0x8000;
       DEBUG_LOG_FMT(IOS_USB, "GetAudioControl: Get volume {:04x}", vol);
       memory.Write_U16(vol, cmd->data_address);
       ret = 2;
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MIN, 0x0300):
+  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MIN, 0x0200):
   {
-    if (cn < 2 || cn == 0xff)
+    if (cn < 1 || cn == 0xff)
     {
       memory.Write_U16(0x8001, cmd->data_address);
       ret = 2;
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MAX, 0x0300):
+  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MAX, 0x0200):
   {
-    if (cn < 2 || cn == 0xff)
+    if (cn < 1 || cn == 0xff)
     {
       memory.Write_U16(0x0800, cmd->data_address);
       ret = 2;
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_RES, 0x0300):
+  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_RES, 0x0200):
   {
-    if (cn < 2 || cn == 0xff)
+    if (cn < 1 || cn == 0xff)
     {
       memory.Write_U16(0x0088, cmd->data_address);
       ret = 2;
@@ -185,16 +185,16 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
                 USBGETAID(cs, cmd->request, cmd->index));
   switch (USBGETAID(cs, cmd->request, cmd->index))
   {
-  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_SET_CUR, 0x0300):
+  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_SET_CUR, 0x0200):
   {
     m_sampler.mute = memory.Read_U8(cmd->data_address) & 0x01;
     DEBUG_LOG_FMT(IOS_USB, "SetAudioControl: Setting mute to {}", m_sampler.mute.load());
     ret = 0;
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_SET_CUR, 0x0300):
+  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_SET_CUR, 0x0200):
   {
-    if (cn < 2 || cn == 0xff)
+    if (cn < 1 || cn == 0xff)
     {
       // TODO: Lego Rock Band's mic sensitivity setting provides unknown values to this.
       uint16_t vol = memory.Read_U16(cmd->data_address);
@@ -207,25 +207,23 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 
       if (cn == 0xff)
       {
-        if (m_sampler.vol[0] != vol)
-          m_sampler.vol[0] = static_cast<u8>(vol);
-        if (m_sampler.vol[1] != vol)
-          m_sampler.vol[1] = static_cast<u8>(vol);
+        if (m_sampler.vol != vol)
+          m_sampler.vol = static_cast<u8>(vol);
       }
       else
       {
-        if (m_sampler.vol[cn] != vol)
-          m_sampler.vol[cn] = static_cast<u8>(vol);
+        if (m_sampler.vol != vol)
+          m_sampler.vol = static_cast<u8>(vol);
       }
 
-      DEBUG_LOG_FMT(IOS_USB, "SetAudioControl: Setting volume to [{:02x} {:02x}] [original={:04x}]",
-                    m_sampler.vol[0], m_sampler.vol[1], original_vol);
+      DEBUG_LOG_FMT(IOS_USB, "SetAudioControl: Setting volume to [{:02x}] [original={:04x}]",
+                    m_sampler.vol.load(), original_vol);
 
       ret = 0;
     }
     break;
   }
-  case USBGETAID(AUDIO_AUTOMATIC_GAIN_CONTROL, REQUEST_SET_CUR, 0x0300):
+  case USBGETAID(AUDIO_AUTOMATIC_GAIN_CONTROL, REQUEST_SET_CUR, 0x0200):
   {
     ret = 0;
     break;
@@ -248,16 +246,16 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
                 USBGETAID(cs, cmd->request, cmd->index));
   switch (USBGETAID(cs, cmd->request, cmd->index))
   {
-  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_SET_CUR, 0x0081):
+  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_SET_CUR, ENDPOINT_AUDIO_IN):
   {
     if (cn == 0xff)
     {
       const uint32_t sr = memory.Read_U8(cmd->data_address) |
                           (memory.Read_U8(cmd->data_address + 1) << 8) |
                           (memory.Read_U8(cmd->data_address + 2) << 16);
-      if (m_sampler.srate[0] != sr)
+      if (m_sampler.srate != sr)
       {
-        m_sampler.srate[0] = sr;
+        m_sampler.srate = sr;
         if (m_microphone != nullptr)
         {
           DEBUG_LOG_FMT(IOS_USB, "EndpointAudioControl: Setting sampling rate to {:d}", sr);
@@ -265,7 +263,7 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
         }
       }
     }
-    else if (cn < 2)
+    else if (cn < 1)
     {
       WARN_LOG_FMT(IOS_USB, "EndpointAudioControl: Unsupported SAMPLER_FREQ_CONTROL set [cn={:d}]",
                    cn);
@@ -273,11 +271,11 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     ret = 0;
     break;
   }
-  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_GET_CUR, 0x0081):
+  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_GET_CUR, ENDPOINT_AUDIO_IN):
   {
-    memory.Write_U8(m_sampler.srate[0] & 0xff, cmd->data_address + 2);
-    memory.Write_U8((m_sampler.srate[0] >> 8) & 0xff, cmd->data_address + 1);
-    memory.Write_U8((m_sampler.srate[0] >> 16) & 0xff, cmd->data_address);
+    memory.Write_U8(m_sampler.srate & 0xff, cmd->data_address + 2);
+    memory.Write_U8((m_sampler.srate >> 8) & 0xff, cmd->data_address + 1);
+    memory.Write_U8((m_sampler.srate >> 16) & 0xff, cmd->data_address);
     ret = 3;
     break;
   }
@@ -285,16 +283,16 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
   return ret;
 }
 
-static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
+static constexpr std::array<u8, 121> FULL_DESCRIPTOR = {
     /* Configuration 1 */
     0x09,       /* bLength */
     0x02,       /* bDescriptorType */
-    0xb1, 0x00, /* wTotalLength */
+    0x79, 0x00, /* wTotalLength */
     0x02,       /* bNumInterfaces */
     0x01,       /* bConfigurationValue */
-    0x00,       /* iConfiguration */
+    0x03,       /* iConfiguration */
     0x80,       /* bmAttributes */
-    0x2d,       /* bMaxPower */
+    0x3c,       /* bMaxPower */
 
     /* Interface 0, Alternate Setting 0, Audio Control */
     0x09, /* bLength */
@@ -312,7 +310,7 @@ static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
     0x24,       /* bDescriptorType */
     0x01,       /* bDescriptorSubtype */
     0x00, 0x01, /* bcdADC */
-    0x28, 0x00, /* wTotalLength */
+    0x27, 0x00, /* wTotalLength */
     0x01,       /* bInCollection */
     0x01,       /* baInterfaceNr */
 
@@ -320,35 +318,34 @@ static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
     0x0c,       /* bLength */
     0x24,       /* bDescriptorType */
     0x02,       /* bDescriptorSubtype */
-    0x01,       /* bTerminalID */
+    0x0d,       /* bTerminalID */
     0x01, 0x02, /* wTerminalType */
-    0x02,       /* bAssocTerminal */
-    0x02,       /* bNrChannels */
-    0x03, 0x00, /* wChannelConfig */
+    0x00,       /* bAssocTerminal */
+    0x01,       /* bNrChannels */
+    0x00, 0x00, /* wChannelConfig */
     0x00,       /* iChannelNames */
     0x00,       /* iTerminal */
+
+    /* Audio Feature Unit */
+    0x09, /* bLength */
+    0x24, /* bDescriptorType */
+    0x06, /* bDescriptorSubtype */
+    0x02, /* bUnitID */
+    0x0d, /* bSourceID */
+    0x01, /* bControlSize */
+    0x03, /* bmaControls(0) */
+    0x00, /* bmaControls(1) */
+    0x00, /* iFeature */
 
     /* Audio Output Terminal */
     0x09,       /* bLength */
     0x24,       /* bDescriptorType */
     0x03,       /* bDescriptorSubtype */
-    0x02,       /* bTerminalID */
+    0x0a,       /* bTerminalID */
     0x01, 0x01, /* wTerminalType */
-    0x01,       /* bAssocTerminal */
-    0x03,       /* bSourceID */
+    0x00,       /* bAssocTerminal */
+    0x02,       /* bSourceID */
     0x00,       /* iTerminal */
-
-    /* Audio Feature Unit */
-    0x0a, /* bLength */
-    0x24, /* bDescriptorType */
-    0x06, /* bDescriptorSubtype */
-    0x03, /* bUnitID */
-    0x01, /* bSourceID */
-    0x01, /* bControlSize */
-    0x01, /* bmaControls(0) */
-    0x02, /* bmaControls(1) */
-    0x02, /* bmaControls(2) */
-    0x00, /* iTerminal */
 
     /* Interface 1, Alternate Setting 0, Audio Streaming - Zero Bandwith */
     0x09, /* bLength */
@@ -376,8 +373,8 @@ static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
     0x07,       /* bLength */
     0x24,       /* bDescriptorType */
     0x01,       /* bDescriptorSubtype */
-    0x02,       /* bTerminalLink */
-    0x01,       /* bDelay */
+    0x0a,       /* bTerminalLink */
+    0x00,       /* bDelay */
     0x01, 0x00, /* wFormatTag */
 
     /* Audio Type I Format */
@@ -398,9 +395,9 @@ static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
     /* Endpoint - Standard Descriptor */
     0x09,       /* bLength */
     0x05,       /* bDescriptorType */
-    0x81,       /* bEndpointAddress */
-    0x05,       /* bmAttributes */
-    0x64, 0x00, /* wMaxPacketSize */
+    0x84,       /* bEndpointAddress */
+    0x0d,       /* bmAttributes */
+    0x60, 0x00, /* wMaxPacketSize */
     0x01,       /* bInterval */
     0x00,       /* bRefresh */
     0x00,       /* bSynchAddress */
@@ -410,63 +407,8 @@ static constexpr std::array<u8, 178> FULL_DESCRIPTOR = {
     0x25,       /* bDescriptorType */
     0x01,       /* bDescriptor */
     0x01,       /* bmAttributes */
-    0x00,       /* bLockDelayUnits */
-    0x00, 0x00, /* wLockDelay */
-
-    /* Interface 1, Alternate Setting 2, Audio Streaming - 2 channels */
-    0x09, /* bLength */
-    0x04, /* bDescriptorType */
-    0x01, /* bInterfaceNumber */
-    0x02, /* bAlternateSetting */
-    0x01, /* bNumEndpoints */
-    0x01, /* bInterfaceClass */
-    0x02, /* bInterfaceSubClass */
-    0x00, /* bInterfaceProtocol */
-    0x00, /* iInterface */
-
-    /* Audio Streaming Interface */
-    0x07,       /* bLength */
-    0x24,       /* bDescriptorType */
-    0x01,       /* bDescriptorSubtype */
-    0x02,       /* bTerminalLink */
-    0x01,       /* bDelay */
-    0x01, 0x00, /* wFormatTag */
-
-    /* Audio Type I Format */
-    0x17,             /* bLength */
-    0x24,             /* bDescriptorType */
-    0x02,             /* bDescriptorSubtype */
-    0x01,             /* bFormatType */
-    0x02,             /* bNrChannels */
-    0x02,             /* bSubFrameSize */
-    0x10,             /* bBitResolution */
-    0x05,             /* bSamFreqType */
-    0x40, 0x1f, 0x00, /* tSamFreq 1 */
-    0x11, 0x2b, 0x00, /* tSamFreq 2 */
-    0x22, 0x56, 0x00, /* tSamFreq 3 */
-    0x44, 0xac, 0x00, /* tSamFreq 4 */
-    0x80, 0xbb, 0x00, /* tSamFreq 5 */
-
-    /* Endpoint - Standard Descriptor */
-    0x09,       /* bLength */
-    0x05,       /* bDescriptorType */
-    0x81,       /* bEndpointAddress */
-    0x05,       /* bmAttributes */
-    0xc8, 0x00, /* wMaxPacketSize */
-    0x01,       /* bInterval */
-    0x00,       /* bRefresh */
-    0x00,       /* bSynchAddress */
-
-    /* Endpoint - Audio Streaming */
-    0x07,       /* bLength */
-    0x25,       /* bDescriptorType */
-    0x01,       /* bDescriptor */
-    0x01,       /* bmAttributes */
-    0x00,       /* bLockDelayUnits */
-    0x00, 0x00, /* wLockDelay */
-
-    /* Terminator */
-    0 /* bLength */
+    0x02,       /* bLockDelayUnits */
+    0x01, 0x00  /* wLockDelay */
 };
 
 int LogitechMic::SubmitTransfer(std::unique_ptr<CtrlMessage> cmd)
