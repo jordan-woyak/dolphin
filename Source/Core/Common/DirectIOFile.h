@@ -105,6 +105,8 @@ public:
   // Returns 0 when not open.
   u64 Tell() const { return m_current_offset; }
 
+  bool Flush();
+
   auto GetHandle() const
   {
 #if defined(_WIN32)

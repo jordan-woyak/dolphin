@@ -234,6 +234,15 @@ bool DirectIOFile::Seek(s64 offset, SeekOrigin origin)
   return true;
 }
 
+bool DirectIOFile::Flush()
+{
+#if defined(_WIN32)
+  return FlushFileBuffers(m_handle) != 0;
+#else
+  return fsync(m_fd) == 0;
+#endif
+}
+
 void DirectIOFile::Swap(DirectIOFile& other)
 {
 #if defined(_WIN32)
