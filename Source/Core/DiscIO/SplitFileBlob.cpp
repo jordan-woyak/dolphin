@@ -32,7 +32,7 @@ std::unique_ptr<SplitPlainFileReader> SplitPlainFileReader::Create(std::string_v
   u64 offset = 0;
   while (true)
   {
-    File::DirectIOFile f(fmt::format("{}.part{}.iso", base_path, index), File::OpenMode::Read);
+    File::DirectIOFile f(fmt::format("{}.part{}.iso", base_path, index), File::AccessMode::Read);
     if (!f.IsOpen())
       break;
     const u64 size = f.GetSize();

@@ -56,20 +56,23 @@ DirectIOFile& DirectIOFile::operator=(DirectIOFile&& other)
   return *this;
 }
 
-DirectIOFile::DirectIOFile(const std::string& path, OpenMode open_mode, CreateMode create_mode)
+DirectIOFile::DirectIOFile(const std::string& path, AccessMode access_mode, OpenMode create_mode)
 {
-  Open(path, open_mode, create_mode);
+  Open(path, access_mode, create_mode);
 }
 
-bool DirectIOFile::Open(const std::string& path, OpenMode open_mode, CreateMode create_mode)
+bool DirectIOFile::Open(const std::string& path, AccessMode access_mode, OpenMode open_mode)
 {
   ASSERT(!IsOpen());
 
+  if (open_mode == OpenMode::Default)
+    open_mode = (access_mode == AccessMode::Write) ? OpenMode::Truncate : OpenMode::MustExist;
+
 #if defined(_WIN32)
   DWORD desired_access = GENERIC_READ | GENERIC_WRITE;
-  if (open_mode == OpenMode::Read)
+  if (access_mode == AccessMode::Read)
     desired_access = GENERIC_READ;
-  else if (open_mode == OpenMode::Write)
+  else if (access_mode == AccessMode::Write)
     desired_access = GENERIC_WRITE;
 
   // Allow deleting through our handle.
@@ -79,9 +82,9 @@ bool DirectIOFile::Open(const std::string& path, OpenMode open_mode, CreateMode 
   constexpr DWORD share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
 
   DWORD creation_disposition = OPEN_EXISTING;
-  if (create_mode == CreateMode::CreateNew)
+  if (open_mode == CreateMode::CreateNew)
     creation_disposition = CREATE_NEW;
-  else if (create_mode == CreateMode::Default && open_mode != OpenMode::Read)
+  else if (open_mode == CreateMode::Default && access_mode == AccessMode::Write)
     creation_disposition = OPEN_ALWAYS;
 
   m_handle = CreateFile(UTF8ToTStr(path).c_str(), desired_access, share_mode, nullptr,
@@ -90,26 +93,28 @@ bool DirectIOFile::Open(const std::string& path, OpenMode open_mode, CreateMode 
     WARN_LOG_FMT(COMMON, "CreateFile: {}", Common::GetLastErrorString());
 #elif defined(ANDROID)
   // Leveraging IOFile to avoid reimplementing things.
-  std::string open_mode_str;
+  const char* open_mode_str = "r+";
+  if (access_mode == AccessMode::Read)
+    open_mode_str = "r";
+  else if (access_mode == AccessMode::Write)
+    open_mode_str = "w";
 
-  if (IsOpenModeBitSet(open_mode, OpenMode::Read))
-    open_mode_str += 'r';
-  if (IsOpenModeBitSet(open_mode, OpenMode::Write))
-    open_mode_str += 'w';
+  // TODO: open modes!!
 
-  if (IOFile file(path, open_mode_str.c_str()); file.IsOpen())
+  if (IOFile file(path, open_mode_str); file.IsOpen())
     m_fd = dup(fileno(file.GetHandle()));
 #else
-
   int flags = O_RDWR;
-  if (open_mode == OpenMode::Read)
+  if (access_mode == AccessMode::Read)
     flags = O_RDONLY;
-  else if (open_mode == OpenMode::Write)
+  else if (access_mode == AccessMode::Write)
     flags = O_WRONLY;
 
-  if (create_mode == CreateMode::CreateNew)
+  if (open_mode == OpenMode::Truncate)
+    flags |= O_CREAT | O_TRUNC;
+  else if (open_mode == OpenMode::MustCreate)
     flags |= O_CREAT | O_EXCL;
-  else if (create_mode == CreateMode::Default && open_mode != OpenMode::Read)
+  else if (open_mode != OpenMode::MustExist)
     flags |= O_CREAT;
 
   m_fd = open(path.c_str(), flags, 0666);
@@ -295,7 +300,7 @@ bool Rename(DirectIOFile& file [[maybe_unused]], const std::string& source_path 
   return SetFileInformationByHandle(file.GetHandle(), FileRenameInfo, buffer.data(),
                                     DWORD(buffer.size())) != 0;
 #else
-  return Rename(source_path, destination_path);
+  return file.IsOpen() && Rename(source_path, destination_path);
 #endif
 }
 
@@ -306,7 +311,7 @@ bool Delete(DirectIOFile& file [[maybe_unused]], const std::string& filename)
   return SetFileInformationByHandle(file.GetHandle(), FileDispositionInfo, &info, sizeof(info)) !=
          0;
 #else
-  return Delete(filename, IfAbsentBehavior::NoConsoleWarning);
+  return file.IsOpen() && Delete(filename, IfAbsentBehavior::NoConsoleWarning);
 #endif
 }
 

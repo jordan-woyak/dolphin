@@ -12,20 +12,28 @@
 namespace File
 {
 // Files are always opened in "binary" mode.
-enum class OpenMode
+enum class AccessMode
 {
   Read,
   Write,
   ReadAndWrite,
 };
 
-enum class CreateMode
+enum class OpenMode
 {
-  Default,  // Requires the file already exist unless `Write` mode is set.
-
-  // These are not implemented on Android. It will fall back to `Default`.
-  CreateNew,     // Always create a new file. Fail if one already exists.
-  OpenExisting,  // Always open an existing file. Fail if one doesn't exist.
+  // Based on the provided `AccessMode`.
+  // Read: MustExist.
+  // Write: Truncate.
+  // ReadAndWrite: MustExist.
+  Default,
+  // Either create a new file or open an existing file.
+  Always,
+  // Like `Always`, but also erase the contents of an existing file. Fails with AccessMode::Read.
+  Truncate,
+  // Require a file already exist. Fail otherwise.
+  MustExist,
+  // Require a new file be created. Fail if one already exists. Android treats this as `Truncate`.
+  MustCreate,
 };
 
 // This file wrapper avoids use of the underlying system file position.
@@ -43,11 +51,11 @@ public:
   DirectIOFile(DirectIOFile&&);
   DirectIOFile& operator=(DirectIOFile&&);
 
-  explicit DirectIOFile(const std::string& path, OpenMode open_mode,
-                        CreateMode create_mode = CreateMode::Default);
+  explicit DirectIOFile(const std::string& path, AccessMode access_mode,
+                        OpenMode create_mode = OpenMode::Default);
 
-  bool Open(const std::string& path, OpenMode open_mode,
-            CreateMode create_mode = CreateMode::Default);
+  bool Open(const std::string& path, AccessMode access_mode,
+            OpenMode create_mode = OpenMode::Default);
 
   bool Close();
 

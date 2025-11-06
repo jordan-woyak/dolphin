@@ -93,7 +93,7 @@ bool DiscContent::Read(u64* offset, u64* length, u8** buffer, DirectoryBlobReade
     if (std::holds_alternative<ContentFile>(m_content_source))
     {
       const auto& content = std::get<ContentFile>(m_content_source);
-      File::DirectIOFile file(content.m_filename, File::OpenMode::Read);
+      File::DirectIOFile file(content.m_filename, File::AccessMode::Read);
       if (!file.OffsetRead(content.m_offset + offset_in_content, *buffer, bytes_to_read))
       {
         return false;
@@ -1008,7 +1008,7 @@ void DirectoryBlobPartition::SetBI2(std::vector<u8> bi2)
 
 u64 DirectoryBlobPartition::SetApploaderFromFile(const std::string& path)
 {
-  File::DirectIOFile file(path, File::OpenMode::Read);
+  File::DirectIOFile file(path, File::AccessMode::Read);
   std::vector<u8> apploader(file.GetSize());
   file.Read(apploader);
   return SetApploader(std::move(apploader), path);
@@ -1251,7 +1251,7 @@ void DirectoryBlobPartition::WriteDirectory(std::vector<u8>* fst_data,
 
 static size_t ReadFileToVector(const std::string& path, std::vector<u8>* vector)
 {
-  File::DirectIOFile file(path, File::OpenMode::Read);
+  File::DirectIOFile file(path, File::AccessMode::Read);
   file.Read(vector->data(), std::min<u64>(file.GetSize(), vector->size()));
   return file.Tell();
 }

@@ -39,7 +39,7 @@ bool NFSFileReader::ReadKey(const std::string& path, const std::string& director
   }
 
   const std::string key_path = parent + "code/htk.bin";
-  File::DirectIOFile key_file(key_path, File::OpenMode::Read);
+  File::DirectIOFile key_file(key_path, File::AccessMode::Read);
   if (!key_file.Read(*key_out))
   {
     ERROR_LOG_FMT(DISCIO, "Failed to read from {}", key_path);
@@ -82,7 +82,7 @@ std::vector<File::DirectIOFile> NFSFileReader::OpenFiles(const std::string& dire
   for (u64 i = 1; i < file_count; ++i)
   {
     const std::string child_path = fmt::format("{}hif_{:06}.nfs", directory, i);
-    File::DirectIOFile child(child_path, File::OpenMode::Read);
+    File::DirectIOFile child(child_path, File::AccessMode::Read);
     if (!child.IsOpen())
     {
       ERROR_LOG_FMT(DISCIO, "Failed to open {}", child_path);

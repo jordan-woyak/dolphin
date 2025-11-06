@@ -73,7 +73,7 @@ void WbfsFileReader::OpenAdditionalFiles(const std::string& path)
       return;
     std::string current_path = path;
     current_path.back() = static_cast<char>('0' + m_files.size());
-    if (!AddFileToList(File::DirectIOFile(current_path, File::OpenMode::Read)))
+    if (!AddFileToList(File::DirectIOFile(current_path, File::AccessMode::Read)))
       return;
   }
 }

@@ -212,7 +212,7 @@ u32 SectorReader::ReadChunk(u8* buffer, u64 chunk_num)
 
 std::unique_ptr<BlobReader> CreateBlobReader(const std::string& filename)
 {
-  File::DirectIOFile file(filename, File::OpenMode::Read);
+  File::DirectIOFile file(filename, File::AccessMode::Read);
   u32 magic;
   if (!file.Read(Common::AsWritableU8Span(magic)))
     return nullptr;

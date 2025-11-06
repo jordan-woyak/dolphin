@@ -165,7 +165,7 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_FALSE(file.IsOpen());
 
   // Read mode fails with a non-existing file.
-  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Read));
 
   std::array<u8, u8_test_data.size()> u8_buffer = {};
 
@@ -177,21 +177,26 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_EQ(file.GetSize(), 0);
 
   // Fail to open non-existing file.
-  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::OpenExisting));
-  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::OpenExisting));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::ReadAndWrite));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::MustExist));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::MustExist));
+
+  // Read mode can create files
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::MustCreate));
+  EXPECT_TRUE(file.Close());
 
   // Open a file for writing.
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::CreateNew));
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::Always));
   EXPECT_TRUE(file.IsOpen());
 
   // Note: Double Open() currently ASSERTs. It's not obvious if that should succeed or fail.
 
   EXPECT_TRUE(file.Close());
-  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::CreateNew));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::MustCreate));
 
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write, File::CreateMode::OpenExisting));
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::MustExist));
   EXPECT_TRUE(file.Close());
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write));
 
   EXPECT_TRUE(file.Write(u8_buffer.data(), 0));  // write of 0 succeeds.
   EXPECT_FALSE(file.Read(u8_buffer.data(), 0));  // read of 0 (in write mode) fails.
@@ -236,10 +241,10 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_FALSE(file.Close());  // Double close fails.
 
   // Open file for reading.
-  EXPECT_FALSE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::CreateNew));
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Read, File::CreateMode::OpenExisting));
+  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::MustCreate));
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::Always));
   EXPECT_TRUE(file.Close());
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Read));
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Read));
 
   static constexpr int big_offset = 999;
 
@@ -312,13 +317,13 @@ TEST_F(FileUtilTest, DirectIOFile)
   // We may close the file on our end before the other threads use it.
   file.Close();
 
-  // Write mode does not truncate existing files.
-  EXPECT_TRUE(file.Open(m_file_path, File::OpenMode::Write));
+  // ReadAndWrite does not truncate existing files.
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::ReadAndWrite));
   EXPECT_EQ(file.GetSize(), final_file_size);
 
   // Open a new handle to the same file.
-  File::DirectIOFile other_user_of_file(m_file_path, File::OpenMode::Write);
-  EXPECT_TRUE(other_user_of_file.IsOpen());
+  File::DirectIOFile second_handle(m_file_path, File::AccessMode::Write, File::OpenMode::Always);
+  EXPECT_TRUE(second_handle.IsOpen());
 
   const std::string destination_path_1 = m_file_path + ".dest_1";
 
@@ -332,7 +337,7 @@ TEST_F(FileUtilTest, DirectIOFile)
   // Note: Windows fails the next `Rename` if this file is kept open.
   // I don't know if there is a nice way to make that work.
   {
-    File::DirectIOFile another_file{destination_path_2, File::OpenMode::Write};
+    File::DirectIOFile another_file{destination_path_2, File::AccessMode::Write};
     EXPECT_TRUE(another_file.IsOpen());
   }
 
@@ -348,4 +353,9 @@ TEST_F(FileUtilTest, DirectIOFile)
   // The threads can read even after deleting everything.
   do_reads.count_down();
   std::ranges::for_each(threads, &std::thread::join);
+
+  // Write mode truncates by default.
+  File::DirectIOFile trunc_file;
+  EXPECT_TRUE(trunc_file.Open(destination_path_2, File::AccessMode::Write));
+  file.F EXPECT_EQ(file.GetSize(), 0);  // Original handle sees size change.
 }

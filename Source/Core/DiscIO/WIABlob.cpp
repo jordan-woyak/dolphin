@@ -2043,7 +2043,7 @@ bool ConvertToWIAOrRVZ(BlobReader* infile, const std::string& infile_path,
                        WIARVZCompressionType compression_type, int compression_level,
                        int chunk_size, const CompressCB& callback)
 {
-  File::DirectIOFile outfile(outfile_path, File::OpenMode::Write);
+  File::DirectIOFile outfile(outfile_path, File::AccessMode::Write);
   if (!outfile.IsOpen())
   {
     PanicAlertFmtT(

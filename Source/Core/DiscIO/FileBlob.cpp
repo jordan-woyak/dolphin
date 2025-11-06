@@ -43,7 +43,7 @@ bool ConvertToPlain(BlobReader* infile, const std::string& infile_path,
 {
   ASSERT(infile->GetDataSizeType() == DataSizeType::Accurate);
 
-  File::DirectIOFile outfile(outfile_path, File::OpenMode::Write);
+  File::DirectIOFile outfile(outfile_path, File::AccessMode::Write);
   if (!outfile.IsOpen())
   {
     PanicAlertFmtT(
