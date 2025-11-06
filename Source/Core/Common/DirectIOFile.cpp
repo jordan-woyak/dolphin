@@ -75,34 +75,56 @@ bool DirectIOFile::Open(const std::string& path, AccessMode access_mode, OpenMod
   else if (access_mode == AccessMode::Write)
     desired_access = GENERIC_WRITE;
 
-  // Allow deleting through our handle.
+  // Allow deleting and renaming through our handle.
   desired_access |= DELETE;
 
   // All sharing is allowed to more closely match default behavior on other OSes.
   constexpr DWORD share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
 
-  DWORD creation_disposition = OPEN_EXISTING;
-  if (open_mode == CreateMode::CreateNew)
+  DWORD creation_disposition = OPEN_ALWAYS;
+  if (open_mode == OpenMode::Truncate)
+    creation_disposition = CREATE_ALWAYS;
+  else if (open_mode == OpenMode::MustCreate)
     creation_disposition = CREATE_NEW;
-  else if (open_mode == CreateMode::Default && access_mode == AccessMode::Write)
-    creation_disposition = OPEN_ALWAYS;
+  else if (open_mode == OpenMode::MustExist)
+    creation_disposition = OPEN_EXISTING;
 
   m_handle = CreateFile(UTF8ToTStr(path).c_str(), desired_access, share_mode, nullptr,
                         creation_disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
   if (!IsOpen())
     WARN_LOG_FMT(COMMON, "CreateFile: {}", Common::GetLastErrorString());
+
 #elif defined(ANDROID)
   // Leveraging IOFile to avoid reimplementing things.
-  const char* open_mode_str = "r+";
-  if (access_mode == AccessMode::Read)
-    open_mode_str = "r";
-  else if (access_mode == AccessMode::Write)
-    open_mode_str = "w";
 
-  // TODO: open modes!!
+  // Allow write without truncate. This wrongly enables read access.
+  if (access_mode == AccessMode::Write && open_mode != OpenMode::Truncate)
+    access_mode = AccessMode::ReadAndWrite;
+
+  // A few features are emulated in a non-atomic manner.
+  if (Exists(path))
+  {
+    if (open_mode == OpenMode::MustCreate)
+      return false;
+  }
+  else
+  {
+    if (open_mode == OpenMode::MustExist)
+      return false;
+
+    if (access_mode != AccessMode::Write)
+      CreateEmptyFile(path);
+  }
+
+  const char* open_mode_str = "rb+";
+  if (access_mode == AccessMode::Read)
+    open_mode_str = "rb";
+  else if (access_mode == AccessMode::Write)
+    open_mode_str = "wb";
 
   if (IOFile file(path, open_mode_str); file.IsOpen())
     m_fd = dup(fileno(file.GetHandle()));
+
 #else
   int flags = O_RDWR;
   if (access_mode == AccessMode::Read)
@@ -118,6 +140,7 @@ bool DirectIOFile::Open(const std::string& path, AccessMode access_mode, OpenMod
     flags |= O_CREAT;
 
   m_fd = open(path.c_str(), flags, 0666);
+
 #endif
 
   return IsOpen();

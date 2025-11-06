@@ -26,13 +26,17 @@ enum class OpenMode
   // Write: Truncate.
   // ReadAndWrite: MustExist.
   Default,
+
   // Either create a new file or open an existing file.
   Always,
-  // Like `Always`, but also erase the contents of an existing file. Fails with AccessMode::Read.
+
+  // Like `Always`, but also erase the contents of an existing file.
   Truncate,
+
   // Require a file already exist. Fail otherwise.
   MustExist,
-  // Require a new file be created. Fail if one already exists. Android treats this as `Truncate`.
+
+  // Require a new file be created. Fail if one already exists.
   MustCreate,
 };
 

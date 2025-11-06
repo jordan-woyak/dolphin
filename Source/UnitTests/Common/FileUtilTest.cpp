@@ -196,6 +196,13 @@ TEST_F(FileUtilTest, DirectIOFile)
 
   EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::MustExist));
   EXPECT_TRUE(file.Close());
+
+  // Rename, Rsize, and Delete fail with a closed handle.
+  EXPECT_FALSE(Rename(file, m_file_path, "fail"));
+  EXPECT_FALSE(Resize(file, 72));
+  EXPECT_FALSE(Delete(file, m_file_path));
+  EXPECT_TRUE(File::Exists(m_file_path));
+
   EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write));
 
   EXPECT_TRUE(file.Write(u8_buffer.data(), 0));  // write of 0 succeeds.
@@ -204,6 +211,11 @@ TEST_F(FileUtilTest, DirectIOFile)
   // Resize through handle works.
   EXPECT_TRUE(Resize(file, 1));
   EXPECT_EQ(file.GetSize(), 1);
+  file.Close();
+
+  // Write truncates by default.
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write));
+  EXPECT_EQ(file.GetSize(), 0);
 
   EXPECT_TRUE(file.Write(u8_test_data));
   EXPECT_EQ(file.GetSize(), u8_test_data.size());  // size changed
@@ -226,11 +238,13 @@ TEST_F(FileUtilTest, DirectIOFile)
 
   static constexpr u64 final_file_size = u16_data_offset + sizeof(u16_test_data);
 
+  // Size changes after write.
   EXPECT_TRUE(file.Write(Common::AsU8Span(u16_test_data)));
-  EXPECT_EQ(file.GetSize(), final_file_size);  // size changes after write
+  EXPECT_EQ(file.GetSize(), final_file_size);
 
-  EXPECT_FALSE(file.Seek(-1, File::SeekOrigin::Begin));  // seek before begin fails
-  EXPECT_EQ(file.Tell(), file.GetSize());                // unchanged position
+  // Seek before begin fails.
+  EXPECT_FALSE(file.Seek(-1, File::SeekOrigin::Begin));
+  EXPECT_EQ(file.Tell(), file.GetSize());  // unchanged position
 
   EXPECT_TRUE(file.Close());
   EXPECT_FALSE(file.IsOpen());
@@ -241,7 +255,6 @@ TEST_F(FileUtilTest, DirectIOFile)
   EXPECT_FALSE(file.Close());  // Double close fails.
 
   // Open file for reading.
-  EXPECT_FALSE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::MustCreate));
   EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Read, File::OpenMode::Always));
   EXPECT_TRUE(file.Close());
   EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Read));
@@ -320,6 +333,11 @@ TEST_F(FileUtilTest, DirectIOFile)
   // ReadAndWrite does not truncate existing files.
   EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::ReadAndWrite));
   EXPECT_EQ(file.GetSize(), final_file_size);
+  file.Close();
+
+  // Write doesn't truncate when the mode is changed.
+  EXPECT_TRUE(file.Open(m_file_path, File::AccessMode::Write, File::OpenMode::MustExist));
+  EXPECT_EQ(file.GetSize(), final_file_size);
 
   // Open a new handle to the same file.
   File::DirectIOFile second_handle(m_file_path, File::AccessMode::Write, File::OpenMode::Always);
@@ -354,8 +372,12 @@ TEST_F(FileUtilTest, DirectIOFile)
   do_reads.count_down();
   std::ranges::for_each(threads, &std::thread::join);
 
-  // Write mode truncates by default.
-  File::DirectIOFile trunc_file;
-  EXPECT_TRUE(trunc_file.Open(destination_path_2, File::AccessMode::Write));
-  file.F EXPECT_EQ(file.GetSize(), 0);  // Original handle sees size change.
+  file.Close();
+  EXPECT_TRUE(file.Open(destination_path_1, File::AccessMode::Read, File::OpenMode::Always));
+
+  // Required on Windows for the below to succeed.
+  second_handle.Close();
+
+  file.Close();
+  EXPECT_TRUE(file.Open(destination_path_2, File::AccessMode::Write, File::OpenMode::Always));
 }
