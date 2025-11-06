@@ -111,9 +111,9 @@ private:
        InterfaceDescriptor{0x09, 0x04, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00, 0x00}}};
   static constexpr u8 ENDPOINT_AUDIO_IN = 0x84;
   const std::vector<std::vector<EndpointDescriptor>> m_endpoint_descriptor{
+      {},
       {
           EndpointDescriptor{0x09, 0x05, ENDPOINT_AUDIO_IN, 0x0d, 0x0060, 0x01},
-      },
-      {EndpointDescriptor{0x09, 0x05, 0x81, 0x05, 0x00c8, 0x01}}};
+      }};
 };
 }  // namespace IOS::HLE::USB
