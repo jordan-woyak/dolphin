@@ -192,7 +192,22 @@ void USBScanner::AddEmulatedDevices(DeviceMap* new_devices)
   }
   if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_1) && !NetPlay::IsNetPlayRunning())
   {
-    auto logitech_mic = std::make_unique<USB::LogitechMic>();
+    auto logitech_mic = std::make_unique<USB::LogitechMic>(0);
+    AddDevice(std::move(logitech_mic), new_devices);
+  }
+  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_2) && !NetPlay::IsNetPlayRunning())
+  {
+    auto logitech_mic = std::make_unique<USB::LogitechMic>(1);
+    AddDevice(std::move(logitech_mic), new_devices);
+  }
+  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_3) && !NetPlay::IsNetPlayRunning())
+  {
+    auto logitech_mic = std::make_unique<USB::LogitechMic>(2);
+    AddDevice(std::move(logitech_mic), new_devices);
+  }
+  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_4) && !NetPlay::IsNetPlayRunning())
+  {
+    auto logitech_mic = std::make_unique<USB::LogitechMic>(3);
     AddDevice(std::move(logitech_mic), new_devices);
   }
 }

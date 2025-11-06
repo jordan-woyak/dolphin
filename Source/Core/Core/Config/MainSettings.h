@@ -372,10 +372,23 @@ extern const Info<bool> MAIN_EMULATE_WII_SPEAK;
 extern const Info<std::string> MAIN_WII_SPEAK_MICROPHONE;
 extern const Info<bool> MAIN_WII_SPEAK_MUTED;
 extern const Info<s16> MAIN_WII_SPEAK_VOLUME_MODIFIER;
+
 extern const Info<bool> MAIN_EMULATE_LOGITECH_MIC_1;
 extern const Info<std::string> MAIN_LOGITECH_MIC_1_MICROPHONE;
 extern const Info<bool> MAIN_LOGITECH_MIC_1_MUTED;
 extern const Info<s16> MAIN_LOGITECH_MIC_1_VOLUME_MODIFIER;
+extern const Info<bool> MAIN_EMULATE_LOGITECH_MIC_2;
+extern const Info<std::string> MAIN_LOGITECH_MIC_2_MICROPHONE;
+extern const Info<bool> MAIN_LOGITECH_MIC_2_MUTED;
+extern const Info<s16> MAIN_LOGITECH_MIC_2_VOLUME_MODIFIER;
+extern const Info<bool> MAIN_EMULATE_LOGITECH_MIC_3;
+extern const Info<std::string> MAIN_LOGITECH_MIC_3_MICROPHONE;
+extern const Info<bool> MAIN_LOGITECH_MIC_3_MUTED;
+extern const Info<s16> MAIN_LOGITECH_MIC_3_VOLUME_MODIFIER;
+extern const Info<bool> MAIN_EMULATE_LOGITECH_MIC_4;
+extern const Info<std::string> MAIN_LOGITECH_MIC_4_MICROPHONE;
+extern const Info<bool> MAIN_LOGITECH_MIC_4_MUTED;
+extern const Info<s16> MAIN_LOGITECH_MIC_4_VOLUME_MODIFIER;
 
 // GameCube path utility functions
 

@@ -66,7 +66,7 @@ public:
 class LogitechMic final : public Device
 {
 public:
-  LogitechMic();
+  LogitechMic(u8 index);
   ~LogitechMic() override;
 
   DeviceDescriptor GetDeviceDescriptor() const override;
@@ -93,6 +93,7 @@ private:
 
   const u16 m_vid = 0x046d;
   const u16 m_pid = 0x0a03;
+  u8 m_index = 0;
   u8 m_active_interface = 0;
   bool m_device_attached = false;
   std::unique_ptr<MicrophoneLogitech> m_microphone{};

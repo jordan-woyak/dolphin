@@ -806,13 +806,55 @@ bool Settings::IsLogitechMic1Muted() const
   return Config::Get(Config::MAIN_LOGITECH_MIC_1_MUTED);
 }
 
+bool Settings::IsLogitechMic2Muted() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_2_MUTED);
+}
+
+bool Settings::IsLogitechMic3Muted() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_3_MUTED);
+}
+
+bool Settings::IsLogitechMic4Muted() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_4_MUTED);
+}
+
 void Settings::SetLogitechMic1Muted(bool muted)
 {
   if (IsLogitechMic1Muted() == muted)
     return;
 
   Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_1_MUTED, muted);
-  emit LogitechMicMuteChanged(muted);
+  emit LogitechMic1MuteChanged(muted);
+}
+
+void Settings::SetLogitechMic2Muted(bool muted)
+{
+  if (IsLogitechMic2Muted() == muted)
+    return;
+
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_2_MUTED, muted);
+  emit LogitechMic2MuteChanged(muted);
+}
+
+void Settings::SetLogitechMic3Muted(bool muted)
+{
+  if (IsLogitechMic3Muted() == muted)
+    return;
+
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_3_MUTED, muted);
+  emit LogitechMic3MuteChanged(muted);
+}
+
+void Settings::SetLogitechMic4Muted(bool muted)
+{
+  if (IsLogitechMic4Muted() == muted)
+    return;
+
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_4_MUTED, muted);
+  emit LogitechMic4MuteChanged(muted);
 }
 
 void Settings::SetIsContinuouslyFrameStepping(bool is_stepping)

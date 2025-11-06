@@ -13,7 +13,7 @@ class LogitechMicState;
 class MicrophoneLogitech final : public Microphone
 {
 public:
-  MicrophoneLogitech(const LogitechMicState& sampler);
+  MicrophoneLogitech(const LogitechMicState& sampler, u8 index);
   ~MicrophoneLogitech();
 
 private:
@@ -29,5 +29,6 @@ private:
   u32 GetStreamSize() const override;
 
   const LogitechMicState& m_sampler;
+  const u8 m_index;
 };
 }  // namespace IOS::HLE::USB
