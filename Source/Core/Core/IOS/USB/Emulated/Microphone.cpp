@@ -17,7 +17,6 @@
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Common/Swap.h"
-#include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/System.h"
 
@@ -194,12 +193,12 @@ long Microphone::DataCallback(const SampleType* input_buffer, long nframes)
   };
 
   const u32 stream_size = GetStreamSize();
-
+  const bool are_samples_byte_swapped = AreSamplesByteSwapped();
   for (const SampleType le_sample : std::ranges::transform_view(buffer, apply_gain))
   {
     UpdateLoudness(le_sample);
     m_stream_buffer[m_stream_wpos] =
-        AreSamplesByteSwapped() ? Common::swap16(le_sample) : le_sample;
+        are_samples_byte_swapped ? Common::swap16(le_sample) : le_sample;
     m_stream_wpos = (m_stream_wpos + 1) % stream_size;
   }
 

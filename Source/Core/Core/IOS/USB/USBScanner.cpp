@@ -190,25 +190,13 @@ void USBScanner::AddEmulatedDevices(DeviceMap* new_devices)
     auto wii_speak = std::make_unique<USB::WiiSpeak>();
     AddDevice(std::move(wii_speak), new_devices);
   }
-  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_1) && !NetPlay::IsNetPlayRunning())
+  for (u8 index = 0; index < 4; index++)
   {
-    auto logitech_mic = std::make_unique<USB::LogitechMic>(0);
-    AddDevice(std::move(logitech_mic), new_devices);
-  }
-  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_2) && !NetPlay::IsNetPlayRunning())
-  {
-    auto logitech_mic = std::make_unique<USB::LogitechMic>(1);
-    AddDevice(std::move(logitech_mic), new_devices);
-  }
-  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_3) && !NetPlay::IsNetPlayRunning())
-  {
-    auto logitech_mic = std::make_unique<USB::LogitechMic>(2);
-    AddDevice(std::move(logitech_mic), new_devices);
-  }
-  if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC_4) && !NetPlay::IsNetPlayRunning())
-  {
-    auto logitech_mic = std::make_unique<USB::LogitechMic>(3);
-    AddDevice(std::move(logitech_mic), new_devices);
+    if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[index]) && !NetPlay::IsNetPlayRunning())
+    {
+      auto logitech_mic = std::make_unique<USB::LogitechMic>(index);
+      AddDevice(std::move(logitech_mic), new_devices);
+    }
   }
 }
 

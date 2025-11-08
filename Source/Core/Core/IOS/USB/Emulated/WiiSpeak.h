@@ -9,7 +9,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Core/IOS/USB/Common.h"
-#include "Core/IOS/USB/Emulated/Microphone-WiiSpeak.h"
+#include "Core/IOS/USB/Emulated/Microphone.h"
 
 namespace IOS::HLE::USB
 {
@@ -29,6 +29,24 @@ public:
   bool IsSampleOn() const override;
   bool IsMuted() const override;
   u32 GetDefaultSamplingRate() const override;
+};
+
+class MicrophoneWiiSpeak final : public Microphone
+{
+public:
+  explicit MicrophoneWiiSpeak(const WiiSpeakState& sampler);
+
+private:
+#ifdef HAVE_CUBEB
+  std::string GetWorkerName() const;
+  std::string GetInputDeviceId() const override;
+  std::string GetCubebStreamName() const override;
+  s16 GetVolumeModifier() const override;
+  bool AreSamplesByteSwapped() const override;
+#endif
+
+  bool IsMicrophoneMuted() const override;
+  u32 GetStreamSize() const override;
 };
 
 class WiiSpeak final : public Device

@@ -413,8 +413,6 @@
     <ClInclude Include="Core\IOS\USB\Emulated\Infinity.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\LogitechMic.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\Microphone.h" />
-    <ClInclude Include="Core\IOS\USB\Emulated\Microphone-Logitech.h" />
-    <ClInclude Include="Core\IOS\USB\Emulated\Microphone-WiiSpeak.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\Skylander.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\SkylanderCrypto.h" />
     <ClInclude Include="Core\IOS\USB\Emulated\Skylanders\SkylanderFigure.h" />
@@ -1096,8 +1094,6 @@
     <ClCompile Include="Core\IOS\USB\Emulated\Infinity.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\LogitechMic.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\Microphone.cpp" />
-    <ClCompile Include="Core\IOS\USB\Emulated\Microphone-Logitech.cpp" />
-    <ClCompile Include="Core\IOS\USB\Emulated\Microphone-WiiSpeak.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\Skylander.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\SkylanderCrypto.cpp" />
     <ClCompile Include="Core\IOS\USB\Emulated\Skylanders\SkylanderFigure.cpp" />

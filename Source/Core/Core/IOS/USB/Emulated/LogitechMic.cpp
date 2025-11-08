@@ -5,11 +5,47 @@
 
 #include <algorithm>
 
+#include "Core/Config/MainSettings.h"
 #include "Core/HW/Memmap.h"
 #include "Core/System.h"
 
 namespace IOS::HLE::USB
 {
+enum class RequestCode : u8
+{
+  RequestSetCur = 0x01,
+  RequestGetCur = 0x81,
+  RequestSetMin = 0x02,
+  RequestGetMin = 0x82,
+  RequestSetMax = 0x03,
+  RequestGetMax = 0x83,
+  RequestSetRes = 0x04,
+  RequestGetRes = 0x84,
+  RequestSetMem = 0x05,
+  RequestGetMem = 0x85,
+  RequestGetStat = 0xff
+};
+
+enum class FeatureUnitControlSelector : u8
+{
+  AudioMuteControl = 0x01,
+  AudioVolumeControl = 0x02,
+  AudioBassControl = 0x03,
+  AudioMidControl = 0x04,
+  AudioTrebleControl = 0x05,
+  AudioGraphicEqualizerControl = 0x06,
+  AudioAutomaticGainControl = 0x07,
+  AudioDelayControl = 0x08,
+  AudioBassBoostControl = 0x09,
+  AudioLoudnessControl = 0x0a
+};
+
+enum class EndpointControlSelector : u8
+{
+  AudioSamplingFreqControl = 0x01,
+  AudioPitchControl = 0x02
+};
+
 bool LogitechMicState::IsSampleOn() const
 {
   return true;
@@ -25,6 +61,50 @@ u32 LogitechMicState::GetDefaultSamplingRate() const
   return DEFAULT_SAMPLING_RATE;
 }
 
+MicrophoneLogitech::MicrophoneLogitech(const LogitechMicState& sampler, u8 index)
+    : Microphone(sampler, GetWorkerName()), m_sampler(sampler), m_index(index)
+{
+}
+
+#ifdef HAVE_CUBEB
+
+std::string MicrophoneLogitech::GetWorkerName() const
+{
+  return "Logitech USB Microphone Worker " + std::to_string(m_index);
+}
+
+std::string MicrophoneLogitech::GetInputDeviceId() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MICROPHONE[m_index]);
+}
+
+std::string MicrophoneLogitech::GetCubebStreamName() const
+{
+  return "Dolphin Emulated Logitech USB Microphone " + std::to_string(m_index);
+}
+
+s16 MicrophoneLogitech::GetVolumeModifier() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_VOLUME_MODIFIER[m_index]);
+}
+
+bool MicrophoneLogitech::AreSamplesByteSwapped() const
+{
+  return false;
+}
+
+#endif
+
+bool MicrophoneLogitech::IsMicrophoneMuted() const
+{
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[m_index]);
+}
+
+u32 MicrophoneLogitech::GetStreamSize() const
+{
+  return BUFF_SIZE_SAMPLES * m_sampler.srate / 250;
+}
+
 LogitechMic::LogitechMic(u8 index) : m_index(index)
 {
   assert(index >= 0 && index <= 3);
@@ -33,24 +113,44 @@ LogitechMic::LogitechMic(u8 index) : m_index(index)
 
 LogitechMic::~LogitechMic() = default;
 
+static const DeviceDescriptor DEVICE_DESCRIPTOR{0x12,   0x01,   0x0200, 0x00, 0x00, 0x00, 0x08,
+                                                0x046d, 0x0a03, 0x0001, 0x01, 0x02, 0x00, 0x01};
+
 DeviceDescriptor LogitechMic::GetDeviceDescriptor() const
 {
-  return m_device_descriptor;
+  return DEVICE_DESCRIPTOR;
 }
+
+static const std::vector<ConfigDescriptor> CONFIG_DESCRIPTOR{
+    ConfigDescriptor{0x09, 0x02, 0x0079, 0x02, 0x01, 0x03, 0x80, 0x3c},
+};
 
 std::vector<ConfigDescriptor> LogitechMic::GetConfigurations() const
 {
-  return m_config_descriptor;
+  return CONFIG_DESCRIPTOR;
 }
+
+static const std::vector<InterfaceDescriptor> INTERFACE_DESCRIPTORS{
+    InterfaceDescriptor{0x09, 0x04, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00},
+    InterfaceDescriptor{0x09, 0x04, 0x01, 0x00, 0x00, 0x01, 0x02, 0x00, 0x00},
+    InterfaceDescriptor{0x09, 0x04, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00, 0x00}};
 
 std::vector<InterfaceDescriptor> LogitechMic::GetInterfaces(u8 config) const
 {
-  return m_interface_descriptor[m_active_interface];
+  return INTERFACE_DESCRIPTORS;
 }
+
+static constexpr u8 ENDPOINT_AUDIO_IN = 0x84;
+static const std::vector<EndpointDescriptor> ENDPOINT_DESCRIPTORS{
+    EndpointDescriptor{0x09, 0x05, ENDPOINT_AUDIO_IN, 0x0d, 0x0060, 0x01},
+};
 
 std::vector<EndpointDescriptor> LogitechMic::GetEndpoints(u8 config, u8 interface, u8 alt) const
 {
-  return m_endpoint_descriptor[m_active_interface];
+  if (interface == 1 && alt == 1)
+    return ENDPOINT_DESCRIPTORS;
+  else
+    return std::vector<EndpointDescriptor>{};
 }
 
 bool LogitechMic::Attach()
@@ -97,7 +197,10 @@ int LogitechMic::ChangeInterface(const u8 interface)
 
 int LogitechMic::GetNumberOfAltSettings(u8 interface)
 {
-  return 0;
+  if (interface == 1)
+    return 2;
+  else
+    return 0;
 }
 
 int LogitechMic::SetAltSetting(u8 alt_setting)
@@ -105,32 +208,34 @@ int LogitechMic::SetAltSetting(u8 alt_setting)
   return 0;
 }
 
-static constexpr u32 USBGETAID(u8 cs, u8 request, u16 index)
+static inline constexpr u32 USBGETAID(FeatureUnitControlSelector cs, RequestCode request, u16 index)
 {
-  return static_cast<u32>((cs << 24) | (request << 16) | index);
+  return static_cast<u32>((static_cast<u8>(cs) << 24) | (static_cast<u8>(request) << 16) | index);
 }
 
 int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 {
   auto& system = cmd->GetEmulationKernel().GetSystem();
   auto& memory = system.GetMemory();
-  const u8 cs = static_cast<u8>(cmd->value >> 8);
+  const auto cs = static_cast<FeatureUnitControlSelector>(cmd->value >> 8);
+  const auto request = static_cast<RequestCode>(cmd->request);
   const u8 cn = static_cast<u8>(cmd->value - 1);
   int ret = IPC_STALL;
   DEBUG_LOG_FMT(IOS_USB,
                 "GetAudioControl: bCs={:02x} bCn={:02x} bRequestType={:02x} bRequest={:02x} "
                 "bIndex={:02x} aid={:08x}",
-                cs, cn, cmd->request_type, cmd->request, cmd->index,
-                USBGETAID(cs, cmd->request, cmd->index));
-  switch (USBGETAID(cs, cmd->request, cmd->index))
+                static_cast<u8>(cs), cn, cmd->request_type, static_cast<u8>(request), cmd->index,
+                USBGETAID(cs, request, cmd->index));
+  switch (USBGETAID(cs, request, cmd->index))
   {
-  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_GET_CUR, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioMuteControl, RequestCode::RequestGetCur, 0x0200):
   {
     memory.Write_U8(m_sampler.mute ? 1 : 0, cmd->data_address);
     ret = 1;
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_CUR, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioVolumeControl, RequestCode::RequestGetCur,
+                 0x0200):
   {
     if (cn < 1 || cn == 0xff)
     {
@@ -141,7 +246,8 @@ int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MIN, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioVolumeControl, RequestCode::RequestGetMin,
+                 0x0200):
   {
     if (cn < 1 || cn == 0xff)
     {
@@ -150,7 +256,8 @@ int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_MAX, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioVolumeControl, RequestCode::RequestGetMax,
+                 0x0200):
   {
     if (cn < 1 || cn == 0xff)
     {
@@ -159,7 +266,8 @@ int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     }
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_GET_RES, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioVolumeControl, RequestCode::RequestGetRes,
+                 0x0200):
   {
     if (cn < 1 || cn == 0xff)
     {
@@ -176,24 +284,26 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 {
   auto& system = cmd->GetEmulationKernel().GetSystem();
   auto& memory = system.GetMemory();
-  const u8 cs = static_cast<u8>(cmd->value >> 8);
+  const auto cs = static_cast<FeatureUnitControlSelector>(cmd->value >> 8);
+  const auto request = static_cast<RequestCode>(cmd->request);
   const u8 cn = static_cast<u8>(cmd->value - 1);
   int ret = IPC_STALL;
   DEBUG_LOG_FMT(IOS_USB,
                 "SetAudioControl: bCs={:02x} bCn={:02x} bRequestType={:02x} bRequest={:02x} "
                 "bIndex={:02x} aid={:08x}",
-                cs, cn, cmd->request_type, cmd->request, cmd->index,
-                USBGETAID(cs, cmd->request, cmd->index));
-  switch (USBGETAID(cs, cmd->request, cmd->index))
+                static_cast<u8>(cs), cn, cmd->request_type, static_cast<u8>(request), cmd->index,
+                USBGETAID(cs, request, cmd->index));
+  switch (USBGETAID(cs, request, cmd->index))
   {
-  case USBGETAID(AUDIO_MUTE_CONTROL, REQUEST_SET_CUR, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioMuteControl, RequestCode::RequestSetCur, 0x0200):
   {
     m_sampler.mute = memory.Read_U8(cmd->data_address) & 0x01;
     DEBUG_LOG_FMT(IOS_USB, "SetAudioControl: Setting mute to {}", m_sampler.mute.load());
     ret = 0;
     break;
   }
-  case USBGETAID(AUDIO_VOLUME_CONTROL, REQUEST_SET_CUR, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioVolumeControl, RequestCode::RequestSetCur,
+                 0x0200):
   {
     if (cn < 1 || cn == 0xff)
     {
@@ -224,7 +334,8 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     }
     break;
   }
-  case USBGETAID(AUDIO_AUTOMATIC_GAIN_CONTROL, REQUEST_SET_CUR, 0x0200):
+  case USBGETAID(FeatureUnitControlSelector::AudioAutomaticGainControl, RequestCode::RequestSetCur,
+                 0x0200):
   {
     ret = 0;
     break;
@@ -233,21 +344,28 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
   return ret;
 }
 
+static inline constexpr u32 USBGETAID(EndpointControlSelector cs, RequestCode request, u16 index)
+{
+  return static_cast<u32>((static_cast<u8>(cs) << 24) | (static_cast<u8>(request) << 16) | index);
+}
+
 int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 {
   auto& system = cmd->GetEmulationKernel().GetSystem();
   auto& memory = system.GetMemory();
-  const u8 cs = static_cast<u8>(cmd->value >> 8);
+  const auto cs = static_cast<EndpointControlSelector>(cmd->value >> 8);
+  const auto request = static_cast<RequestCode>(cmd->request);
   const u8 cn = static_cast<u8>(cmd->value - 1);
   int ret = IPC_STALL;
   DEBUG_LOG_FMT(IOS_USB,
                 "EndpointAudioControl: bCs={:02x} bCn={:02x} bRequestType={:02x} bRequest={:02x} "
                 "bIndex={:02x} aid:{:08x}",
-                cs, cn, cmd->request_type, cmd->request, cmd->index,
-                USBGETAID(cs, cmd->request, cmd->index));
-  switch (USBGETAID(cs, cmd->request, cmd->index))
+                static_cast<u8>(cs), cn, cmd->request_type, static_cast<u8>(request), cmd->index,
+                USBGETAID(cs, request, cmd->index));
+  switch (USBGETAID(cs, request, cmd->index))
   {
-  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_SET_CUR, ENDPOINT_AUDIO_IN):
+  case USBGETAID(EndpointControlSelector::AudioSamplingFreqControl, RequestCode::RequestSetCur,
+                 ENDPOINT_AUDIO_IN):
   {
     if (cn == 0xff)
     {
@@ -272,7 +390,8 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
     ret = 0;
     break;
   }
-  case USBGETAID(AUDIO_SAMPLING_FREQ_CONTROL, REQUEST_GET_CUR, ENDPOINT_AUDIO_IN):
+  case USBGETAID(EndpointControlSelector::AudioSamplingFreqControl, RequestCode::RequestGetCur,
+                 ENDPOINT_AUDIO_IN):
   {
     memory.Write_U8(m_sampler.srate & 0xff, cmd->data_address + 2);
     memory.Write_U8((m_sampler.srate >> 8) & 0xff, cmd->data_address + 1);
@@ -451,10 +570,14 @@ int LogitechMic::SubmitTransfer(std::unique_ptr<CtrlMessage> cmd)
       cmd->GetEmulationKernel().EnqueueIPCReply(cmd->ios_request, cmd->length);
     return ret;
   }
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_GET_CUR):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_GET_MIN):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_GET_MAX):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_GET_RES):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestGetCur)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestGetMin)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestGetMax)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestGetRes)):
   {
     DEBUG_LOG_FMT(IOS_USB, "[{:04x}:{:04x} {}:{}] Get Control index={:04x} value={:04x}", m_vid,
                   m_pid, m_index, m_active_interface, cmd->index, cmd->value);
@@ -469,10 +592,14 @@ int LogitechMic::SubmitTransfer(std::unique_ptr<CtrlMessage> cmd)
     cmd->GetEmulationKernel().EnqueueIPCReply(cmd->ios_request, ret);
     break;
   }
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_CUR):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_MIN):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_MAX):
-  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_RES):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetCur)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetMin)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetMax)):
+  case USBHDR(DIR_DEVICE2HOST, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetRes)):
   {
     DEBUG_LOG_FMT(IOS_USB, "[{:04x}:{:04x} {}:{}] Set Control index={:04x} value={:04x}", m_vid,
                   m_pid, m_index, m_active_interface, cmd->index, cmd->value);
@@ -487,14 +614,22 @@ int LogitechMic::SubmitTransfer(std::unique_ptr<CtrlMessage> cmd)
     cmd->GetEmulationKernel().EnqueueIPCReply(cmd->ios_request, ret);
     break;
   }
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_GET_CUR):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_GET_MIN):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_GET_MAX):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_GET_RES):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_SET_CUR):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_SET_MIN):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_SET_MAX):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT, REQUEST_SET_RES):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestGetCur)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestGetMin)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestGetMax)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestGetRes)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestSetCur)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestSetMin)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestSetMax)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_ENDPOINT,
+              static_cast<u8>(RequestCode::RequestSetRes)):
   {
     DEBUG_LOG_FMT(IOS_USB, "[{:04x}:{:04x} {}:{}] REC_ENDPOINT index={:04x} value={:04x}", m_vid,
                   m_pid, m_index, m_active_interface, cmd->index, cmd->value);
@@ -510,10 +645,14 @@ int LogitechMic::SubmitTransfer(std::unique_ptr<CtrlMessage> cmd)
     cmd->GetEmulationKernel().EnqueueIPCReply(cmd->ios_request, ret);
     break;
   }
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_CUR):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_MIN):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_MAX):
-  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE, REQUEST_SET_RES):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetCur)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetMin)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetMax)):
+  case USBHDR(DIR_HOST2DEVICE, TYPE_CLASS, REC_INTERFACE,
+              static_cast<u8>(RequestCode::RequestSetRes)):
   {
     DEBUG_LOG_FMT(IOS_USB,
                   "[{:04x}:{:04x} {}:{}] Set Control HOST2DEVICE index={:04x} value={:04x}", m_vid,

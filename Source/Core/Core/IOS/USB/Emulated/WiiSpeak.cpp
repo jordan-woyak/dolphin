@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include "Core/Config/MainSettings.h"
 #include "Core/HW/Memmap.h"
 #include "Core/System.h"
 
@@ -23,6 +24,50 @@ bool WiiSpeakState::IsMuted() const
 u32 WiiSpeakState::GetDefaultSamplingRate() const
 {
   return DEFAULT_SAMPLING_RATE;
+}
+
+MicrophoneWiiSpeak::MicrophoneWiiSpeak(const WiiSpeakState& sampler)
+    : Microphone(sampler, GetWorkerName())
+{
+}
+
+#ifdef HAVE_CUBEB
+
+std::string MicrophoneWiiSpeak::GetWorkerName() const
+{
+  return "Wii Speak Worker";
+}
+
+std::string MicrophoneWiiSpeak::GetInputDeviceId() const
+{
+  return Config::Get(Config::MAIN_WII_SPEAK_MICROPHONE);
+}
+
+std::string MicrophoneWiiSpeak::GetCubebStreamName() const
+{
+  return "Dolphin Emulated Wii Speak";
+}
+
+s16 MicrophoneWiiSpeak::GetVolumeModifier() const
+{
+  return Config::Get(Config::MAIN_WII_SPEAK_VOLUME_MODIFIER);
+}
+
+bool MicrophoneWiiSpeak::AreSamplesByteSwapped() const
+{
+  return true;
+}
+
+#endif
+
+bool MicrophoneWiiSpeak::IsMicrophoneMuted() const
+{
+  return Config::Get(Config::MAIN_WII_SPEAK_MUTED);
+}
+
+u32 MicrophoneWiiSpeak::GetStreamSize() const
+{
+  return BUFF_SIZE_SAMPLES * 500;
 }
 
 WiiSpeak::WiiSpeak()

@@ -803,22 +803,22 @@ void Settings::SetWiiSpeakMuted(bool muted)
 
 bool Settings::IsLogitechMic1Muted() const
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_1_MUTED);
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[0]);
 }
 
 bool Settings::IsLogitechMic2Muted() const
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_2_MUTED);
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[1]);
 }
 
 bool Settings::IsLogitechMic3Muted() const
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_3_MUTED);
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[2]);
 }
 
 bool Settings::IsLogitechMic4Muted() const
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_4_MUTED);
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[3]);
 }
 
 void Settings::SetLogitechMic1Muted(bool muted)
@@ -826,7 +826,7 @@ void Settings::SetLogitechMic1Muted(bool muted)
   if (IsLogitechMic1Muted() == muted)
     return;
 
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_1_MUTED, muted);
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[0], muted);
   emit LogitechMic1MuteChanged(muted);
 }
 
@@ -835,7 +835,7 @@ void Settings::SetLogitechMic2Muted(bool muted)
   if (IsLogitechMic2Muted() == muted)
     return;
 
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_2_MUTED, muted);
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[1], muted);
   emit LogitechMic2MuteChanged(muted);
 }
 
@@ -844,7 +844,7 @@ void Settings::SetLogitechMic3Muted(bool muted)
   if (IsLogitechMic3Muted() == muted)
     return;
 
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_3_MUTED, muted);
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[2], muted);
   emit LogitechMic3MuteChanged(muted);
 }
 
@@ -853,7 +853,7 @@ void Settings::SetLogitechMic4Muted(bool muted)
   if (IsLogitechMic4Muted() == muted)
     return;
 
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_4_MUTED, muted);
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[3], muted);
   emit LogitechMic4MuteChanged(muted);
 }
 

@@ -431,10 +431,6 @@ add_library(core
   IOS/USB/Emulated/Infinity.h
   IOS/USB/Emulated/Microphone.cpp
   IOS/USB/Emulated/Microphone.h
-  IOS/USB/Emulated/Microphone-Logitech.cpp
-  IOS/USB/Emulated/Microphone-Logitech.h
-  IOS/USB/Emulated/Microphone-WiiSpeak.cpp
-  IOS/USB/Emulated/Microphone-WiiSpeak.h
   IOS/USB/Emulated/Skylanders/Skylander.cpp
   IOS/USB/Emulated/Skylanders/Skylander.h
   IOS/USB/Emulated/Skylanders/SkylanderCrypto.cpp

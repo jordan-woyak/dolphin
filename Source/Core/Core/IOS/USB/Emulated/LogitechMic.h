@@ -9,44 +9,10 @@
 
 #include "Common/CommonTypes.h"
 #include "Core/IOS/USB/Common.h"
-#include "Core/IOS/USB/Emulated/Microphone-Logitech.h"
+#include "Core/IOS/USB/Emulated/Microphone.h"
 
 namespace IOS::HLE::USB
 {
-enum LogitechMicrophoneRequestCodes
-{
-  REQUEST_SET_CUR = 0x01,
-  REQUEST_GET_CUR = 0x81,
-  REQUEST_SET_MIN = 0x02,
-  REQUEST_GET_MIN = 0x82,
-  REQUEST_SET_MAX = 0x03,
-  REQUEST_GET_MAX = 0x83,
-  REQUEST_SET_RES = 0x04,
-  REQUEST_GET_RES = 0x84,
-  REQUEST_SET_MEM = 0x05,
-  REQUEST_GET_MEM = 0x85,
-  REQUEST_GET_STAT = 0xff
-};
-
-enum LogitechMicrophoneFeatureUnitControlSelectors
-{
-  AUDIO_MUTE_CONTROL = 0x01,
-  AUDIO_VOLUME_CONTROL = 0x02,
-  AUDIO_BASS_CONTROL = 0x03,
-  AUDIO_MID_CONTROL = 0x04,
-  AUDIO_TREBLE_CONTROL = 0x05,
-  AUDIO_GRAPHIC_EQUALIZER_CONTROL = 0x06,
-  AUDIO_AUTOMATIC_GAIN_CONTROL = 0x07,
-  AUDIO_DELAY_CONTROL = 0x08,
-  AUDIO_BASS_BOOST_CONTROL = 0x09,
-  AUDIO_LOUDNESS_CONTROL = 0x0a
-};
-
-enum LogitechMicrophoneEndpointControlSelectors
-{
-  AUDIO_SAMPLING_FREQ_CONTROL = 0x01,
-  AUDIO_PITCH_CONTROL = 0x02
-};
 
 class LogitechMicState final : public MicrophoneState
 {
@@ -61,6 +27,27 @@ public:
   bool IsSampleOn() const;
   bool IsMuted() const;
   u32 GetDefaultSamplingRate() const;
+};
+
+class MicrophoneLogitech final : public Microphone
+{
+public:
+  explicit MicrophoneLogitech(const LogitechMicState& sampler, u8 index);
+
+private:
+#ifdef HAVE_CUBEB
+  std::string GetWorkerName() const;
+  std::string GetInputDeviceId() const override;
+  std::string GetCubebStreamName() const override;
+  s16 GetVolumeModifier() const override;
+  bool AreSamplesByteSwapped() const override;
+#endif
+
+  bool IsMicrophoneMuted() const override;
+  u32 GetStreamSize() const override;
+
+  const LogitechMicState& m_sampler;
+  const u8 m_index;
 };
 
 class LogitechMic final : public Device
@@ -97,23 +84,5 @@ private:
   u8 m_active_interface = 0;
   bool m_device_attached = false;
   std::unique_ptr<MicrophoneLogitech> m_microphone{};
-
-  const DeviceDescriptor m_device_descriptor{0x12,   0x01,   0x0200, 0x00, 0x00, 0x00, 0x08,
-                                             0x046d, 0x0a03, 0x0001, 0x01, 0x02, 0x00, 0x01};
-  const std::vector<ConfigDescriptor> m_config_descriptor{
-      ConfigDescriptor{0x09, 0x02, 0x0079, 0x02, 0x01, 0x03, 0x80, 0x3c},
-  };
-  const std::vector<std::vector<InterfaceDescriptor>> m_interface_descriptor{
-      {
-          InterfaceDescriptor{0x09, 0x04, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00},
-      },
-      {InterfaceDescriptor{0x09, 0x04, 0x01, 0x00, 0x00, 0x01, 0x02, 0x00, 0x00},
-       InterfaceDescriptor{0x09, 0x04, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00, 0x00}}};
-  static constexpr u8 ENDPOINT_AUDIO_IN = 0x84;
-  const std::vector<std::vector<EndpointDescriptor>> m_endpoint_descriptor{
-      {},
-      {
-          EndpointDescriptor{0x09, 0x05, ENDPOINT_AUDIO_IN, 0x0d, 0x0060, 0x01},
-      }};
 };
 }  // namespace IOS::HLE::USB

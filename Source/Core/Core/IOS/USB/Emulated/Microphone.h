@@ -3,14 +3,12 @@
 
 #pragma once
 
-#include <array>
 #include <atomic>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <type_traits>
 
-#include "AudioCommon/CubebUtils.h"
 #include "Common/CommonTypes.h"
 
 #ifdef HAVE_CUBEB
@@ -54,7 +52,6 @@ private:
 #ifdef HAVE_CUBEB
   static long CubebDataCallback(cubeb_stream* stream, void* user_data, const void* input_buffer,
                                 void* output_buffer, long nframes);
-  virtual std::string GetWorkerName() const = 0;
   virtual std::string GetInputDeviceId() const = 0;
   virtual std::string GetCubebStreamName() const = 0;
   virtual s16 GetVolumeModifier() const = 0;
