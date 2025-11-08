@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <array>
-#include <codecvt>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
@@ -13,7 +12,6 @@
 #include <cstring>
 #include <iomanip>
 #include <iterator>
-#include <locale>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -27,7 +25,7 @@
 #include "Common/Logging/Log.h"
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 #include <shellapi.h>
 constexpr u32 CODEPAGE_SHIFT_JIS = 932;
 constexpr u32 CODEPAGE_WINDOWS_1252 = 1252;
@@ -479,12 +477,23 @@ std::string UTF16BEToUTF8(const char16_t* str, size_t max_size)
   return WStringToUTF8(result);
 }
 
+std::string UTF16ToUTF8(std::u16string_view input)
+{
+  // TODO:
+}
+
+std::u16string UTF8ToUTF16(std::string_view input)
+{
+  // TODO:
+}
+
 #else
 
-template <typename T>
-static std::string CodeTo(const char* tocode, const char* fromcode, std::basic_string_view<T> input)
+template <typename OutputCharType = char, typename InputCharType>
+static auto CodeTo(const char* tocode, const char* fromcode,
+                   std::basic_string_view<InputCharType> input)
 {
-  std::string result;
+  std::basic_string<OutputCharType> result;
 
   auto* const conv_desc = iconv_open(tocode, fromcode);
   if ((iconv_t)-1 == conv_desc)
@@ -494,22 +503,21 @@ static std::string CodeTo(const char* tocode, const char* fromcode, std::basic_s
   }
   else
   {
-    size_t const in_bytes = sizeof(T) * input.size();
-    size_t const out_buffer_size = 4 * in_bytes;
+    size_t const in_bytes = sizeof(InputCharType) * input.size();
+    size_t const out_buffer_bytes = 4 * in_bytes;
 
-    std::string out_buffer;
-    out_buffer.resize(out_buffer_size);
+    decltype(result) out_buffer;
+    out_buffer.resize(out_buffer_bytes / sizeof(OutputCharType));
 
-    auto* src_buffer = input.data();
+    auto* src_buffer = const_cast<char*>(reinterpret_cast<const char*>(input.data()));
     size_t src_bytes = in_bytes;
-    auto* dst_buffer = out_buffer.data();
-    size_t dst_bytes = out_buffer.size();
+    auto* dst_buffer = reinterpret_cast<char*>(out_buffer.data());
+    size_t dst_bytes = out_buffer_bytes;
 
     while (src_bytes != 0)
     {
       size_t const iconv_result =
-          iconv(conv_desc, const_cast<char**>(reinterpret_cast<const char**>(&src_buffer)),
-                &src_bytes, &dst_buffer, &dst_bytes);
+          iconv(conv_desc, &src_buffer, &src_bytes, &dst_buffer, &dst_bytes);
       if ((size_t)-1 == iconv_result)
       {
         if (EILSEQ == errno || EINVAL == errno)
@@ -529,7 +537,11 @@ static std::string CodeTo(const char* tocode, const char* fromcode, std::basic_s
       }
     }
 
-    out_buffer.resize(out_buffer_size - dst_bytes);
+    const size_t result_bytes = out_buffer_bytes - dst_bytes;
+    if (result_bytes % sizeof(OutputCharType) != 0)
+      WARN_LOG_FMT(COMMON, "Truncating unexpected result size from iconv.");
+
+    out_buffer.resize(result_bytes / sizeof(OutputCharType));
     out_buffer.swap(result);
 
     iconv_close(conv_desc);
@@ -575,19 +587,17 @@ std::string UTF16BEToUTF8(const char16_t* str, size_t max_size)
   return CodeToUTF8("UTF-16BE", std::u16string_view(str, static_cast<size_t>(str_end - str)));
 }
 
-#endif
-
 std::string UTF16ToUTF8(std::u16string_view input)
 {
-  std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-  return converter.to_bytes(input.data(), input.data() + input.size());
+  return CodeToUTF8("UTF-16LE", input);
 }
 
 std::u16string UTF8ToUTF16(std::string_view input)
 {
-  std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-  return converter.from_bytes(input.data(), input.data() + input.size());
+  return CodeTo<char16_t>("UTF-16LE", "UTF-8", input);
 }
+
+#endif
 
 // This is a replacement for path::u8path, which is deprecated starting with C++20.
 std::filesystem::path StringToPath(std::string_view path)
