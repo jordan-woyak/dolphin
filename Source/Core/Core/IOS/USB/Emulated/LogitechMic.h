@@ -29,27 +29,6 @@ public:
   u32 GetDefaultSamplingRate() const;
 };
 
-class MicrophoneLogitech final : public Microphone
-{
-public:
-  explicit MicrophoneLogitech(const LogitechMicState& sampler, u8 index);
-
-private:
-#ifdef HAVE_CUBEB
-  std::string GetWorkerName() const;
-  std::string GetInputDeviceId() const override;
-  std::string GetCubebStreamName() const override;
-  s16 GetVolumeModifier() const override;
-  bool AreSamplesByteSwapped() const override;
-#endif
-
-  bool IsMicrophoneMuted() const override;
-  u32 GetStreamSize() const override;
-
-  const LogitechMicState& m_sampler;
-  const u8 m_index;
-};
-
 class LogitechMic final : public Device
 {
 public:
@@ -83,6 +62,6 @@ private:
   u8 m_index = 0;
   u8 m_active_interface = 0;
   bool m_device_attached = false;
-  std::unique_ptr<MicrophoneLogitech> m_microphone{};
+  std::unique_ptr<Microphone> m_microphone{};
 };
 }  // namespace IOS::HLE::USB

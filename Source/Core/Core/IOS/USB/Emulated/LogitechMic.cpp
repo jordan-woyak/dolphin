@@ -61,49 +61,45 @@ u32 LogitechMicState::GetDefaultSamplingRate() const
   return DEFAULT_SAMPLING_RATE;
 }
 
-MicrophoneLogitech::MicrophoneLogitech(const LogitechMicState& sampler, u8 index)
-    : Microphone(sampler, GetWorkerName()), m_sampler(sampler), m_index(index)
+class MicrophoneLogitech final : public Microphone
 {
-}
+public:
+  explicit MicrophoneLogitech(const LogitechMicState& sampler, u8 index)
+      : Microphone(sampler, GetWorkerName()), m_sampler(sampler), m_index(index)
+  {
+  }
 
+private:
 #ifdef HAVE_CUBEB
+  std::string GetWorkerName() const
+  {
+    return "Logitech USB Microphone Worker " + std::to_string(m_index);
+  }
 
-std::string MicrophoneLogitech::GetWorkerName() const
-{
-  return "Logitech USB Microphone Worker " + std::to_string(m_index);
-}
-
-std::string MicrophoneLogitech::GetInputDeviceId() const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MICROPHONE[m_index]);
-}
-
-std::string MicrophoneLogitech::GetCubebStreamName() const
-{
-  return "Dolphin Emulated Logitech USB Microphone " + std::to_string(m_index);
-}
-
-s16 MicrophoneLogitech::GetVolumeModifier() const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_VOLUME_MODIFIER[m_index]);
-}
-
-bool MicrophoneLogitech::AreSamplesByteSwapped() const
-{
-  return false;
-}
-
+  std::string GetInputDeviceId() const override
+  {
+    return Config::Get(Config::MAIN_LOGITECH_MIC_MICROPHONE[m_index]);
+  }
+  std::string GetCubebStreamName() const override
+  {
+    return "Dolphin Emulated Logitech USB Microphone " + std::to_string(m_index);
+  }
+  s16 GetVolumeModifier() const override
+  {
+    return Config::Get(Config::MAIN_LOGITECH_MIC_VOLUME_MODIFIER[m_index]);
+  }
+  bool AreSamplesByteSwapped() const override { return false; }
 #endif
 
-bool MicrophoneLogitech::IsMicrophoneMuted() const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[m_index]);
-}
+  bool IsMicrophoneMuted() const override
+  {
+    return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[m_index]);
+  }
+  u32 GetStreamSize() const override { return BUFF_SIZE_SAMPLES * m_sampler.srate / 250; }
 
-u32 MicrophoneLogitech::GetStreamSize() const
-{
-  return BUFF_SIZE_SAMPLES * m_sampler.srate / 250;
-}
+  const LogitechMicState& m_sampler;
+  const u8 m_index;
+};
 
 LogitechMic::LogitechMic(u8 index) : m_index(index)
 {
