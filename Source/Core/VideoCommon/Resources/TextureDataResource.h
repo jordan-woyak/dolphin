@@ -22,8 +22,8 @@ public:
   void MarkAsPending() override;
 
 private:
-  TaskComplete CollectPrimaryData() override;
-  TaskComplete ProcessData() override;
+  Common::ResumableTask CollectPrimaryData() override;
+  Common::ResumableTask ProcessData() override;
 
   // Note: asset cache owns the asset, we access as a reference
   TextureAsset* m_texture_asset = nullptr;

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Common/CoroutineUtil.h"
 #include "Common/WorkQueueThread.h"
 
 #include "VideoCommon/Assets/AssetListener.h"
@@ -42,15 +43,12 @@ public:
   };
   explicit Resource(ResourceContext resource_context);
 
-  enum class TaskComplete
+  struct TaskException : std::exception
   {
-    Yes,
-    No,
-    Error,
   };
 
   void Process();
-  TaskComplete IsDataProcessed() const { return m_data_processed; }
+  bool IsDataProcessed() const { return m_data_processed; }
 
   void AddReference(Resource* reference);
   void RemoveReference(Resource* reference);
@@ -62,7 +60,7 @@ protected:
   ResourceContext m_resource_context;
 
 private:
-  void ProcessCurrentTask();
+  Common::ResumableTask ReloadData();
   void NotifyAssetChanged(bool has_error);
   void NotifyAssetUnloaded();
 
@@ -72,22 +70,12 @@ private:
 
   friend class CustomResourceManager;
   virtual void ResetData();
-  virtual TaskComplete CollectPrimaryData();
-  virtual TaskComplete CollectDependencyData();
-  virtual TaskComplete ProcessData();
+  virtual Common::ResumableTask CollectPrimaryData();
+  virtual Common::ResumableTask CollectDependencyData();
+  virtual Common::ResumableTask ProcessData();
 
-  TaskComplete m_data_processed = TaskComplete::No;
-
-  enum class Task
-  {
-    ReloadData,
-    CollectPrimaryData,
-    CollectDependencyData,
-    ProcessData,
-    DataAvailable,
-  };
-  Task m_current_task = Task::ReloadData;
-
+  bool m_data_processed = false;
+  Common::ResumableTask m_reload_data_task;
   std::unordered_set<Resource*> m_references;
 };
 }  // namespace VideoCommon

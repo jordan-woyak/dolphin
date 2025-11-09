@@ -231,19 +231,20 @@ void ShaderResource::ResetData()
   m_processing_load_data = false;
 }
 
-Resource::TaskComplete ShaderResource::CollectPrimaryData()
+Common::ResumableTask ShaderResource::CollectPrimaryData()
 {
-  const auto shader_data = m_shader_asset->GetData();
-  if (!shader_data) [[unlikely]]
+  while (true)
   {
-    return Resource::TaskComplete::No;
+    if (const auto shader_data = m_shader_asset->GetData()) [[likely]]
+    {
+      m_load_data->m_shader_data = shader_data;
+      break;
+    }
+    co_await std::suspend_always{};
   }
-  m_load_data->m_shader_data = shader_data;
-
-  return Resource::TaskComplete::Yes;
 }
 
-Resource::TaskComplete ShaderResource::ProcessData()
+Common::ResumableTask ShaderResource::ProcessData()
 {
   class WorkItem final : public VideoCommon::AsyncShaderCompiler::WorkItem
   {
@@ -299,13 +300,12 @@ Resource::TaskComplete ShaderResource::ProcessData()
     m_processing_load_data = true;
   }
 
-  if (!m_load_data->m_processing_finished)
-    return Resource::TaskComplete::No;
+  while (!m_load_data->m_processing_finished)
+    co_await std::suspend_always{};
 
   if (!m_load_data->IsCompiled())
-    return Resource::TaskComplete::Error;
+    throw TaskException{};
 
   std::swap(m_current_data, m_load_data);
-  return Resource::TaskComplete::Yes;
 }
 }  // namespace VideoCommon

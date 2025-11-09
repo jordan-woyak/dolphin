@@ -35,18 +35,24 @@ void TextureAndSamplerResource::ResetData()
   m_load_data = std::make_shared<Data>();
 }
 
-Resource::TaskComplete TextureAndSamplerResource::CollectPrimaryData()
+Common::ResumableTask TextureAndSamplerResource::CollectPrimaryData()
 {
-  m_load_data->m_texture_and_sampler_data = m_texture_and_sampler_asset->GetData();
-  if (!m_load_data->m_texture_and_sampler_data)
-    return Resource::TaskComplete::No;
+  while (true)
+  {
+    if (const auto asset = m_texture_and_sampler_asset->GetData())
+    {
+      m_load_data->m_texture_and_sampler_data = asset;
+      break;
+    }
+    co_await std::suspend_always{};
+  }
 
   auto& texture_data = m_load_data->m_texture_and_sampler_data->texture_data;
   if (texture_data.m_slices.empty())
-    return Resource::TaskComplete::Error;
+    throw TaskException{};
 
   if (texture_data.m_slices[0].m_levels.empty())
-    return Resource::TaskComplete::Error;
+    throw TaskException{};
 
   const auto& first_level = texture_data.m_slices[0].m_levels[0];
 
@@ -60,39 +66,35 @@ Resource::TaskComplete TextureAndSamplerResource::CollectPrimaryData()
 
   config.width = first_level.width;
   config.height = first_level.height;
-
-  return Resource::TaskComplete::Yes;
 }
 
-Resource::TaskComplete TextureAndSamplerResource::ProcessData()
+Common::ResumableTask TextureAndSamplerResource::ProcessData()
 {
-  if (auto texture = m_resource_context.texture_pool->AllocateTexture(m_load_data->m_config))
+  auto texture = m_resource_context.texture_pool->AllocateTexture(m_load_data->m_config);
+  if (!texture)
+    throw TaskException{};
+
+  m_load_data->m_texture = std::move(texture);
+
+  auto& texture_data = m_load_data->m_texture_and_sampler_data->texture_data;
+  for (std::size_t slice_index = 0; slice_index < texture_data.m_slices.size(); slice_index++)
   {
-    m_load_data->m_texture = std::move(texture);
-
-    auto& texture_data = m_load_data->m_texture_and_sampler_data->texture_data;
-    for (std::size_t slice_index = 0; slice_index < texture_data.m_slices.size(); slice_index++)
+    auto& slice = texture_data.m_slices[slice_index];
+    for (u32 level_index = 0; level_index < static_cast<u32>(slice.m_levels.size()); ++level_index)
     {
-      auto& slice = texture_data.m_slices[slice_index];
-      for (u32 level_index = 0; level_index < static_cast<u32>(slice.m_levels.size());
-           ++level_index)
-      {
-        auto& level = slice.m_levels[level_index];
-        m_load_data->m_texture->Load(level_index, level.width, level.height, level.row_length,
-                                     level.data.data(), level.data.size(),
-                                     static_cast<u32>(slice_index));
-      }
+      auto& level = slice.m_levels[level_index];
+      m_load_data->m_texture->Load(level_index, level.width, level.height, level.row_length,
+                                   level.data.data(), level.data.size(),
+                                   static_cast<u32>(slice_index));
     }
-    std::swap(m_current_data, m_load_data);
-
-    // Release old data back to the pool
-    if (m_load_data)
-      m_resource_context.texture_pool->ReleaseTexture(std::move(m_load_data->m_texture));
-
-    return Resource::TaskComplete::Yes;
   }
+  std::swap(m_current_data, m_load_data);
 
-  return Resource::TaskComplete::Error;
+  // Release old data back to the pool
+  if (m_load_data)
+    m_resource_context.texture_pool->ReleaseTexture(std::move(m_load_data->m_texture));
+
+  co_return;
 }
 
 void TextureAndSamplerResource::OnUnloadRequested()

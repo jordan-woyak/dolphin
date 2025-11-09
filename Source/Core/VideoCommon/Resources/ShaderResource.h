@@ -49,8 +49,8 @@ public:
 
 private:
   void ResetData() override;
-  Resource::TaskComplete CollectPrimaryData() override;
-  TaskComplete ProcessData() override;
+  Common::ResumableTask CollectPrimaryData() override;
+  Common::ResumableTask ProcessData() override;
 
   // Note: asset cache owns the asset, we access as a reference
   RasterSurfaceShaderAsset* m_shader_asset = nullptr;

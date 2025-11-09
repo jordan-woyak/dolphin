@@ -35,8 +35,8 @@ public:
 
 private:
   void ResetData() override;
-  TaskComplete CollectPrimaryData() override;
-  TaskComplete ProcessData() override;
+  Common::ResumableTask CollectPrimaryData() override;
+  Common::ResumableTask ProcessData() override;
 
   void OnUnloadRequested() override;
 

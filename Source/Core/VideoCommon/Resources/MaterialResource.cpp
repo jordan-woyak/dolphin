@@ -80,41 +80,36 @@ void MaterialResource::ResetData()
   m_processing_load_data = false;
 }
 
-Resource::TaskComplete MaterialResource::CollectPrimaryData()
+Common::ResumableTask MaterialResource::CollectPrimaryData()
 {
-  const auto material_data = m_material_asset->GetData();
-  if (!material_data) [[unlikely]]
+  while (true)
   {
-    return Resource::TaskComplete::No;
+    if (const auto material_data = m_material_asset->GetData()) [[likely]]
+    {
+      m_load_data->m_material_data = material_data;
+      break;
+    }
+    co_await std::suspend_always{};
   }
-  m_load_data->m_material_data = material_data;
 
   // A shader asset is required to function
   if (m_load_data->m_material_data->shader_asset == "")
-  {
-    return Resource::TaskComplete::Error;
-  }
+    throw TaskException{};
 
   CreateTextureData(m_load_data.get());
   SetShaderKey(m_load_data.get(), &m_uid);
-
-  return Resource::TaskComplete::Yes;
 }
 
-Resource::TaskComplete MaterialResource::CollectDependencyData()
+Common::ResumableTask MaterialResource::CollectDependencyData()
 {
-  bool loaded = true;
   {
     auto* const shader_resource = m_resource_context.resource_manager->GetShaderFromAsset(
         m_load_data->m_material_data->shader_asset, m_load_data->m_shader_key, m_uid,
         m_load_data->m_preprocessor_settings, m_resource_context.asset_library);
     shader_resource->AddReference(this);
     m_load_data->m_shader_resource = shader_resource;
-    const auto data_processed = shader_resource->IsDataProcessed();
-    if (data_processed == TaskComplete::Error)
-      return TaskComplete::Error;
-
-    loaded &= data_processed == TaskComplete::Yes;
+    while (!shader_resource->IsDataProcessed())
+      co_await std::suspend_always{};
   }
 
   for (std::size_t i = 0; i < m_load_data->m_material_data->textures.size(); i++)
@@ -129,11 +124,8 @@ Resource::TaskComplete MaterialResource::CollectDependencyData()
     m_load_data->m_texture_like_data[i] = texture->GetData();
     texture->AddReference(this);
 
-    const auto data_processed = texture->IsDataProcessed();
-    if (data_processed == TaskComplete::Error)
-      return TaskComplete::Error;
-
-    loaded &= data_processed == TaskComplete::Yes;
+    while (!texture->IsDataProcessed())
+      co_await std::suspend_always{};
   }
 
   if (m_load_data->m_material_data->next_material_asset != "")
@@ -141,22 +133,17 @@ Resource::TaskComplete MaterialResource::CollectDependencyData()
     m_load_data->m_next_material = m_resource_context.resource_manager->GetMaterialFromAsset(
         m_load_data->m_material_data->next_material_asset, m_uid, m_resource_context.asset_library);
     m_load_data->m_next_material->AddReference(this);
-    const auto data_processed = m_load_data->m_next_material->IsDataProcessed();
-    if (data_processed == TaskComplete::Error)
-      return TaskComplete::Error;
-
-    loaded &= data_processed == TaskComplete::Yes;
+    while (!m_load_data->m_next_material->IsDataProcessed())
+      co_await std::suspend_always{};
   }
-
-  return loaded ? TaskComplete::Yes : TaskComplete::No;
 }
 
-Resource::TaskComplete MaterialResource::ProcessData()
+Common::ResumableTask MaterialResource::ProcessData()
 {
   auto shader_data = m_load_data->m_shader_resource->GetData();
 
   if (!shader_data) [[unlikely]]
-    return Resource::TaskComplete::Error;
+    throw TaskException{};
 
   for (std::size_t i = 0; i < m_load_data->m_texture_like_data.size(); i++)
   {
@@ -274,16 +261,13 @@ Resource::TaskComplete MaterialResource::ProcessData()
     m_processing_load_data = true;
   }
 
-  if (!m_load_data->m_processing_finished)
-    return TaskComplete::No;
+  while (!m_load_data->m_processing_finished)
+    co_await std::suspend_always{};
 
   if (!m_load_data->m_pipeline)
-  {
-    return TaskComplete::Error;
-  }
+    throw TaskException{};
 
   std::swap(m_current_data, m_load_data);
-  return TaskComplete::Yes;
 }
 
 void MaterialResource::MarkAsActive()

@@ -80,9 +80,9 @@ public:
 
 private:
   void ResetData() override;
-  Resource::TaskComplete CollectPrimaryData() override;
-  Resource::TaskComplete CollectDependencyData() override;
-  Resource::TaskComplete ProcessData() override;
+  Common::ResumableTask CollectPrimaryData() override;
+  Common::ResumableTask CollectDependencyData() override;
+  Common::ResumableTask ProcessData() override;
 
   static void CreateTextureData(Data* data);
   static void SetShaderKey(Data* data, GXPipelineUid* uid);

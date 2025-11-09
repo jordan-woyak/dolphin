@@ -24,21 +24,26 @@ CustomAsset::TimeType TextureDataResource::GetLoadTime() const
   return m_current_time;
 }
 
-Resource::TaskComplete TextureDataResource::CollectPrimaryData()
+Common::ResumableTask TextureDataResource::CollectPrimaryData()
 {
-  m_load_time = m_texture_asset->GetLastLoadedTime();
-  m_load_texture_data = m_texture_asset->GetData();
-  if (!m_load_texture_data)
-    return Resource::TaskComplete::No;
-  return Resource::TaskComplete::Yes;
+  while (true)
+  {
+    m_load_time = m_texture_asset->GetLastLoadedTime();
+    if (const auto asset = m_texture_asset->GetData())
+    {
+      m_load_texture_data = asset;
+      break;
+    }
+    co_await std::suspend_always{};
+  }
 }
 
-Resource::TaskComplete TextureDataResource::ProcessData()
+Common::ResumableTask TextureDataResource::ProcessData()
 {
   std::swap(m_current_texture_data, m_load_texture_data);
   m_load_texture_data = nullptr;
   m_current_time = m_load_time;
-  return Resource::TaskComplete::Yes;
+  co_return;
 }
 
 void TextureDataResource::MarkAsActive()
