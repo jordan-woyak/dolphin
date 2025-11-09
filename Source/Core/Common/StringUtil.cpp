@@ -403,17 +403,21 @@ size_t StringUTF8CodePointCount(std::string_view str)
 
 #ifdef _WIN32
 
-static std::wstring CPToUTF16(u32 code_page, std::string_view input)
+template <typename OutputCharType = wchar_t>
+requires(sizeof(OutputCharType) == sizeof(wchar_t))
+static auto CPToUTF16(u32 code_page, std::string_view input)
 {
   auto const size =
       MultiByteToWideChar(code_page, 0, input.data(), static_cast<int>(input.size()), nullptr, 0);
 
-  std::wstring output;
+  // TOOD: assert size/type of OutputCharType
+
+  std::basic_string<OutputCharType> output;
   output.resize(size);
 
   if (size == 0 ||
       size != MultiByteToWideChar(code_page, 0, input.data(), static_cast<int>(input.size()),
-                                  &output[0], static_cast<int>(output.size())))
+                                  output.data(), static_cast<int>(output.size())))
   {
     output.clear();
   }
@@ -436,6 +440,7 @@ static std::string UTF16ToCP(u32 code_page, std::wstring_view input)
                                   output.data(), static_cast<int>(output.size()), nullptr, nullptr))
   {
     const DWORD error_code = GetLastError();
+    // TODO: don't try to do another conversion in the log..
     ERROR_LOG_FMT(COMMON, "WideCharToMultiByte Error in String '{}': {}", WStringToUTF8(input),
                   error_code);
     return {};
