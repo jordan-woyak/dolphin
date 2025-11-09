@@ -122,14 +122,8 @@ public:
   bool IsWiiSpeakMuted() const;
   void SetWiiSpeakMuted(bool muted);
 
-  bool IsLogitechMic1Muted() const;
-  void SetLogitechMic1Muted(bool muted);
-  bool IsLogitechMic2Muted() const;
-  void SetLogitechMic2Muted(bool muted);
-  bool IsLogitechMic3Muted() const;
-  void SetLogitechMic3Muted(bool muted);
-  bool IsLogitechMic4Muted() const;
-  void SetLogitechMic4Muted(bool muted);
+  bool IsLogitechMicMuted(u8 index) const;
+  void SetLogitechMicMuted(u8 index, bool muted);
 
   void SetIsContinuouslyFrameStepping(bool is_stepping);
   bool GetIsContinuouslyFrameStepping() const;
@@ -233,10 +227,7 @@ signals:
   void ReleaseDevices();
   void DevicesChanged();
   void WiiSpeakMuteChanged(bool muted);
-  void LogitechMic1MuteChanged(bool muted);
-  void LogitechMic2MuteChanged(bool muted);
-  void LogitechMic3MuteChanged(bool muted);
-  void LogitechMic4MuteChanged(bool muted);
+  void LogitechMicMuteChanged(u8 index, bool muted);
   void EnableGfxModsChanged(bool enabled);
 
 private:

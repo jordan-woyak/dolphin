@@ -23,21 +23,11 @@ private:
   void CreateCheckboxGroup(QVBoxLayout* main_layout);
   void CreateMicrophoneConfigurationGroup(QVBoxLayout* main_layout);
   void OnEmulationStateChanged(Core::State state);
-  void EmulateLogitechMic1(bool emulate);
-  void EmulateLogitechMic2(bool emulate);
-  void EmulateLogitechMic3(bool emulate);
-  void EmulateLogitechMic4(bool emulate);
-  void OnInputDevice1Change();
-  void OnInputDevice2Change();
-  void OnInputDevice3Change();
-  void OnInputDevice4Change();
+  void EmulateLogitechMic(u8 index, bool emulate);
+  void OnInputDeviceChange(u8 index);
+  void OnMuteChange(u8 index, bool muted);
 
-  QCheckBox* m_checkbox_mic_1_enabled;
-  QCheckBox* m_checkbox_mic_2_enabled;
-  QCheckBox* m_checkbox_mic_3_enabled;
-  QCheckBox* m_checkbox_mic_4_enabled;
-  QComboBox* m_combobox_1_microphones;
-  QComboBox* m_combobox_2_microphones;
-  QComboBox* m_combobox_3_microphones;
-  QComboBox* m_combobox_4_microphones;
+  std::array<QCheckBox*, 4> m_checkbox_mic_enabled;
+  std::array<QCheckBox*, 4> m_checkbox_mic_muted;
+  std::array<QComboBox*, 4> m_combobox_microphone;
 };

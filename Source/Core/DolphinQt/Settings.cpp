@@ -801,60 +801,18 @@ void Settings::SetWiiSpeakMuted(bool muted)
   emit WiiSpeakMuteChanged(muted);
 }
 
-bool Settings::IsLogitechMic1Muted() const
+bool Settings::IsLogitechMicMuted(u8 index) const
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[0]);
+  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[index]);
 }
 
-bool Settings::IsLogitechMic2Muted() const
+void Settings::SetLogitechMicMuted(u8 index, bool muted)
 {
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[1]);
-}
-
-bool Settings::IsLogitechMic3Muted() const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[2]);
-}
-
-bool Settings::IsLogitechMic4Muted() const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[3]);
-}
-
-void Settings::SetLogitechMic1Muted(bool muted)
-{
-  if (IsLogitechMic1Muted() == muted)
+  if (IsLogitechMicMuted(index) == muted)
     return;
 
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[0], muted);
-  emit LogitechMic1MuteChanged(muted);
-}
-
-void Settings::SetLogitechMic2Muted(bool muted)
-{
-  if (IsLogitechMic2Muted() == muted)
-    return;
-
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[1], muted);
-  emit LogitechMic2MuteChanged(muted);
-}
-
-void Settings::SetLogitechMic3Muted(bool muted)
-{
-  if (IsLogitechMic3Muted() == muted)
-    return;
-
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[2], muted);
-  emit LogitechMic3MuteChanged(muted);
-}
-
-void Settings::SetLogitechMic4Muted(bool muted)
-{
-  if (IsLogitechMic4Muted() == muted)
-    return;
-
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[3], muted);
-  emit LogitechMic4MuteChanged(muted);
+  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[index], muted);
+  emit LogitechMicMuteChanged(index, muted);
 }
 
 void Settings::SetIsContinuouslyFrameStepping(bool is_stepping)

@@ -60,29 +60,17 @@ void LogitechMicWindow::CreateCheckboxGroup(QVBoxLayout* main_layout)
   auto* checkbox_layout = new QHBoxLayout();
   checkbox_layout->setAlignment(Qt::AlignHCenter);
 
-  m_checkbox_mic_1_enabled = new QCheckBox(tr("Emulate Logitech USB Mic 1"), this);
-  m_checkbox_mic_1_enabled->setChecked(Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[0]));
-  connect(m_checkbox_mic_1_enabled, &QCheckBox::toggled, this,
-          &LogitechMicWindow::EmulateLogitechMic1);
-  checkbox_layout->addWidget(m_checkbox_mic_1_enabled);
-
-  m_checkbox_mic_2_enabled = new QCheckBox(tr("Emulate Logitech USB Mic 2"), this);
-  m_checkbox_mic_2_enabled->setChecked(Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[1]));
-  connect(m_checkbox_mic_2_enabled, &QCheckBox::toggled, this,
-          &LogitechMicWindow::EmulateLogitechMic2);
-  checkbox_layout->addWidget(m_checkbox_mic_2_enabled);
-
-  m_checkbox_mic_3_enabled = new QCheckBox(tr("Emulate Logitech USB Mic 3"), this);
-  m_checkbox_mic_3_enabled->setChecked(Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[2]));
-  connect(m_checkbox_mic_3_enabled, &QCheckBox::toggled, this,
-          &LogitechMicWindow::EmulateLogitechMic3);
-  checkbox_layout->addWidget(m_checkbox_mic_3_enabled);
-
-  m_checkbox_mic_4_enabled = new QCheckBox(tr("Emulate Logitech USB Mic 4"), this);
-  m_checkbox_mic_4_enabled->setChecked(Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[3]));
-  connect(m_checkbox_mic_4_enabled, &QCheckBox::toggled, this,
-          &LogitechMicWindow::EmulateLogitechMic4);
-  checkbox_layout->addWidget(m_checkbox_mic_4_enabled);
+  for (u8 index = 0; index < 4; index++)
+  {
+    std::stringstream ss;
+    ss << "Emulate Logitech USB Mic " << (index + 1);
+    m_checkbox_mic_enabled[index] = new QCheckBox(tr(ss.str().c_str()), this);
+    m_checkbox_mic_enabled[index]->setChecked(
+        Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[index]));
+    connect(m_checkbox_mic_enabled[index], &QCheckBox::toggled, this,
+            [index, this](bool checked) { EmulateLogitechMic(index, checked); });
+    checkbox_layout->addWidget(m_checkbox_mic_enabled[index]);
+  }
 
   checkbox_group->setLayout(checkbox_layout);
   main_layout->addWidget(checkbox_group);
@@ -100,41 +88,13 @@ void LogitechMicWindow::CreateMicrophoneConfigurationGroup(QVBoxLayout* main_lay
     auto* config_group = new QGroupBox(tr(ss.str().c_str()));
     auto* config_layout = new QHBoxLayout();
 
-    auto checkbox_mic_muted = new QCheckBox(tr("Mute"), this);
-    if (index == 0)
-    {
-      checkbox_mic_muted->setChecked(Settings::Instance().IsLogitechMic1Muted());
-      connect(&Settings::Instance(), &Settings::LogitechMic1MuteChanged, checkbox_mic_muted,
-              &QCheckBox::setChecked);
-      connect(checkbox_mic_muted, &QCheckBox::toggled, &Settings::Instance(),
-              &Settings::SetLogitechMic1Muted);
-    }
-    else if (index == 1)
-    {
-      checkbox_mic_muted->setChecked(Settings::Instance().IsLogitechMic2Muted());
-      connect(&Settings::Instance(), &Settings::LogitechMic2MuteChanged, checkbox_mic_muted,
-              &QCheckBox::setChecked);
-      connect(checkbox_mic_muted, &QCheckBox::toggled, &Settings::Instance(),
-              &Settings::SetLogitechMic2Muted);
-    }
-    else if (index == 2)
-    {
-      checkbox_mic_muted->setChecked(Settings::Instance().IsLogitechMic3Muted());
-      connect(&Settings::Instance(), &Settings::LogitechMic3MuteChanged, checkbox_mic_muted,
-              &QCheckBox::setChecked);
-      connect(checkbox_mic_muted, &QCheckBox::toggled, &Settings::Instance(),
-              &Settings::SetLogitechMic3Muted);
-    }
-    else if (index == 3)
-    {
-      checkbox_mic_muted->setChecked(Settings::Instance().IsLogitechMic4Muted());
-      connect(&Settings::Instance(), &Settings::LogitechMic4MuteChanged, checkbox_mic_muted,
-              &QCheckBox::setChecked);
-      connect(checkbox_mic_muted, &QCheckBox::toggled, &Settings::Instance(),
-              &Settings::SetLogitechMic4Muted);
-    }
-    checkbox_mic_muted->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    config_layout->addWidget(checkbox_mic_muted);
+    m_checkbox_mic_muted[index] = new QCheckBox(tr("Mute"), this);
+    m_checkbox_mic_muted[index]->setChecked(Settings::Instance().IsLogitechMicMuted(index));
+
+    connect(m_checkbox_mic_muted[index], &QCheckBox::toggled, &Settings::Instance(),
+            [index](bool checked) { Settings::Instance().SetLogitechMicMuted(index, checked); });
+    m_checkbox_mic_muted[index]->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    config_layout->addWidget(m_checkbox_mic_muted[index]);
 
     static constexpr int FILTER_MIN = -50;
     static constexpr int FILTER_MAX = 50;
@@ -163,120 +123,65 @@ void LogitechMicWindow::CreateMicrophoneConfigurationGroup(QVBoxLayout* main_lay
     config_layout->addLayout(volume_layout);
     config_layout->setStretch(1, 3);
 
-    const std::array<QComboBox**, 4> microphone_comboboxes{
-        &m_combobox_1_microphones, &m_combobox_2_microphones, &m_combobox_3_microphones,
-        &m_combobox_4_microphones};
-    QComboBox** indexed_microphone_combobox = microphone_comboboxes[index];
-    *indexed_microphone_combobox = new QComboBox();
+    m_combobox_microphone[index] = new QComboBox();
 #ifndef HAVE_CUBEB
-    (*indexed_microphone_combobox)
-        ->addItem(QLatin1String("(%1)").arg(tr("Audio backend unsupported")), QString{});
+    m_combobox_microphone[index]->addItem(
+        QLatin1String("(%1)").arg(tr("Audio backend unsupported")), QString{});
 #else
-    (*indexed_microphone_combobox)
-        ->addItem(QLatin1String("(%1)").arg(tr("Autodetect preferred microphone")), QString{});
+    m_combobox_microphone[index]->addItem(
+        QLatin1String("(%1)").arg(tr("Autodetect preferred microphone")), QString{});
     for (auto& [device_id, device_name] : CubebUtils::ListInputDevices())
     {
       const auto user_data = QString::fromStdString(device_id);
-      (*indexed_microphone_combobox)->addItem(QString::fromStdString(device_name), user_data);
+      m_combobox_microphone[index]->addItem(QString::fromStdString(device_name), user_data);
     }
 #endif
-    if (index == 0)
-      connect(*indexed_microphone_combobox, &QComboBox::currentIndexChanged, this,
-              &LogitechMicWindow::OnInputDevice1Change);
-    else if (index == 1)
-      connect(*indexed_microphone_combobox, &QComboBox::currentIndexChanged, this,
-              &LogitechMicWindow::OnInputDevice2Change);
-    else if (index == 2)
-      connect(*indexed_microphone_combobox, &QComboBox::currentIndexChanged, this,
-              &LogitechMicWindow::OnInputDevice3Change);
-    else if (index == 3)
-      connect(*indexed_microphone_combobox, &QComboBox::currentIndexChanged, this,
-              &LogitechMicWindow::OnInputDevice4Change);
-
     auto current_device_id =
         QString::fromStdString(Config::Get(Config::MAIN_LOGITECH_MIC_MICROPHONE[index]));
-    (*indexed_microphone_combobox)
-        ->setCurrentIndex((*indexed_microphone_combobox)->findData(current_device_id));
-    config_layout->addWidget(*indexed_microphone_combobox);
+    m_combobox_microphone[index]->setCurrentIndex(
+        m_combobox_microphone[index]->findData(current_device_id));
+    connect(m_combobox_microphone[index], &QComboBox::currentIndexChanged, this,
+            [index, this]() { OnInputDeviceChange(index); });
+    config_layout->addWidget(m_combobox_microphone[index]);
 
     config_group->setLayout(config_layout);
     main_config_layout->addWidget(config_group);
   }
 
+  connect(&Settings::Instance(), &Settings::LogitechMicMuteChanged, this,
+          &LogitechMicWindow::OnMuteChange);
+
   main_config_group->setLayout(main_config_layout);
   main_layout->addWidget(main_config_group);
 }
 
-void LogitechMicWindow::EmulateLogitechMic1(bool emulate)
+void LogitechMicWindow::EmulateLogitechMic(u8 index, bool emulate)
 {
-  Config::SetBaseOrCurrent(Config::MAIN_EMULATE_LOGITECH_MIC[0], emulate);
-}
-
-void LogitechMicWindow::EmulateLogitechMic2(bool emulate)
-{
-  Config::SetBaseOrCurrent(Config::MAIN_EMULATE_LOGITECH_MIC[1], emulate);
-}
-
-void LogitechMicWindow::EmulateLogitechMic3(bool emulate)
-{
-  Config::SetBaseOrCurrent(Config::MAIN_EMULATE_LOGITECH_MIC[2], emulate);
-}
-
-void LogitechMicWindow::EmulateLogitechMic4(bool emulate)
-{
-  Config::SetBaseOrCurrent(Config::MAIN_EMULATE_LOGITECH_MIC[3], emulate);
+  Config::SetBaseOrCurrent(Config::MAIN_EMULATE_LOGITECH_MIC[index], emulate);
 }
 
 void LogitechMicWindow::OnEmulationStateChanged(Core::State state)
 {
   const bool running = state != Core::State::Uninitialized;
 
-  m_checkbox_mic_1_enabled->setEnabled(!running);
-  m_checkbox_mic_2_enabled->setEnabled(!running);
-  m_checkbox_mic_3_enabled->setEnabled(!running);
-  m_checkbox_mic_4_enabled->setEnabled(!running);
-  m_combobox_1_microphones->setEnabled(!running);
-  m_combobox_2_microphones->setEnabled(!running);
-  m_combobox_3_microphones->setEnabled(!running);
-  m_combobox_4_microphones->setEnabled(!running);
-}
-
-void LogitechMicWindow::OnInputDevice1Change()
-{
-  auto user_data_1 = m_combobox_1_microphones->currentData();
-  if (user_data_1.isValid())
+  for (u8 index = 0; index < 4; index++)
   {
-    const std::string device_id = user_data_1.toString().toStdString();
-    Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MICROPHONE[0], device_id);
+    m_checkbox_mic_enabled[index]->setEnabled(!running);
+    m_combobox_microphone[index]->setEnabled(!running);
   }
 }
 
-void LogitechMicWindow::OnInputDevice2Change()
+void LogitechMicWindow::OnInputDeviceChange(u8 index)
 {
-  auto user_data_2 = m_combobox_2_microphones->currentData();
-  if (user_data_2.isValid())
+  auto user_data = m_combobox_microphone[index]->currentData();
+  if (user_data.isValid())
   {
-    const std::string device_id = user_data_2.toString().toStdString();
-    Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MICROPHONE[1], device_id);
+    const std::string device_id = user_data.toString().toStdString();
+    Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MICROPHONE[index], device_id);
   }
 }
 
-void LogitechMicWindow::OnInputDevice3Change()
+void LogitechMicWindow::OnMuteChange(u8 index, bool muted)
 {
-  auto user_data_3 = m_combobox_3_microphones->currentData();
-  if (user_data_3.isValid())
-  {
-    const std::string device_id = user_data_3.toString().toStdString();
-    Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MICROPHONE[2], device_id);
-  }
-}
-
-void LogitechMicWindow::OnInputDevice4Change()
-{
-  auto user_data_4 = m_combobox_4_microphones->currentData();
-  if (user_data_4.isValid())
-  {
-    const std::string device_id = user_data_4.toString().toStdString();
-    Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MICROPHONE[3], device_id);
-  }
+  m_checkbox_mic_muted[index]->setChecked(muted);
 }
