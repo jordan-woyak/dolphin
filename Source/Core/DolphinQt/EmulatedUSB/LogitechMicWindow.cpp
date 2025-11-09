@@ -37,8 +37,6 @@ LogitechMicWindow::LogitechMicWindow(QWidget* parent) : QWidget(parent)
   OnEmulationStateChanged(Core::GetState(Core::System::GetInstance()));
 }
 
-LogitechMicWindow::~LogitechMicWindow() = default;
-
 void LogitechMicWindow::CreateMainWindow()
 {
   auto* main_layout = new QVBoxLayout();

@@ -16,7 +16,6 @@ class LogitechMicWindow : public QWidget
   Q_OBJECT
 public:
   explicit LogitechMicWindow(QWidget* parent = nullptr);
-  ~LogitechMicWindow() override;
 
 private:
   void CreateMainWindow();
