@@ -26,49 +26,31 @@ u32 WiiSpeakState::GetDefaultSamplingRate() const
   return DEFAULT_SAMPLING_RATE;
 }
 
-MicrophoneWiiSpeak::MicrophoneWiiSpeak(const WiiSpeakState& sampler)
-    : Microphone(sampler, GetWorkerName())
+class MicrophoneWiiSpeak final : public Microphone
 {
-}
+public:
+  explicit MicrophoneWiiSpeak(const WiiSpeakState& sampler) : Microphone(sampler, GetWorkerName())
+  {
+  }
 
+private:
 #ifdef HAVE_CUBEB
-
-std::string MicrophoneWiiSpeak::GetWorkerName() const
-{
-  return "Wii Speak Worker";
-}
-
-std::string MicrophoneWiiSpeak::GetInputDeviceId() const
-{
-  return Config::Get(Config::MAIN_WII_SPEAK_MICROPHONE);
-}
-
-std::string MicrophoneWiiSpeak::GetCubebStreamName() const
-{
-  return "Dolphin Emulated Wii Speak";
-}
-
-s16 MicrophoneWiiSpeak::GetVolumeModifier() const
-{
-  return Config::Get(Config::MAIN_WII_SPEAK_VOLUME_MODIFIER);
-}
-
-bool MicrophoneWiiSpeak::AreSamplesByteSwapped() const
-{
-  return true;
-}
-
+  std::string GetWorkerName() const { return "Wii Speak Worker"; }
+  std::string GetInputDeviceId() const override
+  {
+    return Config::Get(Config::MAIN_WII_SPEAK_MICROPHONE);
+  }
+  std::string GetCubebStreamName() const override { return "Dolphin Emulated Wii Speak"; }
+  s16 GetVolumeModifier() const override
+  {
+    return Config::Get(Config::MAIN_WII_SPEAK_VOLUME_MODIFIER);
+  }
+  bool AreSamplesByteSwapped() const override { return true; }
 #endif
 
-bool MicrophoneWiiSpeak::IsMicrophoneMuted() const
-{
-  return Config::Get(Config::MAIN_WII_SPEAK_MUTED);
-}
-
-u32 MicrophoneWiiSpeak::GetStreamSize() const
-{
-  return BUFF_SIZE_SAMPLES * 500;
-}
+  bool IsMicrophoneMuted() const override { return Config::Get(Config::MAIN_WII_SPEAK_MUTED); }
+  u32 GetStreamSize() const override { return BUFF_SIZE_SAMPLES * 500; }
+};
 
 WiiSpeak::WiiSpeak()
 {

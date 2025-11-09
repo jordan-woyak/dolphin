@@ -31,24 +31,6 @@ public:
   u32 GetDefaultSamplingRate() const override;
 };
 
-class MicrophoneWiiSpeak final : public Microphone
-{
-public:
-  explicit MicrophoneWiiSpeak(const WiiSpeakState& sampler);
-
-private:
-#ifdef HAVE_CUBEB
-  std::string GetWorkerName() const;
-  std::string GetInputDeviceId() const override;
-  std::string GetCubebStreamName() const override;
-  s16 GetVolumeModifier() const override;
-  bool AreSamplesByteSwapped() const override;
-#endif
-
-  bool IsMicrophoneMuted() const override;
-  u32 GetStreamSize() const override;
-};
-
 class WiiSpeak final : public Device
 {
 public:
@@ -107,7 +89,7 @@ private:
   u8 m_active_interface = 0;
   bool m_device_attached = false;
   bool init = false;
-  std::unique_ptr<MicrophoneWiiSpeak> m_microphone{};
+  std::unique_ptr<Microphone> m_microphone{};
   const DeviceDescriptor m_device_descriptor{0x12,  0x1,    0x200,  0,   0,   0,   0x10,
                                              0x57E, 0x0308, 0x0214, 0x1, 0x2, 0x0, 0x1};
   const std::vector<ConfigDescriptor> m_config_descriptor{
