@@ -16,12 +16,12 @@ TextureDataResource::TextureDataResource(Resource::ResourceContext resource_cont
 
 std::shared_ptr<CustomTextureData> TextureDataResource::GetData() const
 {
-  return m_current_texture_data;
+  return m_load_texture_data;
 }
 
 CustomAsset::TimeType TextureDataResource::GetLoadTime() const
 {
-  return m_current_time;
+  return m_load_time;
 }
 
 Common::ResumableTask TextureDataResource::CollectPrimaryData()
@@ -36,14 +36,6 @@ Common::ResumableTask TextureDataResource::CollectPrimaryData()
     }
     co_await std::suspend_always{};
   }
-}
-
-Common::ResumableTask TextureDataResource::ProcessData()
-{
-  std::swap(m_current_texture_data, m_load_texture_data);
-  m_load_texture_data = nullptr;
-  m_current_time = m_load_time;
-  co_return;
 }
 
 void TextureDataResource::MarkAsActive()

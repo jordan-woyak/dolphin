@@ -23,15 +23,11 @@ public:
 
 private:
   Common::ResumableTask CollectPrimaryData() override;
-  Common::ResumableTask ProcessData() override;
 
   // Note: asset cache owns the asset, we access as a reference
   TextureAsset* m_texture_asset = nullptr;
 
   std::shared_ptr<CustomTextureData> m_load_texture_data;
   CustomAsset::TimeType m_load_time = {};
-
-  std::shared_ptr<CustomTextureData> m_current_texture_data;
-  CustomAsset::TimeType m_current_time = {};
 };
 }  // namespace VideoCommon
