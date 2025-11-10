@@ -190,7 +190,7 @@ void USBScanner::AddEmulatedDevices(DeviceMap* new_devices)
     auto wii_speak = std::make_unique<USB::WiiSpeak>();
     AddDevice(std::move(wii_speak), new_devices);
   }
-  for (u8 index = 0; index < 4; index++)
+  for (u8 index = 0; index != Config::EMULATED_LOGITECH_MIC_COUNT; ++index)
   {
     if (Config::Get(Config::MAIN_EMULATE_LOGITECH_MIC[index]) && !NetPlay::IsNetPlayRunning())
     {

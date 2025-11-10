@@ -32,7 +32,7 @@ public:
 class LogitechMic final : public Device
 {
 public:
-  LogitechMic(u8 index);
+  explicit LogitechMic(u8 index);
   ~LogitechMic() override;
 
   DeviceDescriptor GetDeviceDescriptor() const override;
