@@ -23,6 +23,8 @@ namespace IOS::HLE::USB
 class MicrophoneState
 {
 public:
+  virtual ~MicrophoneState() = default;
+
   virtual bool IsSampleOn() const = 0;
   virtual bool IsMuted() const = 0;
   virtual u32 GetDefaultSamplingRate() const = 0;
