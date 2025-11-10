@@ -23,6 +23,7 @@ class ConfigFloatSlider;
 class ConfigStringChoice;
 class QPushButton;
 class QTabWidget;
+class QLabel;
 
 class GameConfigWidget : public QWidget
 {

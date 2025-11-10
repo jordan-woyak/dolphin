@@ -12,6 +12,7 @@ class ConfigStringChoice;
 class ConfigFloatSlider;
 class GraphicsPane;
 class QPushButton;
+class QLabel;
 class ToolTipPushButton;
 
 namespace Config
