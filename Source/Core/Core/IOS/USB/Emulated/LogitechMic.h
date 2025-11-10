@@ -24,9 +24,9 @@ public:
 
   static constexpr u32 DEFAULT_SAMPLING_RATE = 48000;
 
-  bool IsSampleOn() const;
-  bool IsMuted() const;
-  u32 GetDefaultSamplingRate() const;
+  bool IsSampleOn() const override;
+  bool IsMuted() const override;
+  u32 GetDefaultSamplingRate() const override;
 };
 
 class LogitechMic final : public Device
