@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <QLabel>
+#include <QPointer>
+
 #include "DolphinQt/Config/ConfigControls/ConfigControl.h"
 #include "DolphinQt/Config/ToolTipControls/ToolTipSlider.h"
 

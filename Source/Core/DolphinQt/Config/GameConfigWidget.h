@@ -19,7 +19,6 @@ class Layer;
 
 class ConfigBool;
 class ConfigInteger;
-class ConfigSlider;
 class ConfigFloatSlider;
 class ConfigStringChoice;
 class QPushButton;
