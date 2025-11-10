@@ -801,20 +801,6 @@ void Settings::SetWiiSpeakMuted(bool muted)
   emit WiiSpeakMuteChanged(muted);
 }
 
-bool Settings::IsLogitechMicMuted(u8 index) const
-{
-  return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[index]);
-}
-
-void Settings::SetLogitechMicMuted(u8 index, bool muted)
-{
-  if (IsLogitechMicMuted(index) == muted)
-    return;
-
-  Config::SetBaseOrCurrent(Config::MAIN_LOGITECH_MIC_MUTED[index], muted);
-  emit LogitechMicMuteChanged(index, muted);
-}
-
 void Settings::SetIsContinuouslyFrameStepping(bool is_stepping)
 {
   m_continuously_frame_stepping = is_stepping;

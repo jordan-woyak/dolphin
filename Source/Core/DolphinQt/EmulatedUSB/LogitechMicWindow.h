@@ -6,12 +6,13 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 
-class QCheckBox;
+class ConfigBool;
 class QComboBox;
 
-class LogitechMicWindow : public QWidget
+class LogitechMicWindow final : public QWidget
 {
   Q_OBJECT
 public:
@@ -21,12 +22,10 @@ private:
   void CreateMainWindow();
   void CreateCheckboxGroup(QVBoxLayout* main_layout);
   void CreateMicrophoneConfigurationGroup(QVBoxLayout* main_layout);
-  void OnEmulationStateChanged(Core::State state);
-  void EmulateLogitechMic(u8 index, bool emulate);
-  void OnInputDeviceChange(u8 index);
-  void OnMuteChange(u8 index, bool muted);
 
-  std::array<QCheckBox*, 4> m_checkbox_mic_enabled;
-  std::array<QCheckBox*, 4> m_checkbox_mic_muted;
-  std::array<QComboBox*, 4> m_combobox_microphone;
+  void OnEmulationStateChanged(Core::State state);
+  void OnInputDeviceChange(std::size_t index);
+
+  std::array<ConfigBool*, Config::EMULATED_LOGITECH_MIC_COUNT> m_mic_enabled_checkboxes;
+  std::array<QComboBox*, 4> m_mic_device_comboboxes;
 };
