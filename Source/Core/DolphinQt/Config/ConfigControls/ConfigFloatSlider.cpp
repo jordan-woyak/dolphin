@@ -38,3 +38,13 @@ void ConfigFloatSlider::OnConfigChanged()
 {
   setValue(std::round((ReadValue(m_setting) - m_minimum) / m_step));
 }
+
+ConfigFloatLabel::ConfigFloatLabel(const QString& text, ConfigFloatSlider* widget)
+    : QLabel(text), m_widget(QPointer<ConfigFloatSlider>(widget))
+{
+  connect(&Settings::Instance(), &Settings::ConfigChanged, this, [this] {
+    // Label shares font changes with ConfigFloatSlider to mark game ini settings.
+    if (m_widget)
+      setFont(m_widget->font());
+  });
+}

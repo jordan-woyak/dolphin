@@ -29,3 +29,14 @@ private:
   float m_step;
   const Config::Info<float> m_setting;
 };
+
+class ConfigFloatLabel final : public QLabel
+{
+  Q_OBJECT
+
+public:
+  ConfigFloatLabel(const QString& text, ConfigFloatSlider* widget);
+
+private:
+  QPointer<ConfigFloatSlider> m_widget;
+};
