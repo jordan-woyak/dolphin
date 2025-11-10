@@ -33,7 +33,6 @@ class LogitechMic final : public Device
 {
 public:
   explicit LogitechMic(u8 index);
-  ~LogitechMic() override;
 
   DeviceDescriptor GetDeviceDescriptor() const override;
   std::vector<ConfigDescriptor> GetConfigurations() const override;
