@@ -179,7 +179,7 @@ const Info<float> GFX_STEREO_CONVERGENCE{{System::GFX, "Stereoscopy", "StereoCon
 const Info<bool> GFX_STEREO_EFB_MONO_DEPTH{{System::GFX, "Stereoscopy", "StereoEFBMonoDepth"},
                                            false};
 const Info<float> GFX_STEREO_DEPTH_PERCENTAGE{{System::GFX, "Stereoscopy", "StereoDepthPercentage"},
-                                            100};
+                                              100};
 
 // Graphics.Hacks
 

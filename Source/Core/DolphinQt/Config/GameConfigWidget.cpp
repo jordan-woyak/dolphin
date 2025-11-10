@@ -24,9 +24,9 @@
 #include "Core/ConfigManager.h"
 #include "DolphinQt/Config/ConfigControls/ConfigBool.h"
 #include "DolphinQt/Config/ConfigControls/ConfigChoice.h"
+#include "DolphinQt/Config/ConfigControls/ConfigFloatSlider.h"
 #include "DolphinQt/Config/ConfigControls/ConfigInteger.h"
 #include "DolphinQt/Config/ConfigControls/ConfigRadio.h"
-#include "DolphinQt/Config/ConfigControls/ConfigFloatSlider.h"
 #include "DolphinQt/Config/GameConfigEdit.h"
 #include "DolphinQt/Config/Graphics/GraphicsPane.h"
 #include "DolphinQt/QtUtils/QtUtils.h"
@@ -164,7 +164,7 @@ void GameConfigWidget::CreateWidgets()
   stereoscopy_layout->addWidget(m_convergence_spin_value, 1, 2);
   stereoscopy_layout->addWidget(m_use_monoscopic_shadows, 2, 0);
 
-  m_depth_slider_value->setText(QString::asprintf("%.0f%", m_depth_slider->GetValue()));
+  m_depth_slider_value->setText(QString::asprintf("%.0f%%", m_depth_slider->GetValue()));
   m_convergence_spin_value->setText(QString::asprintf("%.2f", m_convergence_spin->GetValue()));
 
   auto* general_layout = new QVBoxLayout;
@@ -247,7 +247,7 @@ void GameConfigWidget::CreateWidgets()
   });
 
   connect(m_depth_slider, &ConfigFloatSlider::valueChanged, this, [this] {
-    m_depth_slider_value->setText(QString::asprintf("%.0f%", m_depth_slider->GetValue()));
+    m_depth_slider_value->setText(QString::asprintf("%.0f%%", m_depth_slider->GetValue()));
   });
   connect(m_convergence_spin, &ConfigFloatSlider::valueChanged, this, [this] {
     m_convergence_spin_value->setText(QString::asprintf("%.2f", m_convergence_spin->GetValue()));
