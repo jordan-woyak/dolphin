@@ -129,7 +129,7 @@ static const std::vector<InterfaceDescriptor> INTERFACE_DESCRIPTORS{
     InterfaceDescriptor{0x09, 0x04, 0x01, 0x00, 0x00, 0x01, 0x02, 0x00, 0x00},
     InterfaceDescriptor{0x09, 0x04, 0x01, 0x01, 0x01, 0x01, 0x02, 0x00, 0x00}};
 
-std::vector<InterfaceDescriptor> LogitechMic::GetInterfaces(u8 config) const
+std::vector<InterfaceDescriptor> LogitechMic::GetInterfaces(u8 /*config*/) const
 {
   return INTERFACE_DESCRIPTORS;
 }
@@ -139,12 +139,12 @@ static const std::vector<EndpointDescriptor> ENDPOINT_DESCRIPTORS{
     EndpointDescriptor{0x09, 0x05, ENDPOINT_AUDIO_IN, 0x0d, 0x0060, 0x01},
 };
 
-std::vector<EndpointDescriptor> LogitechMic::GetEndpoints(u8 config, u8 interface, u8 alt) const
+std::vector<EndpointDescriptor> LogitechMic::GetEndpoints(u8 /*config*/, u8 interface, u8 alt) const
 {
   if (interface == 1 && alt == 1)
     return ENDPOINT_DESCRIPTORS;
-  else
-    return std::vector<EndpointDescriptor>{};
+
+  return std::vector<EndpointDescriptor>{};
 }
 
 bool LogitechMic::Attach()
@@ -193,26 +193,26 @@ int LogitechMic::GetNumberOfAltSettings(u8 interface)
 {
   if (interface == 1)
     return 2;
-  else
-    return 0;
+
+  return 0;
 }
 
-int LogitechMic::SetAltSetting(u8 alt_setting)
+int LogitechMic::SetAltSetting(u8 /*alt_setting*/)
 {
   return 0;
 }
 
-static inline constexpr u32 USBGETAID(u8 cs, u8 request, u16 index)
+static constexpr u32 USBGETAID(u8 cs, u8 request, u16 index)
 {
   return static_cast<u32>((cs << 24) | (request << 16) | index);
 }
 
-static inline constexpr u32 USBGETAID(FeatureUnitControlSelector cs, RequestCode request, u16 index)
+static constexpr u32 USBGETAID(FeatureUnitControlSelector cs, RequestCode request, u16 index)
 {
   return USBGETAID(Common::ToUnderlying(cs), Common::ToUnderlying(request), index);
 }
 
-static inline constexpr u32 USBGETAID(EndpointControlSelector cs, RequestCode request, u16 index)
+static constexpr u32 USBGETAID(EndpointControlSelector cs, RequestCode request, u16 index)
 {
   return USBGETAID(Common::ToUnderlying(cs), Common::ToUnderlying(request), index);
 }
@@ -312,8 +312,7 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 
       vol -= 0x8000;
       vol = (vol * 255 + 0x4400) / 0x8800;
-      if (vol > 255)
-        vol = 255;
+      vol = std::min<uint16_t>(vol, 255);
 
       if (cn == 0xff)
       {

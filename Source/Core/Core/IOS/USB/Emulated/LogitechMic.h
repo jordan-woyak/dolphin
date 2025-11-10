@@ -44,10 +44,10 @@ public:
   int ChangeInterface(u8 interface) override;
   int GetNumberOfAltSettings(u8 interface) override;
   int SetAltSetting(u8 alt_setting) override;
-  int SubmitTransfer(std::unique_ptr<CtrlMessage> message) override;
-  int SubmitTransfer(std::unique_ptr<BulkMessage> message) override;
-  int SubmitTransfer(std::unique_ptr<IntrMessage> message) override;
-  int SubmitTransfer(std::unique_ptr<IsoMessage> message) override;
+  int SubmitTransfer(std::unique_ptr<CtrlMessage> cmd) override;
+  int SubmitTransfer(std::unique_ptr<BulkMessage> cmd) override;
+  int SubmitTransfer(std::unique_ptr<IntrMessage> cmd) override;
+  int SubmitTransfer(std::unique_ptr<IsoMessage> cmd) override;
 
 private:
   LogitechMicState m_sampler{};
