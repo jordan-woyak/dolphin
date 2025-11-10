@@ -95,7 +95,7 @@ private:
   {
     return Config::Get(Config::MAIN_LOGITECH_MIC_MUTED[m_index]);
   }
-  u32 GetStreamSize() const override { return BUFF_SIZE_SAMPLES * m_sampler.srate / 250; }
+  u32 GetStreamSize() const override { return BUFF_SIZE_SAMPLES * m_sampler.sample_rate / 250; }
 
   const LogitechMicState& m_sampler;
   const u8 m_index;
@@ -244,7 +244,7 @@ int LogitechMic::GetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
   {
     if (cn < 1 || cn == 0xff)
     {
-      const uint16_t vol = (m_sampler.vol * 0x8800 + 127) / 255 + 0x8000;
+      const uint16_t vol = (m_sampler.volume * 0x8800 + 127) / 255 + 0x8000;
       DEBUG_LOG_FMT(IOS_USB, "GetAudioControl: Get volume {:04x}", vol);
       memory.Write_U16(vol, cmd->data_address);
       ret = 2;
@@ -319,17 +319,17 @@ int LogitechMic::SetAudioControl(std::unique_ptr<CtrlMessage>& cmd)
 
       if (cn == 0xff)
       {
-        if (m_sampler.vol != vol)
-          m_sampler.vol = static_cast<u8>(vol);
+        if (m_sampler.volume != vol)
+          m_sampler.volume = static_cast<u8>(vol);
       }
       else
       {
-        if (m_sampler.vol != vol)
-          m_sampler.vol = static_cast<u8>(vol);
+        if (m_sampler.volume != vol)
+          m_sampler.volume = static_cast<u8>(vol);
       }
 
       DEBUG_LOG_FMT(IOS_USB, "SetAudioControl: Setting volume to [{:02x}] [original={:04x}]",
-                    m_sampler.vol.load(), original_vol);
+                    m_sampler.volume.load(), original_vol);
 
       ret = 0;
     }
@@ -366,9 +366,9 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
       const uint32_t sr = memory.Read_U8(cmd->data_address) |
                           (memory.Read_U8(cmd->data_address + 1) << 8) |
                           (memory.Read_U8(cmd->data_address + 2) << 16);
-      if (m_sampler.srate != sr)
+      if (m_sampler.sample_rate != sr)
       {
-        m_sampler.srate = sr;
+        m_sampler.sample_rate = sr;
         if (m_microphone != nullptr)
         {
           DEBUG_LOG_FMT(IOS_USB, "EndpointAudioControl: Setting sampling rate to {:d}", sr);
@@ -386,9 +386,9 @@ int LogitechMic::EndpointAudioControl(std::unique_ptr<CtrlMessage>& cmd)
   }
   case USBGETAID(EndpointControlSelector::SamplingFreq, RequestCode::GetCur, ENDPOINT_AUDIO_IN):
   {
-    memory.Write_U8(m_sampler.srate & 0xff, cmd->data_address + 2);
-    memory.Write_U8((m_sampler.srate >> 8) & 0xff, cmd->data_address + 1);
-    memory.Write_U8((m_sampler.srate >> 16) & 0xff, cmd->data_address);
+    memory.Write_U8(m_sampler.sample_rate & 0xff, cmd->data_address + 2);
+    memory.Write_U8((m_sampler.sample_rate >> 8) & 0xff, cmd->data_address + 1);
+    memory.Write_U8((m_sampler.sample_rate >> 16) & 0xff, cmd->data_address);
     ret = 3;
     break;
   }

@@ -19,8 +19,8 @@ class LogitechMicState final : public MicrophoneState
 public:
   // Use atomic for members concurrently used by the data callback
   std::atomic<bool> mute;
-  std::atomic<u8> vol;
-  std::atomic<u32> srate = DEFAULT_SAMPLING_RATE;
+  std::atomic<u8> volume;
+  std::atomic<u32> sample_rate = DEFAULT_SAMPLING_RATE;
 
   static constexpr u32 DEFAULT_SAMPLING_RATE = 48000;
 
