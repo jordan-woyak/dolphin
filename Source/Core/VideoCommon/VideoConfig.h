@@ -310,12 +310,10 @@ struct VideoConfig final
   // Stereoscopy
   StereoMode stereo_mode{};
   bool stereo_per_eye_resolution_full = false;
-  float iStereoDepth = 0;
-  float iStereoConvergence = 0;
-  float iStereoConvergencePercentage = 0;
+  float stereo_depth = 0;
+  float stereo_convergence = 0;
   bool bStereoSwapEyes = false;
   bool bStereoEFBMonoDepth = false;
-  float iStereoDepthPercentage = 0;
 
   // D3D only config, mostly to be merged into the above
   int iAdapter = 0;
