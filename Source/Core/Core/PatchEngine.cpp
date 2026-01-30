@@ -348,7 +348,9 @@ bool ApplyFramePatches(Core::System& system)
 
   // Run the Gecko code handler
   Gecko::RunCodeHandler(guard);
-  ActionReplay::RunAllActive(guard);
+
+  if (!ActionReplay::IsMasterActive(guard))
+    ActionReplay::RunAllActive(guard);
 
   return true;
 }

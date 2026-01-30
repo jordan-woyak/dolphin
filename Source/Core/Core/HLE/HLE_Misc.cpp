@@ -4,6 +4,7 @@
 #include "Core/HLE/HLE_Misc.h"
 
 #include "Common/CommonTypes.h"
+#include "Core/ActionReplay.h"
 #include "Core/Core.h"
 #include "Core/GeckoCode.h"
 #include "Core/HW/CPU.h"
@@ -29,6 +30,12 @@ void HBReload(const Core::CPUThreadGuard& guard)
   auto& system = guard.GetSystem();
   system.GetCPU().Break();
   Host_Message(HostMessageID::WMUserStop);
+}
+
+void ActionReplayHandler(const Core::CPUThreadGuard& guard)
+{
+  INFO_LOG_FMT(CORE, "ActionReplayHandler");
+  ActionReplay::RunAllActive(guard);
 }
 
 void GeckoCodeHandlerICacheFlush(const Core::CPUThreadGuard& guard)

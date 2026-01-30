@@ -12,6 +12,7 @@ namespace HLE_Misc
 {
 void UnimplementedFunction(const Core::CPUThreadGuard& guard);
 void HBReload(const Core::CPUThreadGuard& guard);
+void ActionReplayHandler(const Core::CPUThreadGuard& guard);
 void GeckoCodeHandlerICacheFlush(const Core::CPUThreadGuard& guard);
 void GeckoReturnTrampoline(const Core::CPUThreadGuard& guard);
 }  // namespace HLE_Misc

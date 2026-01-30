@@ -43,6 +43,7 @@ struct ARCode
   bool user_defined = false;
 };
 
+bool IsMasterActive(const Core::CPUThreadGuard& cpu_guard);
 void RunAllActive(const Core::CPUThreadGuard& cpu_guard);
 
 void ApplyCodes(std::span<const ARCode> codes, const std::string& game_id, u16 revision);

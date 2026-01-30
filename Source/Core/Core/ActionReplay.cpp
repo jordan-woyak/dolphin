@@ -41,7 +41,9 @@
 #include "Core/AchievementManager.h"
 #include "Core/CheatCodes.h"
 #include "Core/Config/MainSettings.h"
+#include "Core/Core.h"
 #include "Core/Debugger/PPCDebugInterface.h"
+#include "Core/HLE/HLE.h"
 #include "Core/PowerPC/MMU.h"
 
 namespace ActionReplay
@@ -84,6 +86,7 @@ enum
 
 // General lock. Protects codes list and internal log.
 static std::mutex s_lock;
+static bool s_is_master_active = false;
 static std::vector<ARCode> s_active_codes;
 static std::vector<ARCode> s_synced_codes;
 static std::vector<std::string> s_internal_log;
@@ -121,6 +124,8 @@ void ApplyCodes(std::span<const ARCode> codes, const std::string& game_id, u16 r
   std::lock_guard guard(s_lock);
   s_disable_logging = false;
   s_active_codes.clear();
+
+  s_is_master_active = false;  // TODO: maybe need to do this in more places.
 
   const auto should_be_activated = [&game_id, &revision](const ARCode& code) {
     return AchievementManager::GetInstance().ShouldARCodeBeActivated(code, game_id, revision);
@@ -557,16 +562,21 @@ static bool Subtype_AddCode(const Core::CPUThreadGuard& guard, const ARAddr& add
   return true;
 }
 
-static bool Subtype_MasterCodeAndWriteToCCXXXXXX(const ARAddr& addr, const u32 data)
+static bool Subtype_MasterCodeAndWriteToCCXXXXXX(const Core::CPUThreadGuard& guard,
+                                                 const ARAddr& addr, const u32 data)
 {
   // code not yet implemented - TODO
-  // u32 new_addr = (addr & 0x01FFFFFF) | 0x80000000;
+  const u32 new_addr = (addr & 0x01FFFFFF) | 0x80000000;
   // u8  mcode_type = (data & 0xFF0000) >> 16;
   // u8  mcode_count = (data & 0xFF00) >> 8;
   // u8  mcode_number = data & 0xFF;
-  PanicAlertFmtT("Action Replay Error: Master Code and Write To CCXXXXXX not implemented ({0})\n"
-                 "Master codes are not needed. Do not use master codes.",
-                 s_current_code->name);
+
+  INFO_LOG_FMT(CORE, "HLE::Patch for ActionReplay at {:08x}", new_addr);
+
+  HLE::Patch(guard.GetSystem(), new_addr, "ActionReplayHandler");
+
+  s_is_master_active = true;
+
   return false;
 }
 
@@ -729,7 +739,7 @@ static bool NormalCode(const Core::CPUThreadGuard& guard, const ARAddr& addr, co
 
   case SUB_MASTER_CODE:  // Master Code & Write to CCXXXXXX
     LogInfo("Doing Master Code And Write to CCXXXXXX (ncode not supported)");
-    if (!Subtype_MasterCodeAndWriteToCCXXXXXX(addr, data))
+    if (!Subtype_MasterCodeAndWriteToCCXXXXXX(guard, addr, data))
       return false;
     break;
 
@@ -1018,6 +1028,11 @@ void RunAllActive(const Core::CPUThreadGuard& cpu_guard)
     return !success;
   });
   s_disable_logging = true;
+}
+
+bool IsMasterActive(const Core::CPUThreadGuard& cpu_guard)
+{
+  return s_is_master_active;
 }
 
 }  // namespace ActionReplay
