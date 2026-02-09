@@ -22,6 +22,5 @@ private:
   void LoadDefault();
   void OnClear();
 
-  QLineEdit* m_bind_ip_edit;
   QTableWidget* m_ip_overrides_table;
 };

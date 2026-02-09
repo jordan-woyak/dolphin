@@ -657,7 +657,7 @@ static std::string GetDefaultTriforceIPOverrides()
       "192.168.29.151=127.0.0.1:51000-51999 MarioKart Seat #2 Ephemeral",
       "192.168.29.152=127.0.0.1:52000-52999 MarioKart Seat #3 Ephemeral",
       "192.168.29.153=127.0.0.1:53000-53999 MarioKart Seat #4 Ephemeral",
-      // The camera.
+      // The cameras.
       "192.168.29.104-108=127.0.0.1 MarioKart namcam2",
 
       // CyCraft Connect IP
@@ -675,18 +675,12 @@ static std::string GetDefaultTriforceIPOverrides()
 }
 
 //
-// TODO: Decide on better names for these ?
+// TODO: Decide on better names for this ?
+// IPRemapping[s], IPTranslation[s] IPReplacements IPSubstitutions
+//
 // TODO: Update the Android side once this is concrete !
 //
 
-const Info<std::string> MAIN_TRIFORCE_BIND_IP{{System::Main, "Core", "TriforceBindIP"}, "0.0.0.0"};
-const Info<bool> MAIN_TRIFORCE_USE_GAME_IP{{System::Main, "Core", "TriforceUseGameIP"}, true};
-const Info<bool> MAIN_TRIFORCE_BIND_OUTBOUND_TCP{{System::Main, "Core", "TriforceBindOutboundTCP"},
-                                                 true};
-
-//
-// TODO: Rename this? "TriforceNAT" "TriforceNAPT" ?
-//
 const Info<std::string> MAIN_TRIFORCE_IP_OVERRIDES{{System::Main, "Core", "TriforceIPOverrides"},
                                                    GetDefaultTriforceIPOverrides()};
 
