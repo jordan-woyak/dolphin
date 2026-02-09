@@ -64,13 +64,14 @@ class CPUThreadGuard;
 class System;
 }  // namespace Core
 
-struct MediaBoardRanges
+struct MediaBoardRange
 {
   u32 start;
   u32 end;
   u8* buffer;
   size_t buffer_size;
-  u32 base_offset;
+
+  MediaBoardRange(u32 start_, u32 size_, std::span<u8> buffer_);
 };
 
 namespace AMMediaboard
