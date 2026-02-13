@@ -1069,21 +1069,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                     0xffffu - u16((serial_command & 0x7fffu) | (serial_command & 0x10000u) >> 1u);
 
                 // FFB
-                if (m_motor_init == 2)
+                if (serial_interface.GetDeviceType(1) == SerialInterface::SIDEVICE_GC_STEERING)
                 {
-                  if (serial_interface.GetDeviceType(1) == SerialInterface::SIDEVICE_GC_STEERING)
+                  const GCPadStatus pad_status = Pad::GetStatus(1);
+                  if (pad_status.isConnected)
                   {
-                    const GCPadStatus pad_status = Pad::GetStatus(1);
-                    if (pad_status.isConnected)
-                    {
-                      const auto mapped_strength = 0.f - ControllerEmu::MapToFloat<ControlState>(
-                                                             m_motor_force_x, u16(0x8000u));
+                    const auto mapped_strength = 0.f - ControllerEmu::MapToFloat<ControlState>(
+                                                           m_motor_force_x, u16(0x8000u));
 
-                      Pad::Rumble(1, mapped_strength);
-                      INFO_LOG_FMT(SERIALINTERFACE_AMBB,
-                                   "GC-AM: Command 0x31 (MOTOR) mapped_strength:{}",
-                                   mapped_strength);
-                    }
+                    Pad::Rumble(1, mapped_strength);
+                    INFO_LOG_FMT(SERIALINTERFACE_AMBB,
+                                 "GC-AM: Command 0x31 (MOTOR) mapped_strength:{}", mapped_strength);
                   }
                 }
                 break;
@@ -2193,19 +2189,19 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               case FZeroAXMonster:
                 // Steering.
 
-                if (m_motor_init == 1)
-                {
-                  // I believe this alternate path is to satisfy the motor test.
-                  // The game expects the wheel input to change with force commands.
-                  // That won't happen for users without a FF wheel.
+                // if (m_motor_init == 1)
+                // {
+                //   // I believe this alternate path is to satisfy the motor test.
+                //   // The game expects the wheel input to change with force commands.
+                //   // That won't happen for users without a FF wheel.
 
-                  message.AddData(m_motor_force_x >> 8);
-                  message.AddData((u8)0);
+                //   message.AddData(m_motor_force_x >> 8);
+                //   message.AddData((u8)0);
 
-                  message.AddData(pad_status.stickY);
-                  message.AddData((u8)0);
-                }
-                else
+                //   message.AddData(pad_status.stickY);
+                //   message.AddData((u8)0);
+                // }
+                // else
                 {
                   // For some reason the center for the X axis is expected to be 0x74.
                   constexpr auto hack_wheel_left = 12;
