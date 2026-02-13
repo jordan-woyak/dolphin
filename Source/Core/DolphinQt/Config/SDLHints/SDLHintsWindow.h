@@ -30,14 +30,9 @@ private:
   void SelectionChanged();
   void OnClose();
   void TabChanged(int new_index);
-  void SectionResized(int logical_index, int old_size, int new_sze);
+  void SectionResized(int logical_index, int old_size, int new_size);
 
   bool eventFilter(QObject* obj, QEvent* event) override;
-
-  void DirectinputDetectionToggled(bool checked);
-  void CombineJoyConsToggled(bool checked);
-  void HorizontalJoyConsToggled(bool checked);
-  void DualSensePLayerLedToggled(bool checked);
 
   QTabWidget* m_tab_widget;
   QDialogButtonBox* m_button_box;
@@ -49,5 +44,5 @@ private:
   ToolTipCheckBox* m_horizontal_joy_cons;
   ToolTipCheckBox* m_dualsense_player_led;
 
-  int cur_tab_idx;
+  int m_current_tab_index;
 };
