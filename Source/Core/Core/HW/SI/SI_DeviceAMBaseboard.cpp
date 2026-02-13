@@ -1068,6 +1068,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 m_motor_force_x =
                     0xffffu - u16((serial_command & 0x7fffu) | (serial_command & 0x10000u) >> 1u);
 
+                m_motor_force_x *= 2;
+
                 // FFB
                 if (serial_interface.GetDeviceType(1) == SerialInterface::SIDEVICE_GC_STEERING)
                 {
