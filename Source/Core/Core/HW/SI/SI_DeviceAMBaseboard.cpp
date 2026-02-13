@@ -97,6 +97,7 @@ void JVSIOMessage::AddData(const char* data)
   AddData(data, strlen(data));
 }
 
+// TODO: This function should not take a u32.
 void JVSIOMessage::AddData(u32 n)
 {
   const u8 cs = n;
@@ -1043,6 +1044,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               // Error
               m_motor_reply[command_offset + 4] = 0;
 
+              INFO_LOG_FMT(SERIALINTERFACE_AMBB, "MOTOR serial_command: {:08x}", serial_command);
+
               switch (serial_command >> 24)
               {
               case 0:
@@ -1053,17 +1056,17 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               // 0x00-0x40: left
               // 0x40-0x80: right
               case 4:  // Move Steering Wheel
-                // Left
-                if (serial_command & 0x010000)
-                {
-                  m_motor_force_y = -((s16)serial_command & 0xFF00);
-                }
-                else  // Right
-                {
-                  m_motor_force_y = (serial_command - 0x4000) & 0xFF00;
-                }
 
-                m_motor_force_y *= 2;
+                // Example values:
+                // Center: 04010005
+                // Small left force:  04010306
+                // Small right force: 04007c78
+
+                // As far as I can tell, this is a u16 value but the 0x10000 bit is shifted left.
+                // I don't know why they would do that, but it's what it looks like.. ?
+
+                m_motor_force_x =
+                    0xffffu - u16((serial_command & 0x7fffu) | (serial_command & 0x10000u) >> 1u);
 
                 // FFB
                 if (m_motor_init == 2)
@@ -1073,7 +1076,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                     const GCPadStatus pad_status = Pad::GetStatus(1);
                     if (pad_status.isConnected)
                     {
-                      const ControlState mapped_strength = (double)(m_motor_force_y >> 8) / 127.f;
+                      const auto mapped_strength = 0.f - ControllerEmu::MapToFloat<ControlState>(
+                                                             m_motor_force_x, u16(0x8000u));
 
                       Pad::Rumble(1, mapped_strength);
                       INFO_LOG_FMT(SERIALINTERFACE_AMBB,
@@ -2187,17 +2191,15 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               {
               case FZeroAX:
               case FZeroAXMonster:
-                // Steering
+                // Steering.
+
                 if (m_motor_init == 1)
                 {
-                  if (m_motor_force_y > 0)
-                  {
-                    message.AddData(0x80 - (m_motor_force_y >> 8));
-                  }
-                  else
-                  {
-                    message.AddData((m_motor_force_y >> 8));
-                  }
+                  // I believe this alternate path is to satisfy the motor test.
+                  // The game expects the wheel input to change with force commands.
+                  // That won't happen for users without a FF wheel.
+
+                  message.AddData(m_motor_force_x >> 8);
                   message.AddData((u8)0);
 
                   message.AddData(pad_status.stickY);
@@ -2205,8 +2207,10 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
                 else
                 {
-                  // The center for the Y axis is expected to be 78h this adjusts that
-                  message.AddData(pad_status.stickX - 12);
+                  // For some reason the center for the X axis is expected to be 0x74.
+                  constexpr auto hack_wheel_left = 12;
+
+                  message.AddData(pad_status.stickX - hack_wheel_left);
                   message.AddData((u8)0);
 
                   message.AddData(pad_status.stickY);
@@ -2786,7 +2790,7 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
 
   p.Do(m_motor_init);
   p.Do(m_motor_reply);
-  p.Do(m_motor_force_y);
+  p.Do(m_motor_force_x);
 
   // F-Zero AX (DX)
   p.Do(m_fzdx_seatbelt);

@@ -298,7 +298,7 @@ private:
 
   u32 m_motor_init = 0;
   u8 m_motor_reply[64] = {};
-  s16 m_motor_force_y = 0;
+  u16 m_motor_force_x = 0;
 
   // F-Zero AX (DX)
   bool m_fzdx_seatbelt = true;
