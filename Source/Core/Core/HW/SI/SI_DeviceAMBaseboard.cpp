@@ -1427,7 +1427,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 }
                 else
                 {
-                  PanicAlertFmt("Test menu is disabled due missing SegaBoot");
+                  PanicAlertFmt("Test menu is disabled due to missing SegaBoot");
                 }
               }
               else
