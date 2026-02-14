@@ -1671,10 +1671,10 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                     player_data[0] |= 0x80;
                   // Switch 1
                   if (pad_status.button & PAD_BUTTON_A)
-                    player_data[0] |= 0x04;
+                    player_data[0] |= 0x02;
                   // Switch 2
                   if (pad_status.button & PAD_BUTTON_B)
-                    player_data[0] |= 0x08;
+                    player_data[0] |= 0x04;
                   // Toggle inserted card
                   if (pad_status.button & PAD_TRIGGER_L)
                   {
@@ -1832,8 +1832,13 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               if (pad_status.button & PAD_TRIGGER_R)
               {
                 // Tap at center of screen (~320,240)
-                message.AddData("\x01\x00\x8C\x01\x95",
-                                5);  // X=320 (0x0140), Y=240 (0x00F0)
+                // X=320 (0x0140), Y=240 (0x00F0)
+                // What ? That comment is confusing.
+                message.AddData(u8(0x01));
+                message.AddData(u8(0x00));
+                message.AddData(pad_status.substickX);
+                message.AddData(u8(0x00));
+                message.AddData(pad_status.substickY);
               }
               else
               {
