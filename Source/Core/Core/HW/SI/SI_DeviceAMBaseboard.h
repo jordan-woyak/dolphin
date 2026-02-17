@@ -35,6 +35,8 @@ public:
   // run the SI Buffer
   int RunBuffer(u8* buffer, int request_length) override;
 
+  u32 RunGCAMBuffer(std::span<const u8> input, std::span<u8> output);
+
   // Reply has to be delayed due a bug in the parser
   void SwapBuffers(u8* buffer, u32* buffer_length);
 
@@ -151,11 +153,6 @@ private:
 
   // Game specific hardware
   std::unique_ptr<TriforcePeripheral::Peripheral> m_peripheral;
-
-  // Serial
-  // u32 m_wheel_init = 0;
-
-  // u32 m_motor_init = 0;
 
   // F-Zero AX (DX)
   bool m_fzdx_seatbelt = true;
