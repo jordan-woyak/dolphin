@@ -183,6 +183,7 @@ private:
     AcknowledgeOverflow = 4,
   };
 
+  // TODO: Eliminate..
   enum CARDCommand
   {
     Init = 0x10,
@@ -200,82 +201,11 @@ private:
     SetShutter = 0xD0,
   };
 
-  enum ICCARDCommand
-  {
-    GetStatus = 0x10,
-    SetBaudrate = 0x11,
-    FieldOn = 0x14,
-    FieldOff = 0x15,
-    InsertCheck = 0x20,
-    AntiCollision = 0x21,
-    SelectCard = 0x22,
-    ReadPage = 0x24,
-    WritePage = 0x25,
-    DecreaseUseCount = 0x26,
-    ReadUseCount = 0x33,
-    ReadPages = 0x34,
-    WritePages = 0x35,
-  };
-
-  enum ICCARDStatus
-  {
-    Okay = 0,
-    NoCard = 0x8000,
-    Unknown = 0x800E,
-    BadCard = 0xFFFF,
-  };
-
-  enum CDReaderCommand
-  {
-    ShutterAuto = 0x61,
-    BootVersion = 0x62,
-    SensLock = 0x63,
-    SensCard = 0x65,
-    FirmwareUpdate = 0x66,
-    ShutterGet = 0x67,
-    CameraCheck = 0x68,
-    ShutterCard = 0x69,
-    ProgramChecksum = 0x6B,
-    BootChecksum = 0x6D,
-    ShutterLoad = 0x6F,
-    ReadCard = 0x72,
-    ShutterSave = 0x73,
-    SelfTest = 0x74,
-    ProgramVersion = 0x76,
-  };
-
-  // NOTE: Used to be an union with `u8 data[81 + 4 + 4 + 4]`
-  // TODO: Should the struct be packed?
-  struct ICCommand
-  {
-    u32 pktcmd : 8;
-    u32 pktlen : 8;
-    u32 fixed : 8;
-    u32 command : 8;
-    u32 flag : 8;
-    u32 length : 8;
-    u32 status : 16;
-
-    u8 extdata[81] = {};
-    u32 extlen;
-  };
-
   u8 m_last[2][0x80] = {};
   u32 m_lastptr[2] = {};
 
   std::array<u16, 2> m_coin{};
   std::array<u32, 2> m_coin_pressed{};
-
-  u8 m_ic_card_data[2048] = {};
-
-  // Setup IC-card
-  u16 m_ic_card_state = 0x20;
-  u16 m_ic_card_status = ICCARDStatus::Okay;
-  u16 m_ic_card_session = 0x23;
-
-  u8 m_ic_write_buffer[512] = {};
-  u32 m_ic_write_offset = 0;
-  u32 m_ic_write_size = 0;
 
   // Magnetic Card Reader
   MagCard::MagneticCardReader::Settings m_mag_card_settings;
@@ -289,11 +219,9 @@ private:
   std::unique_ptr<TriforcePeripheral::Peripheral> m_peripheral;
 
   // Serial
-  u32 m_wheel_init = 0;
+  // u32 m_wheel_init = 0;
 
-  u32 m_motor_init = 0;
-  u8 m_motor_reply[64] = {};
-  s16 m_motor_force_y = 0;
+  // u32 m_motor_init = 0;
 
   // F-Zero AX (DX)
   bool m_fzdx_seatbelt = true;
@@ -312,8 +240,6 @@ private:
   u32 m_dip_switch_0 = 0xFF;
 
   int m_delay = 0;
-
-  void ICCardSendReply(ICCommand* iccommand, u8* buffer, u32* length);
 };
 
 }  // namespace SerialInterface

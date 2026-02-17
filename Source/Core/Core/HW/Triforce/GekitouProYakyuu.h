@@ -10,6 +10,8 @@ namespace TriforcePeripheral
 
 class GekitouProYakyuu : public Peripheral
 {
+public:
+  u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out) override;
 };
 
 }  // namespace TriforcePeripheral

@@ -298,6 +298,8 @@ add_library(core
   HW/Triforce/FZeroAX.h
   HW/Triforce/GekitouProYakyuu.cpp
   HW/Triforce/GekitouProYakyuu.h
+  HW/Triforce/ICCardReader.cpp
+  HW/Triforce/ICCardReader.h
   HW/Triforce/KeyOfAvalon.cpp
   HW/Triforce/KeyOfAvalon.h
   HW/Triforce/MarioKartGP.cpp

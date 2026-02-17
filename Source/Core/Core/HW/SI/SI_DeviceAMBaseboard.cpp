@@ -4,7 +4,6 @@
 #include "Core/HW/SI/SI_DeviceAMBaseboard.h"
 
 #include <algorithm>
-#include <numeric>
 #include <string>
 
 #include <fmt/format.h>
@@ -118,21 +117,6 @@ void JVSIOMessage::End()
   }
 }
 
-static constexpr u8 CheckSumXOR(const u8* data, u32 length)
-{
-  return std::accumulate(data, data + length, u8{}, std::bit_xor());
-}
-
-static constexpr char s_cdr_program_version[] = {"           Version 1.22,2003/09/19,171-8213B"};
-static constexpr char s_cdr_boot_version[] = {"           Version 1.04,2003/06/17,171-8213B"};
-static constexpr u8 s_cdr_card_data[] = {
-    0x00, 0x6E, 0x00, 0x00, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x07, 0x00, 0x00, 0x0B,
-    0x00, 0x00, 0x0E, 0x00, 0x00, 0x10, 0x00, 0x00, 0x17, 0x00, 0x00, 0x19, 0x00, 0x00,
-    0x1A, 0x00, 0x00, 0x1B, 0x00, 0x00, 0x1D, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x20, 0x00,
-    0x00, 0x22, 0x00, 0x00, 0x23, 0x00, 0x00, 0x24, 0x00, 0x00, 0x27, 0x00, 0x00, 0x28,
-    0x00, 0x00, 0x2C, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x34, 0x00, 0x00, 0x35, 0x00, 0x00,
-    0x37, 0x00, 0x00, 0x38, 0x00, 0x00, 0x39, 0x00, 0x00, 0x3D, 0x00};
-
 const constexpr u8 s_region_flags[] = "\x00\x00\x30\x00"
                                       //   "\x01\xfe\x00\x00"  // JAPAN
                                       "\x02\xfd\x00\x00"  // USA
@@ -143,25 +127,6 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
                                              int device_number)
     : ISIDevice(system, device, device_number)
 {
-  // Card ID
-  m_ic_card_data[0x20] = 0x95;
-  m_ic_card_data[0x21] = 0x71;
-
-  if (AMMediaboard::GetGameType() == KeyOfAvalon)
-  {
-    m_ic_card_data[0x22] = 0x26;
-    m_ic_card_data[0x23] = 0x40;
-  }
-  else if (AMMediaboard::GetGameType() == VirtuaStriker4)
-  {
-    m_ic_card_data[0x22] = 0x44;
-    m_ic_card_data[0x23] = 0x00;
-  }
-
-  // Use count
-  m_ic_card_data[0x28] = 0xFF;
-  m_ic_card_data[0x29] = 0xFF;
-
   // Magnetic Card Reader
   m_mag_card_settings.card_path = File::GetUserPath(D_TRIUSER_IDX);
   m_mag_card_settings.card_name = fmt::format("tricard_{}.bin", SConfig::GetInstance().GetGameID());
@@ -184,10 +149,9 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
     m_peripheral = std::make_unique<TriforcePeripheral::MarioKartGP>();
     break;
 
-  case VirtuaStriker3:
   case VirtuaStriker4:
   case VirtuaStriker4_2006:
-    m_peripheral = std::make_unique<TriforcePeripheral::VirtuaStriker>();
+    m_peripheral = std::make_unique<TriforcePeripheral::VirtuaStriker4>();
     break;
 
   case GekitouProYakyuu:
@@ -199,6 +163,8 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
     break;
 
   default:
+  // TODO:
+  case VirtuaStriker3:
     break;
   }
 }
@@ -209,21 +175,6 @@ constexpr u32 SI_XFER_LENGTH_MASK = 0x7f;
 constexpr s32 ConvertSILengthField(u32 field)
 {
   return ((field - 1) & SI_XFER_LENGTH_MASK) + 1;
-}
-
-void CSIDevice_AMBaseboard::ICCardSendReply(ICCommand* iccommand, u8* buffer, u32* length)
-{
-  iccommand->status = Common::swap16(iccommand->status);
-
-  const auto iccommand_data = reinterpret_cast<const u8*>(iccommand);
-  const u8 crc = CheckSumXOR(iccommand_data + 2, iccommand->pktlen - 1);
-
-  for (u32 i = 0; i <= iccommand->pktlen; ++i)
-  {
-    buffer[(*length)++] = iccommand_data[i];
-  }
-
-  buffer[(*length)++] = crc;
 }
 
 void CSIDevice_AMBaseboard::SwapBuffers(u8* buffer, u32* buffer_length)
@@ -502,8 +453,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         {
           if (!validate_data_in_out(1, 0, "SerialA"))
             break;
-
           const u32 length = *data_in++;
+
           if (length)
           {
             if (!validate_data_in_out(length, 0, "SerialA"))
@@ -512,677 +463,24 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31, length=0x{:02x}, hexdump:\n{}",
                          length, HexDump(data_in, length));
 
-            // Serial - Wheel
-            if (AMMediaboard::GetGameType() == MarioKartGP ||
-                AMMediaboard::GetGameType() == MarioKartGP2)
-            {
-              if (!validate_data_in_out(10, 2, "SerialA (Wheel)"))
-                break;
-
-              INFO_LOG_FMT(SERIALINTERFACE_AMBB,
-                           "GC-AM: Command 0x31, (WHEEL) {:02x}{:02x} {:02x}{:02x} {:02x} {:02x} "
-                           "{:02x} {:02x} {:02x} {:02x}",
-                           data_in[0], data_in[1], data_in[2], data_in[3], data_in[4], data_in[5],
-                           data_in[6], data_in[7], data_in[8], data_in[9]);
-
-              data_out[data_offset++] = gcam_command;
-              data_out[data_offset++] = 0x03;
-
-              switch (m_wheel_init)
-              {
-              case 0:
-                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
-                  break;
-                data_out[data_offset++] = 'E';  // Error
-                data_out[data_offset++] = '0';
-                data_out[data_offset++] = '0';
-                m_wheel_init++;
-                break;
-              case 1:
-                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
-                  break;
-                data_out[data_offset++] = 'C';  // Power Off
-                data_out[data_offset++] = '0';
-                data_out[data_offset++] = '6';
-                // Only turn on when a wheel is connected
-                if (serial_interface.GetDeviceType(1) == SerialInterface::SIDEVICE_GC_STEERING)
-                {
-                  m_wheel_init++;
-                }
-                break;
-              case 2:
-                if (!validate_data_in_out(0, 3, "SerialA (Wheel)"))
-                  break;
-                data_out[data_offset++] = 'C';  // Power On
-                data_out[data_offset++] = '0';
-                data_out[data_offset++] = '1';
-                break;
-              default:
-                break;
-              }
-
-              // u16 CenteringForce= ptr(6);
-              // u16 FrictionForce = ptr(8);
-              // u16 Roll          = ptr(10);
-              if (!validate_data_in_out(length, 0, "SerialA (Wheel)"))
-                break;
-              data_in += length;
-              break;
-            }
-
-            // Serial - Unknown
-            if (AMMediaboard::GetGameType() == GekitouProYakyuu)
-            {
-              if (!validate_data_in_out(sizeof(u32), 0, "SerialA (Unknown)"))
-                break;
-              const u32 serial_command = Common::BitCastPtr<u32>(data_in);
-
-              if (serial_command == 0x00001000)
-              {
-                if (!validate_data_in_out(0, 5, "SerialA (Unknown)"))
-                  break;
-                data_out[data_offset++] = gcam_command;
-                data_out[data_offset++] = 0x03;
-                data_out[data_offset++] = 1;
-                data_out[data_offset++] = 2;
-                data_out[data_offset++] = 3;
-              }
-
-              if (!validate_data_in_out(length, 0, "SerialA (Unknown)"))
-                break;
-              data_in += length;
-              break;
-            }
-
-            // Serial IC-CARD / Serial Deck Reader
-            if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
-                AMMediaboard::GetGameType() == VirtuaStriker4_2006 ||
-                AMMediaboard::GetGameType() == KeyOfAvalon)
-            {
-              if (!validate_data_in_out(2, 0, "SerialA (IC-CARD)"))
-                break;
-              u32 serial_command = data_in[1];
-
-              ICCommand icco;
-
-              // Set default reply
-              icco.pktcmd = gcam_command;
-              icco.pktlen = 7;
-              icco.fixed = 0x10;
-              icco.command = serial_command;
-              icco.flag = 0;
-              icco.length = 2;
-              icco.status = 0;
-              icco.extlen = 0;
-
-              // Check for rest of data from the write pages command
-              if (m_ic_write_size && m_ic_write_offset)
-              {
-                const u32 size = data_in[1];
-
-                if (!validate_data_in_out(size + 2, 0, "SerialA (IC-CARD)"))
-                  break;
-                DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "Command: {}", HexDump(data_in, size + 2));
-
-                INFO_LOG_FMT(
-                    SERIALINTERFACE_CARD,
-                    "GC-AM: Command 25 (IC-CARD) Write Pages: Off:{:x} Size:{:x} PSize:{:x}",
-                    m_ic_write_offset, m_ic_write_size, size);
-
-                if (u64{m_ic_write_offset} + size > sizeof(m_ic_write_buffer))
-                {
-                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                                "GC-AM: Command 25 (IC-CARD) m_ic_write_buffer overflow:\n"
-                                " - m_ic_write_buffer(offset={}, size={})\n"
-                                " - size={}\n",
-                                m_ic_write_offset, sizeof(m_ic_write_buffer), size);
-                  data_in = data_in_end;
-                  break;
-                }
-                memcpy(m_ic_write_buffer + m_ic_write_offset, data_in + 2, size);
-
-                m_ic_write_offset += size;
-
-                if (m_ic_write_offset > m_ic_write_size)
-                {
-                  m_ic_write_offset = 0;
-
-                  const u16 page = m_ic_write_buffer[5];
-                  const u16 count = m_ic_write_buffer[7];
-                  const u32 write_size = u32(count) * 8;
-                  const u32 write_offset = u32(page) * 8;
-
-                  if ((write_size + write_offset) > sizeof(m_ic_card_data) ||
-                      (10 + write_size) > sizeof(m_ic_write_buffer))
-                  {
-                    ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                                  "GC-AM: Command 25 (IC-CARD) Write Pages overflow:\n"
-                                  " - m_ic_card_data(offset={}, size={})\n"
-                                  " - m_ic_write_buffer(offset={}, size={})\n"
-                                  " - size={}, page={}, count={}\n",
-                                  write_offset, sizeof(m_ic_card_data), 10,
-                                  sizeof(m_ic_write_buffer), write_size, page, count);
-                    data_in = data_in_end;
-                    break;
-                  }
-                  memcpy(m_ic_card_data + write_offset, m_ic_write_buffer + 10, write_size);
-
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 25 (IC-CARD) Write Pages:{} Count:{}({:x})", page,
-                               count, size);
-
-                  icco.command = WritePages;
-
-                  if (!validate_data_in_out(0, icco.pktlen + 2, "SerialA (IC-CARD)"))
-                    break;
-                  ICCardSendReply(&icco, data_out.data(), &data_offset);
-                }
-                if (!validate_data_in_out(length, 0, "SerialA (IC-CARD)"))
-                  break;
-                data_in += length;
-                break;
-              }
-
-              switch (ICCARDCommand(serial_command))
-              {
-              case ICCARDCommand::GetStatus:
-                icco.status = m_ic_card_state;
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                             "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}", m_ic_card_state);
-                break;
-              case ICCARDCommand::SetBaudrate:
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Set Baudrate");
-                break;
-              case ICCARDCommand::FieldOn:
-                m_ic_card_state |= 0x10;
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
-                break;
-              case ICCARDCommand::InsertCheck:
-                icco.status = m_ic_card_status;
-                INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                             "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}", m_ic_card_status);
-                break;
-              case ICCARDCommand::AntiCollision:
-                icco.extlen = 8;
-                icco.length += icco.extlen;
-                icco.pktlen += icco.extlen;
-
-                // Card ID
-                icco.extdata[0] = 0x00;
-                icco.extdata[1] = 0x00;
-                icco.extdata[2] = 0x54;
-                icco.extdata[3] = 0x4D;
-                icco.extdata[4] = 0x50;
-                icco.extdata[5] = 0x00;
-                icco.extdata[6] = 0x00;
-                icco.extdata[7] = 0x00;
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Anti Collision");
-                break;
-              case ICCARDCommand::SelectCard:
-                icco.extlen = 8;
-                icco.length += icco.extlen;
-                icco.pktlen += icco.extlen;
-
-                // Session
-                icco.extdata[0] = 0x00;
-                icco.extdata[1] = m_ic_card_session;
-                icco.extdata[2] = 0x00;
-                icco.extdata[3] = 0x00;
-                icco.extdata[4] = 0x00;
-                icco.extdata[5] = 0x00;
-                icco.extdata[6] = 0x00;
-                icco.extdata[7] = 0x00;
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Select Card:{}",
-                             m_ic_card_session);
-                break;
-              case ICCARDCommand::ReadPage:
-              case ICCARDCommand::ReadUseCount:
-              {
-                if (!validate_data_in_out(8, 0, "SerialA (IC-CARD)"))
-                  break;
-                const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
-
-                icco.extlen = 8;
-                icco.length += icco.extlen;
-                icco.pktlen += icco.extlen;
-
-                memcpy(icco.extdata, m_ic_card_data + page * 8, 8);
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Read Page:{}",
-                             page);
-                break;
-              }
-              case ICCARDCommand::WritePage:
-              {
-                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
-                  break;
-                const u16 page = Common::swap16(data_in + 8) & 0xFF;  // 255 is max page
-
-                // Write only one page
-                if (page == 4)
-                {
-                  icco.status = 0x80;
-                }
-                else
-                {
-                  if (!validate_data_in_out(18, 0, "SerialA (IC-CARD)"))
-                    break;
-                  memcpy(m_ic_card_data + page * 8, data_in + 10, 8);
-                }
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Page:{}",
-                             page);
-                break;
-              }
-              case ICCARDCommand::DecreaseUseCount:
-              {
-                if (!validate_data_in_out(8, 0, "SerialA (IC-CARD)"))
-                  break;
-                const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
-
-                icco.extlen = 2;
-                icco.length += icco.extlen;
-                icco.pktlen += icco.extlen;
-
-                auto ic_card_data = Common::BitCastPtr<u16>(m_ic_card_data + 0x28);
-                ic_card_data = ic_card_data - 1;
-
-                // Counter
-                icco.extdata[0] = m_ic_card_data[0x28];
-                icco.extdata[1] = m_ic_card_data[0x29];
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                             "GC-AM: Command 31 (IC-CARD) Decrease Use Count:{}", page);
-                break;
-              }
-              case ICCARDCommand::ReadPages:
-              {
-                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
-                  break;
-                const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
-                const u16 count = Common::swap16(data_in + 8);
-
-                const u32 offs = page * 8;
-                u32 cnt = count * 8;
-
-                // Limit read size to not overwrite the reply buffer
-                const std::size_t reply_buffer_size = sizeof(icco.extdata) - 1;
-                if (data_offset > reply_buffer_size)
-                {
-                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                                "GC-AM: Command 31 (IC-CARD) Read Pages overflow:"
-                                " offset={} > buffer_size={}",
-                                data_offset, reply_buffer_size);
-                  data_in = data_in_end;
-                  break;
-                }
-                if (cnt > reply_buffer_size - data_offset)
-                {
-                  cnt = 5 * 8;
-                }
-
-                icco.extlen = cnt;
-                icco.length += icco.extlen;
-                icco.pktlen += icco.extlen;
-
-                if (offs + cnt > sizeof(icco.extdata))
-                {
-                  ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                                "GC-AM: Command 31 (IC-CARD) Read Pages overflow:"
-                                " offset={} + count={} > buffer_size={}",
-                                offs, cnt, sizeof(icco.extdata));
-                  data_in = data_in_end;
-                  break;
-                }
-                memcpy(icco.extdata, m_ic_card_data + offs, cnt);
-
-                INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                             "GC-AM: Command 31 (IC-CARD) Read Pages:{} Count:{}", page, count);
-                break;
-              }
-              case ICCARDCommand::WritePages:
-              {
-                if (!validate_data_in_out(10, 0, "SerialA (IC-CARD)"))
-                  break;
-                const u16 pksize = length;
-                const u16 size = Common::swap16(data_in + 2);
-                const u16 page = Common::swap16(data_in + 6) & 0xFF;  // 255 is max page
-                const u16 count = Common::swap16(data_in + 8);
-                const u32 write_size = u32(count) * 8;
-                const u32 write_offset = u32(page) * 8;
-
-                // We got a complete packet
-                if (pksize - 5 == size)
-                {
-                  if (page == 4)  // Read Only Page, must return error
-                  {
-                    icco.status = 0x80;
-                  }
-                  else
-                  {
-                    if (write_size + write_offset > sizeof(m_ic_card_data))
-                    {
-                      ERROR_LOG_FMT(
-                          SERIALINTERFACE_CARD,
-                          "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{}({:x})",
-                          page, count, size);
-                    }
-                    else
-                    {
-                      if (!validate_data_in_out(13 + write_size, 0, "SerialA (IC-CARD)"))
-                        break;
-                      memcpy(m_ic_card_data + write_offset, data_in + 13, write_size);
-                    }
-                  }
-
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (IC-CARD) Write Pages:{} Count:{}({:x})", page,
-                               count, size);
-                }
-                // VirtuaStriker 4 splits the writes over multiple packets
-                else
-                {
-                  if (!validate_data_in_out(2 + pksize, 0, "SerialA (IC-CARD)"))
-                    break;
-                  memcpy(m_ic_write_buffer, data_in + 2, pksize);
-                  m_ic_write_offset += pksize;
-                  m_ic_write_size = size;
-                }
-                break;
-              }
-              default:
-                // Handle Deck Reader commands
-                if (!validate_data_in_out(1, 0, "SerialA (DECK READER)"))
-                  break;
-                serial_command = data_in[0];
-                icco.command = serial_command;
-                icco.flag = 0;
-                switch (CDReaderCommand(serial_command))
-                {
-                case CDReaderCommand::ProgramVersion:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Program Version");
-
-                  icco.extlen = (u32)strlen(s_cdr_program_version);
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  memcpy(icco.extdata, s_cdr_program_version, icco.extlen);
-                  break;
-                case CDReaderCommand::BootVersion:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Boot Version");
-
-                  icco.extlen = (u32)strlen(s_cdr_boot_version);
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  memcpy(icco.extdata, s_cdr_boot_version, icco.extlen);
-                  break;
-                case CDReaderCommand::ShutterGet:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Shutter Get");
-
-                  icco.extlen = 4;
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  icco.extdata[0] = 0;
-                  icco.extdata[1] = 0;
-                  icco.extdata[2] = 0;
-                  icco.extdata[3] = 0;
-                  break;
-                case CDReaderCommand::CameraCheck:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Camera Check");
-
-                  icco.extlen = 6;
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  icco.extdata[0] = 0x23;
-                  icco.extdata[1] = 0x28;
-                  icco.extdata[2] = 0x45;
-                  icco.extdata[3] = 0x29;
-                  icco.extdata[4] = 0x45;
-                  icco.extdata[5] = 0x29;
-                  break;
-                case CDReaderCommand::ProgramChecksum:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Program Checksum");
-
-                  icco.extlen = 4;
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  icco.extdata[0] = 0x23;
-                  icco.extdata[1] = 0x28;
-                  icco.extdata[2] = 0x45;
-                  icco.extdata[3] = 0x29;
-                  break;
-                case CDReaderCommand::BootChecksum:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Boot Checksum");
-
-                  icco.extlen = 4;
-                  icco.length += icco.extlen;
-                  icco.pktlen += icco.extlen;
-
-                  icco.extdata[0] = 0x23;
-                  icco.extdata[1] = 0x28;
-                  icco.extdata[2] = 0x45;
-                  icco.extdata[3] = 0x29;
-                  break;
-                case CDReaderCommand::SelfTest:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Self Test");
-                  icco.flag = 0x00;
-                  break;
-                case CDReaderCommand::SensLock:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Lock");
-                  icco.flag = 0x01;
-                  break;
-                case CDReaderCommand::SensCard:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Card");
-                  break;
-                case CDReaderCommand::ShutterCard:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (DECK READER) Shutter Card");
-                  break;
-                case CDReaderCommand::ReadCard:
-                  INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Read Card");
-
-                  icco.fixed = 0xAA;
-                  icco.flag = 0xAA;
-                  icco.extlen = sizeof(s_cdr_card_data);
-                  icco.length = 0x72;
-                  icco.status = Common::swap16(icco.extlen);
-
-                  icco.pktlen += icco.extlen;
-
-                  memcpy(icco.extdata, s_cdr_card_data, sizeof(s_cdr_card_data));
-
-                  break;
-                default:
-                  if (!validate_data_in_out(14, 0, "SerialA (DECK READER)"))
-                    break;
-                  WARN_LOG_FMT(SERIALINTERFACE_CARD,
-                               "GC-AM: Command 0x31 (IC-Card) {:02x} {:02x} {:02x} {:02x} {:02x} "
-                               "{:02x} {:02x} {:02x} {:02x} {:02x} {:02x} {:02x}",
-                               data_in[2], data_in[3], data_in[4], data_in[5], data_in[6],
-                               data_in[7], data_in[8], data_in[9], data_in[10], data_in[11],
-                               data_in[12], data_in[13]);
-                  break;
-                }
-                break;
-              }
-
-              if (!validate_data_in_out(0, icco.pktlen + 2, "SerialA (IC-CARD)"))
-                break;
-              ICCardSendReply(&icco, data_out.data(), &data_offset);
-
-              if (!validate_data_in_out(2, 0, "SerialA (IC-CARD)"))
-                break;
-              data_in += length;
-              break;
-            }
-          }
-
-          u32 command_offset = 0;
-          while (command_offset < length)
-          {
-            // All commands are OR'd with 0x80
-            // Last byte is checksum which we don't care about
-            if (!validate_data_in_out(command_offset + 4, 0, "SerialA"))
-              break;
-            const u32 serial_command = Common::swap32(data_in + command_offset) ^ 0x80000000;
-
-            if (AMMediaboard::GetGameType() == FZeroAX ||
-                AMMediaboard::GetGameType() == FZeroAXMonster)
-            {
-              INFO_LOG_FMT(SERIALINTERFACE_AMBB,
-                           "GC-AM: Command 0x31 (MOTOR) Length:{:02x} Command:{:04x}({:02x})",
-                           length, (serial_command >> 8) & 0xFFFF, serial_command >> 24);
-            }
-            else
-            {
-              INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31 (SERIAL) Command:{:06x}",
-                           serial_command);
-
-              if (serial_command == 0x801000)
-              {
-                if (!validate_data_in_out(0, 4, "SerialA"))
-                  break;
-                data_out[data_offset++] = 0x31;
-                data_out[data_offset++] = 0x02;
-                data_out[data_offset++] = 0xFF;
-                data_out[data_offset++] = 0x01;
-              }
-            }
-
-            command_offset += sizeof(u32);
-
-            if (AMMediaboard::GetGameType() == FZeroAX ||
-                AMMediaboard::GetGameType() == FZeroAXMonster)
-            {
-              if (command_offset + 5 >= std::size(m_motor_reply))
-              {
-                ERROR_LOG_FMT(
-                    SERIALINTERFACE_AMBB,
-                    "GC-AM: Command 0x31 (MOTOR) overflow: offset={} >= motor_reply_size={}",
-                    command_offset + 5, std::size(m_motor_reply));
-                data_in = data_in_end;
-                break;
-              }
-
-              // Status
-              m_motor_reply[command_offset + 2] = 0;
-              m_motor_reply[command_offset + 3] = 0;
-
-              // Error
-              m_motor_reply[command_offset + 4] = 0;
-
-              switch (serial_command >> 24)
-              {
-              case 0:
-              case 1:  // Set Maximum?
-              case 2:
-                break;
-
-              // 0x00-0x40: left
-              // 0x40-0x80: right
-              case 4:  // Move Steering Wheel
-                // Left
-                if (serial_command & 0x010000)
-                {
-                  m_motor_force_y = -((s16)serial_command & 0xFF00);
-                }
-                else  // Right
-                {
-                  m_motor_force_y = (serial_command - 0x4000) & 0xFF00;
-                }
-
-                m_motor_force_y *= 2;
-
-                // FFB
-                if (m_motor_init == 2)
-                {
-                  if (serial_interface.GetDeviceType(1) == SerialInterface::SIDEVICE_GC_STEERING)
-                  {
-                    const GCPadStatus pad_status = Pad::GetStatus(1);
-                    if (pad_status.isConnected)
-                    {
-                      const ControlState mapped_strength = (double)(m_motor_force_y >> 8) / 127.f;
-
-                      Pad::Rumble(1, mapped_strength);
-                      INFO_LOG_FMT(SERIALINTERFACE_AMBB,
-                                   "GC-AM: Command 0x31 (MOTOR) mapped_strength:{}",
-                                   mapped_strength);
-                    }
-                  }
-                }
-                break;
-              case 6:  // nice
-              case 9:
-              default:
-                break;
-              // Switch back to normal controls
-              case 7:
-                m_motor_init = 2;
-                break;
-              // Reset
-              case 0x7F:
-                m_motor_init = 1;
-                memset(m_motor_reply, 0, sizeof(m_motor_reply));
-                break;
-              }
-
-              // Checksum
-              m_motor_reply[command_offset + 5] = m_motor_reply[command_offset + 2] ^
-                                                  m_motor_reply[command_offset + 3] ^
-                                                  m_motor_reply[command_offset + 4];
-            }
-          }
-
-          if (length == 0)
-          {
-            if (!validate_data_in_out(length, 2, "SerialA"))
-              break;
             data_out[data_offset++] = gcam_command;
-            data_out[data_offset++] = 0x00;
-          }
-          else
-          {
-            if (m_motor_init)
-            {
-              // Motor
-              m_motor_reply[0] = gcam_command;
-              m_motor_reply[1] = length;  // Same out as in size
+            auto& written = data_out[data_offset++];
 
-              const u32 reply_size = m_motor_reply[1] + 2;
-              if (!validate_data_in_out(length, reply_size, "SerialA"))
-                break;
-
-              if (reply_size > sizeof(m_motor_reply))
-              {
-                ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
-                              "GC-AM: Command SerialA, reply_size={} too big for m_motor_reply",
-                              reply_size);
-                data_in = data_in_end;
-                break;
-              }
-              memcpy(data_out.data() + data_offset, m_motor_reply, reply_size);
-              data_offset += reply_size;
-            }
+            written = m_peripheral->SerialA(std::span{data_in, data_in_end},
+                                            std::span{data_out}.subspan(data_offset));
+            data_in += length;
+            data_offset += written;
           }
 
-          if (!validate_data_in_out(length, 0, "SerialA"))
-          {
-            break;
-          }
-          data_in += length;
+          // TODO: ?
+          // if (serial_command == 0x801000)
+          // {
+          //   if (!validate_data_in_out(0, 4, "SerialA"))
+          //     break;
+          // data_out[data_offset++] = 0xFF;
+          // data_out[data_offset++] = 0x01;
+          // }
+
           break;
         }
         case GCAMCommand::SerialB:
@@ -1703,7 +1001,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                   // Toggle inserted card
                   if (pad_status.button & PAD_TRIGGER_L)
                   {
-                    m_ic_card_status ^= ICCARDStatus::NoCard;
+                    // TODO:
+                    // m_ic_card_status ^= ICCARDStatus::NoCard;
                   }
                 }
                 break;
@@ -1766,22 +1065,22 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               case FZeroAX:
               case FZeroAXMonster:
                 // Steering
-                if (m_motor_init == 1)
-                {
-                  if (m_motor_force_y > 0)
-                  {
-                    message.AddData(0x80 - (m_motor_force_y >> 8));
-                  }
-                  else
-                  {
-                    message.AddData((m_motor_force_y >> 8));
-                  }
-                  message.AddData((u8)0);
+                // if (m_motor_init == 1)
+                // {
+                //   if (m_motor_force_y > 0)
+                //   {
+                //     message.AddData(0x80 - (m_motor_force_y >> 8));
+                //   }
+                //   else
+                //   {
+                //     message.AddData((m_motor_force_y >> 8));
+                //   }
+                //   message.AddData((u8)0);
 
-                  message.AddData(pad_status.stickY);
-                  message.AddData((u8)0);
-                }
-                else
+                //   message.AddData(pad_status.stickY);
+                //   message.AddData((u8)0);
+                // }
+                // else
                 {
                   // The center for the Y axis is expected to be 78h this adjusts that
                   message.AddData(pad_status.stickX - 12);
@@ -2007,8 +1306,9 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               {
                 NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF0, Reset");
                 m_delay = 0;
-                m_wheel_init = 0;
-                m_ic_card_state = 0x20;
+                // TODO:
+                // m_wheel_init = 0;
+                // m_ic_card_state = 0x20;
               }
               message.AddData(StatusOkay);
 
@@ -2329,16 +1629,7 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
   p.Do(m_coin);
   p.Do(m_coin_pressed);
 
-  p.Do(m_ic_card_data);
-
-  // Setup IC-card
-  p.Do(m_ic_card_state);
-  p.Do(m_ic_card_status);
-  p.Do(m_ic_card_session);
-
-  p.Do(m_ic_write_buffer);
-  p.Do(m_ic_write_offset);
-  p.Do(m_ic_write_size);
+  m_peripheral->DoState(p);
 
   // Magnetic Card Reader
   if (m_mag_card_reader)
@@ -2348,13 +1639,6 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
     p.Do(m_mag_card_in_buffer);
     p.Do(m_mag_card_out_buffer);
   }
-
-  // Serial
-  p.Do(m_wheel_init);
-
-  p.Do(m_motor_init);
-  p.Do(m_motor_reply);
-  p.Do(m_motor_force_y);
 
   // F-Zero AX (DX)
   p.Do(m_fzdx_seatbelt);

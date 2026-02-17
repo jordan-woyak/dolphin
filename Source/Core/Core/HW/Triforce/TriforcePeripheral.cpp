@@ -14,4 +14,9 @@ void Peripheral::DoState(PointerWrap& p)
 {
 }
 
+u32 Peripheral::SerialA(std::span<const u8>, std::span<u8>)
+{
+  return 0;
+}
+
 }  // namespace TriforcePeripheral
