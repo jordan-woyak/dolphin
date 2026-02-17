@@ -6,7 +6,26 @@
 namespace TriforcePeripheral
 {
 
-Peripheral::Peripheral() = default;
+Peripheral::Peripheral()
+{
+  SetJVSIOHandler(JVSIOCommand::CommandRevision, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData(0x11);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x11, CommandRevision");
+  });
+
+  SetJVSIOHandler(JVSIOCommand::JVRevision, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData(0x20);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x12, JVRevision");
+  });
+
+  SetJVSIOHandler(JVSIOCommand::CommunicationVersion, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData(0x10);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x13, CommunicationVersion");
+  });
+}
 
 Peripheral::~Peripheral() = default;
 

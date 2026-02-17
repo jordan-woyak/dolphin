@@ -11,6 +11,8 @@ namespace TriforcePeripheral
 class MarioKartGP : public Peripheral
 {
 public:
+  MarioKartGP();
+
   u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out) override;
 
 private:

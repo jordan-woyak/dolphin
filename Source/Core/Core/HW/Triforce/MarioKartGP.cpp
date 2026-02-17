@@ -9,6 +9,16 @@
 namespace TriforcePeripheral
 {
 
+MarioKartGP::MarioKartGP()
+{
+  SetJVSIOHandler(JVSIOCommand::CommandRevision, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
+    ctx.message.AddData((u32)0);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
+  });
+}
+
 u32 MarioKartGP::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
 {
   // Serial - Wheel

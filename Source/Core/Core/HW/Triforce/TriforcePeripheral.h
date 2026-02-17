@@ -8,10 +8,12 @@
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
 
+#include "Core/HW/Triforce/JVSIO.h"
+
 namespace TriforcePeripheral
 {
 
-class Peripheral
+class Peripheral : public JVSIOHandler
 {
 public:
   Peripheral();
