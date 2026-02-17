@@ -28,6 +28,13 @@ public:
   Peripheral& operator=(Peripheral&&) = delete;
 
   virtual void DoState(PointerWrap& p);
+
+private:
+  u32 m_dip_switch_0 = 0xFF;
+  u32 m_dip_switch_1 = 0xFE;
+
+  std::array<u16, 2> m_coin{};
+  std::array<u32, 2> m_coin_pressed{};
 };
 
 }  // namespace TriforcePeripheral

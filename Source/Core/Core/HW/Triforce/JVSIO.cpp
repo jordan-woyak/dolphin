@@ -5,6 +5,10 @@
 
 #include "Common/MsgHandler.h"
 
+// TODO: default handler
+//   ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unhandled: node={}, command={:02x}",
+//                 node, jvsio_command);
+
 void JVSIOMessage::Start(int node)
 {
   m_last_start = m_pointer;

@@ -141,9 +141,6 @@ private:
   u8 m_last[2][0x80] = {};
   u32 m_lastptr[2] = {};
 
-  std::array<u16, 2> m_coin{};
-  std::array<u32, 2> m_coin_pressed{};
-
   // Magnetic Card Reader
   MagCard::MagneticCardReader::Settings m_mag_card_settings;
 
@@ -165,18 +162,12 @@ private:
   bool m_fzdx_motion_stop = false;
   bool m_fzdx_sensor_right = false;
   bool m_fzdx_sensor_left = false;
-  u8 m_rx_reply = 0xF0;
 
   // F-Zero AX (CyCraft)
   bool m_fzcc_seatbelt = true;
   bool m_fzcc_sensor = false;
   bool m_fzcc_emergency = false;
   bool m_fzcc_service = false;
-
-  u32 m_dip_switch_1 = 0xFE;
-  u32 m_dip_switch_0 = 0xFF;
-
-  int m_delay = 0;
 };
 
 }  // namespace SerialInterface

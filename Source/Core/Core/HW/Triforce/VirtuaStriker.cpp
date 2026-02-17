@@ -6,10 +6,42 @@
 namespace TriforcePeripheral
 {
 
+VirtuaStrikerCommon::VirtuaStrikerCommon()
+{
+  // TODO: consolodate the common functionality of this..
+  SetJVSIOHandler(JVSIOCommand::IOID, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");
+    ctx.message.AddData((u32)0);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
+  });
+}
+
+VirtuaStriker3::VirtuaStriker3()
+{
+  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+    // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
+    ctx.message.AddData("\x01\x02\x0D\x00", 4);
+    ctx.message.AddData("\x02\x02\x00\x00", 4);
+    ctx.message.AddData("\x10\x01\x00\x00", 4);
+    ctx.message.AddData("\x12\x08\x00\x00", 4);
+    ctx.message.AddData("\x00\x00\x00\x00", 4);
+  });
+}
+
 VirtuaStriker4::VirtuaStriker4()
 {
   //   m_ic_card_data[0x22] = 0x44;
   //   m_ic_card_data[0x23] = 0x00;
+
+  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+    // 2 Player (13bit), 1 Coin slot, 4 Analog-in, 1 CARD
+    ctx.message.AddData("\x01\x02\x0D\x00", 4);
+    ctx.message.AddData("\x02\x01\x00\x00", 4);
+    ctx.message.AddData("\x03\x04\x00\x00", 4);
+    ctx.message.AddData("\x10\x01\x00\x00", 4);
+    ctx.message.AddData("\x00\x00\x00\x00", 4);
+  });
 }
 
 u32 VirtuaStriker4::SerialA(std::span<const u8> data_in, std::span<u8> data_out)

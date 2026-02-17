@@ -8,14 +8,31 @@
 namespace TriforcePeripheral
 {
 
-class FZeroAX : public Peripheral
+class FZeroAXCommon : public Peripheral
 {
 public:
+  FZeroAXCommon();
+
   u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out) override;
 
 private:
   u32 m_motor_init = 0;
   s16 m_motor_force_y = 0;
+
+  u8 m_rx_reply = 0xF0;
+  int m_delay = 0;
+};
+
+class FZeroAX final : FZeroAXCommon
+{
+public:
+  FZeroAX();
+};
+
+class FZeroAXMonster final : FZeroAXCommon
+{
+public:
+  FZeroAXMonster();
 };
 
 }  // namespace TriforcePeripheral

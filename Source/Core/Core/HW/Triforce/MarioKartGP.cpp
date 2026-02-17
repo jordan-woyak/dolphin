@@ -11,11 +11,35 @@ namespace TriforcePeripheral
 
 MarioKartGP::MarioKartGP()
 {
-  SetJVSIOHandler(JVSIOCommand::CommandRevision, [](JVSIOMessageContext ctx) {
-    ctx.message.AddData(StatusOkay);
-    ctx.message.AddData("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
-    ctx.message.AddData((u32)0);
-    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
+  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+    // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
+    ctx.message.AddData("\x01\x01\x0F\x00", 4);
+    ctx.message.AddData("\x02\x01\x00\x00", 4);
+    ctx.message.AddData("\x03\x03\x00\x00", 4);
+    ctx.message.AddData("\x10\x01\x00\x00", 4);
+    ctx.message.AddData("\x12\x01\x00\x00", 4);
+    ctx.message.AddData("\x00\x00\x00\x00", 4);
+  });
+
+  // The lamps are controlled via this
+  SetJVSIOHandler(JVSIOCommand::GeneralDriverOutput, [](JVSIOMessageContext ctx) {
+    const u32 status = *jvs_io++;
+    if (status & 4)
+    {
+      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button ON");
+    }
+    else
+    {
+      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button OFF");
+    }
+    if (status & 8)
+    {
+      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button ON");
+    }
+    else
+    {
+      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button OFF");
+    }
   });
 }
 

@@ -15,7 +15,84 @@
 namespace TriforcePeripheral
 {
 
-u32 FZeroAX::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
+FZeroAXCommon::FZeroAXCommon()
+{
+  // TODO: Document this better
+  // Client features:
+  //
+  // Inputs:
+  // 0x01: Switch input:  players,  buttons
+  // 0x02: Coin input:    slots
+  // 0x03: Analog input:  channels, bits
+  // 0x04: Rotary input: channels
+  // 0x05: Keycode input: 0,0,0 ?
+  // 0x06: Screen position input: X bits, Y bits, channels
+  //
+  // Outputs:
+  // 0x10: Card system: slots
+  // 0x11: Medal hopper: channels
+  // 0x12: GPO-out: slots
+  // 0x13: Analog output: channels
+  // 0x14: Character output: width, height, type
+  // 0x15: Backup
+  //
+  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+    // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
+    // message.AddData((void *)"\x01\x02\x0C\x00", 4);
+    // message.AddData((void *)"\x02\x01\x00\x00", 4);
+    // message.AddData((void *)"\x03\x06\x00\x00", 4);
+    // message.AddData((void *)"\x00\x00\x00\x00", 4);
+    //
+    // DX Version: 2 Player (22bit) (p2=paddles), 2 Coin slot, 8 Analog-in,
+    // 22 Driver-out
+    ctx.message.AddData("\x01\x02\x12\x00", 4);
+    ctx.message.AddData("\x02\x02\x00\x00", 4);
+    ctx.message.AddData("\x03\x08\x0A\x00", 4);
+    ctx.message.AddData("\x12\x16\x00\x00", 4);
+    ctx.message.AddData("\x00\x00\x00\x00", 4);
+  });
+
+  SetJVSIOHandler(JVSIOCommand::GeneralDriverOutput, [this](JVSIOMessageContext ctx) {
+    // Handling of the motion seat used in F-Zero AXs DX version
+    const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
+    jvs_io += bytes;
+
+    switch (seat_state)
+    {
+    case 0x70:
+      m_delay++;
+      if ((m_delay % 10) == 0)
+      {
+        m_rx_reply = 0xFB;
+      }
+      break;
+    case 0xF0:
+      m_rx_reply = 0xF0;
+      break;
+    default:
+    case 0xA0:
+    case 0x60:
+      break;
+    }
+  });
+}
+
+FZeroAX::FZeroAX()
+{
+  // TODO: consolodate the common functionality of this..
+  SetJVSIOHandler(JVSIOCommand::IOID, [](JVSIOMessageContext ctx) {
+    ctx.message.AddData(StatusOkay);
+    ctx.message.AddData("SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;");
+    ctx.message.AddData((u32)0);
+    NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
+  });
+}
+
+FZeroAXMonster::FZeroAXMonster()
+{
+}
+
+u32 FZeroAXCommon::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
 {
   const auto& serial_interface = Core::System::GetInstance().GetSerialInterface();
 

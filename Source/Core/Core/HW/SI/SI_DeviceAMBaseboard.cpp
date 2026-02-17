@@ -136,6 +136,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
       return sizeof(id);
     }
     break;
+    // TODO: Make this a separate function..
     case BaseBoardCommand::GCAM_Command:
     {
       u32 checksum = 0;
@@ -509,148 +510,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
             switch (JVSIOCommand(jvsio_command))
             {
-            case JVSIOCommand::IOID:
-              message.AddData(StatusOkay);
-              switch (AMMediaboard::GetGameType())
-              {
-              case FZeroAX:
-                // Specific version that enables DX mode on AX machines, all this does is enable the
-                // motion of a chair
-                message.AddData("SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;");
-                break;
-              case FZeroAXMonster:
-              case MarioKartGP:
-              case MarioKartGP2:
-              default:
-                message.AddData("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
-                break;
-              case VirtuaStriker3:
-              case VirtuaStriker4:
-              case VirtuaStriker4_2006:
-                message.AddData("SEGA ENTERPRISES,LTD.;I/O BD JVS;837-13551;Ver1.00");
-                break;
-              }
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
-              message.AddData((u32)0);
-              break;
-            case JVSIOCommand::CommandRevision:
-              message.AddData(StatusOkay);
-              message.AddData(0x11);
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x11, CommandRevision");
-              break;
-            case JVSIOCommand::JVRevision:
-              message.AddData(StatusOkay);
-              message.AddData(0x20);
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x12, JVRevision");
-              break;
-            case JVSIOCommand::CommunicationVersion:
-              message.AddData(StatusOkay);
-              message.AddData(0x10);
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x13, CommunicationVersion");
-              break;
-
-            // Slave features:
-            //
-            // Inputs:
-            // 0x01: Switch input:  players,  buttons
-            // 0x02: Coin input:    slots
-            // 0x03: Analog input:  channels, bits
-            // 0x04: Rotary input: channels
-            // 0x05: Keycode input: 0,0,0 ?
-            // 0x06: Screen position input: X bits, Y bits, channels
-            //
-            // Outputs:
-            // 0x10: Card system: slots
-            // 0x11: Medal hopper: channels
-            // 0x12: GPO-out: slots
-            // 0x13: Analog output: channels
-            // 0x14: Character output: width, height, type
-            // 0x15: Backup
-            case JVSIOCommand::CheckFunctionality:
-              message.AddData(StatusOkay);
-              switch (AMMediaboard::GetGameType())
-              {
-              case FZeroAX:
-              case FZeroAXMonster:
-                // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
-                // message.AddData((void *)"\x01\x02\x0C\x00", 4);
-                // message.AddData((void *)"\x02\x01\x00\x00", 4);
-                // message.AddData((void *)"\x03\x06\x00\x00", 4);
-                // message.AddData((void *)"\x00\x00\x00\x00", 4);
-                //
-                // DX Version: 2 Player (22bit) (p2=paddles), 2 Coin slot, 8 Analog-in,
-                // 22 Driver-out
-                message.AddData("\x01\x02\x12\x00", 4);
-                message.AddData("\x02\x02\x00\x00", 4);
-                message.AddData("\x03\x08\x0A\x00", 4);
-                message.AddData("\x12\x16\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              case VirtuaStriker3:
-                // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
-                message.AddData("\x01\x02\x0D\x00", 4);
-                message.AddData("\x02\x02\x00\x00", 4);
-                message.AddData("\x10\x01\x00\x00", 4);
-                message.AddData("\x12\x08\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              case GekitouProYakyuu:
-                // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
-                message.AddData("\x01\x02\x0D\x00", 4);
-                message.AddData("\x02\x02\x00\x00", 4);
-                message.AddData("\x03\x04\x00\x00", 4);
-                message.AddData("\x10\x01\x00\x00", 4);
-                message.AddData("\x12\x08\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              case VirtuaStriker4:
-              case VirtuaStriker4_2006:
-                // 2 Player (13bit), 1 Coin slot, 4 Analog-in, 1 CARD
-                message.AddData("\x01\x02\x0D\x00", 4);
-                message.AddData("\x02\x01\x00\x00", 4);
-                message.AddData("\x03\x04\x00\x00", 4);
-                message.AddData("\x10\x01\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              case KeyOfAvalon:
-                // 1 Player (15bit), 1 Coin slot, 3 Analog-in, Touch, 1 CARD, 1 Driver-out
-                // (Unconfirmed)
-                message.AddData("\x01\x01\x0F\x00", 4);
-                message.AddData("\x02\x01\x00\x00", 4);
-                message.AddData("\x03\x03\x00\x00", 4);
-                message.AddData("\x06\x10\x10\x01", 4);
-                message.AddData("\x10\x01\x00\x00", 4);
-                message.AddData("\x12\x01\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              case MarioKartGP:
-              case MarioKartGP2:
-              default:
-                // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
-                message.AddData("\x01\x01\x0F\x00", 4);
-                message.AddData("\x02\x01\x00\x00", 4);
-                message.AddData("\x03\x03\x00\x00", 4);
-                message.AddData("\x10\x01\x00\x00", 4);
-                message.AddData("\x12\x01\x00\x00", 4);
-                message.AddData("\x00\x00\x00\x00", 4);
-                break;
-              }
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x14, CheckFunctionality");
-              break;
-            case JVSIOCommand::MainID:
-            {
-              const u8* const main_id = jvs_io;
-              while (jvs_io < jvs_end && *jvs_io++)
-              {
-              }
-              if (main_id < jvs_io)
-              {
-                DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command MainId:\n{}",
-                              HexDump(main_id, jvs_io - main_id));
-              }
-              message.AddData(StatusOkay);
-              break;
-            }
             case JVSIOCommand::SwitchesInput:
             {
               if (!validate_jvs_io(2, "SwitchesInput"))
@@ -947,30 +806,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             }
             case JVSIOCommand::CoinInput:
             {
-              if (!validate_jvs_io(1, "CoinInput"))
-                break;
-              const u32 slots = *jvs_io++;
-              message.AddData(StatusOkay);
-              static_assert(std::tuple_size<decltype(m_coin)>{} == 2 &&
-                            std::tuple_size<decltype(m_coin_pressed)>{} == 2);
-              if (slots > 2)
-              {
-                WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
-                             "JVS-IO: Command 0x21, CoinInput: invalid slots {}", slots);
-              }
-              const u32 max_slots = std::min(slots, 2u);
-              for (u32 i = 0; i < max_slots; i++)
-              {
-                GCPadStatus pad_status = Pad::GetStatus(i);
-                if ((pad_status.switches & SWITCH_COIN) && !m_coin_pressed[i])
-                {
-                  m_coin[i]++;
-                }
-                m_coin_pressed[i] = pad_status.switches & SWITCH_COIN;
-                message.AddData((m_coin[i] >> 8) & 0x3f);
-                message.AddData(m_coin[i] & 0xff);
-              }
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x21, CoinInput: {}", slots);
               break;
             }
             case JVSIOCommand::AnalogInput:
@@ -1093,151 +928,10 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                             channel);
               break;
             }
-            case JVSIOCommand::CoinSubOutput:
-            {
-              if (!validate_jvs_io(3, "CoinSubOutput"))
-                break;
-              const u32 slot = *jvs_io++;
-              const u8 coinh = *jvs_io++;
-              const u8 coinl = *jvs_io++;
-
-              if (slot < m_coin.size())
-              {
-                m_coin[slot] -= (coinh << 8) | coinl;
-              }
-              else
-              {
-                WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
-                             "JVS-IO: Command 0x30, CoinSubOutput: invalid slot {}", slot);
-              }
-
-              message.AddData(StatusOkay);
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x30, CoinSubOutput: {}", slot);
-              break;
-            }
-            case JVSIOCommand::GeneralDriverOutput:
-            {
-              if (!validate_jvs_io(1, "GeneralDriverOutput"))
-                break;
-              const u32 bytes = *jvs_io++;
-
-              if (bytes)
-              {
-                message.AddData(StatusOkay);
-
-                // The lamps are controlled via this
-                if (AMMediaboard::GetGameType() == MarioKartGP)
-                {
-                  if (!validate_jvs_io(1, "GeneralDriverOutput (MarioKartGP)"))
-                    break;
-                  const u32 status = *jvs_io++;
-                  if (status & 4)
-                  {
-                    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button ON");
-                  }
-                  else
-                  {
-                    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button OFF");
-                  }
-                  if (status & 8)
-                  {
-                    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button ON");
-                  }
-                  else
-                  {
-                    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button OFF");
-                  }
-                  break;
-                }
-
-                if (!validate_jvs_io(bytes, "GeneralDriverOutput"))
-                  break;
-
-                INFO_LOG_FMT(SERIALINTERFACE_JVSIO,
-                             "JVS-IO: Command 0x32, GPO: delay=0x{:02x}, rx_reply=0x{:02x},"
-                             " bytes={}, buffer:\n{}",
-                             m_delay, m_rx_reply, bytes, HexDump(jvs_io, bytes));
-
-                if (bytes < 3)
-                {
-                  jvs_io += bytes;
-                  break;
-                }
-
-                // Handling of the motion seat used in F-Zero AXs DX version
-                const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
-                jvs_io += bytes;
-
-                switch (seat_state)
-                {
-                case 0x70:
-                  m_delay++;
-                  if ((m_delay % 10) == 0)
-                  {
-                    m_rx_reply = 0xFB;
-                  }
-                  break;
-                case 0xF0:
-                  m_rx_reply = 0xF0;
-                  break;
-                default:
-                case 0xA0:
-                case 0x60:
-                  break;
-                }
-              }
-              break;
-            }
-            case JVSIOCommand::CoinAddOutput:
-            {
-              if (!validate_jvs_io(3, "CoinAddOutput"))
-                break;
-              const u32 slot = *jvs_io++;
-              const u8 coinh = *jvs_io++;
-              const u8 coinl = *jvs_io++;
-
-              m_coin[slot] += (coinh << 8) | coinl;
-
-              message.AddData(StatusOkay);
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x35, CoinAddOutput: {}", slot);
-              break;
-            }
-            case JVSIOCommand::NAMCOCommand:
-            {
-              if (!validate_jvs_io(1, "NAMCOCommand"))
-                break;
-              const u32 namco_command = *jvs_io++;
-
-              if (namco_command == 0x18)
-              {
-                if (!validate_jvs_io(4, "NAMCOCommand(0x18) / ID check"))
-                  break;
-                // ID check
-                jvs_io += 4;
-                message.AddData(StatusOkay);
-                message.AddData(0xff);
-              }
-              else
-              {
-                message.AddData(StatusOkay);
-                ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unknown:{:02x}", namco_command);
-              }
-              break;
-            }
             case JVSIOCommand::Reset:
               if (!validate_jvs_io(1, "Reset"))
                 break;
-              if (*jvs_io++ == 0xD9)
-              {
-                NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF0, Reset");
-                m_delay = 0;
-                // TODO:
-                // m_wheel_init = 0;
-                // m_ic_card_state = 0x20;
-              }
-              message.AddData(StatusOkay);
 
-              m_dip_switch_1 |= 1;
               break;
             case JVSIOCommand::SetAddress:
               if (!validate_jvs_io(1, "SetAddress"))
@@ -1249,8 +943,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               m_dip_switch_1 &= ~1u;
               break;
             default:
-              ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unhandled: node={}, command={:02x}",
-                            node, jvsio_command);
+
               break;
             }
           }

@@ -8,6 +8,7 @@
 namespace TriforcePeripheral
 {
 
+// Handles both GP1 and GP2.
 class MarioKartGP : public Peripheral
 {
 public:

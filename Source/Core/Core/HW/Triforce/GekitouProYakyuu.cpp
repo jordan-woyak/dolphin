@@ -8,6 +8,19 @@
 namespace TriforcePeripheral
 {
 
+GekitouProYakyuu::GekitouProYakyuu()
+{
+  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+    // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
+    ctx.message.AddData("\x01\x02\x0D\x00", 4);
+    ctx.message.AddData("\x02\x02\x00\x00", 4);
+    ctx.message.AddData("\x03\x04\x00\x00", 4);
+    ctx.message.AddData("\x10\x01\x00\x00", 4);
+    ctx.message.AddData("\x12\x08\x00\x00", 4);
+    ctx.message.AddData("\x00\x00\x00\x00", 4);
+  });
+}
+
 u32 GekitouProYakyuu::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
 {
   // Serial - Unknown
