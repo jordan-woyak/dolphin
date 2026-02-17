@@ -43,13 +43,6 @@ u32 FZeroAX::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
     //   break;
     // }
 
-    // Status
-    m_motor_reply[command_offset + 2] = 0;
-    m_motor_reply[command_offset + 3] = 0;
-
-    // Error
-    m_motor_reply[command_offset + 4] = 0;
-
     switch (serial_command >> 24)
     {
     case 0:
@@ -100,31 +93,22 @@ u32 FZeroAX::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
     // Reset
     case 0x7F:
       m_motor_init = 1;
-      memset(m_motor_reply, 0, sizeof(m_motor_reply));
       break;
     }
 
-    // Checksum
-    m_motor_reply[command_offset + 5] = m_motor_reply[command_offset + 2] ^
-                                        m_motor_reply[command_offset + 3] ^
-                                        m_motor_reply[command_offset + 4];
-
     if (m_motor_init)
     {
-      const u32 reply_size = m_motor_reply[1] + 2;
-      //   if (!validate_data_in_out(length, reply_size, "SerialA"))
-      //     break;
+      std::array<u8, 3> motor_reply{};
 
-      //   if (reply_size > sizeof(m_motor_reply))
-      //   {
-      //     ERROR_LOG_FMT(SERIALINTERFACE_AMBB,
-      //                   "GC-AM: Command SerialA, reply_size={} too big for m_motor_reply",
-      //                   reply_size);
-      //     data_in = data_in_end;
-      //     break;
-      //   }
-      memcpy(data_out.data() + data_offset, m_motor_reply, reply_size);
-      data_offset += reply_size;
+      // Status
+      motor_reply[0] = 0;
+      motor_reply[1] = 0;
+
+      // Error
+      motor_reply[2] = 0;
+
+      std::ranges::copy(motor_reply, data_out.data() + data_offset);
+      data_offset += motor_reply.size();
     }
   }
 

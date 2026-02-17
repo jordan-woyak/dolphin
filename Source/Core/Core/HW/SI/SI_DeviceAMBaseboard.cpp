@@ -472,7 +472,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             data_offset += written;
           }
 
-          // TODO: ?
+          // TODO: Is this some non-response ?
           // if (serial_command == 0x801000)
           // {
           //   if (!validate_data_in_out(0, 4, "SerialA"))
