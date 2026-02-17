@@ -55,7 +55,7 @@ enum class JVSIOCommand : u8
   IOIdentify = 0x10,
   CommandRevision = 0x11,
   JVSRevision = 0x12,
-  CommunicationVersion = 0x13,
+  CommVersion = 0x13,
   FeatureCheck = 0x14,
   MainID = 0x15,
 
@@ -67,8 +67,8 @@ enum class JVSIOCommand : u8
   ScreenPositionInput = 0x25,
   MiscSwitchInput = 0x26,
 
-  RemainingPayout = 0x2E,
-  DataRetransmit = 0x2F,
+  RemainingPayout = 0x2e,
+  DataRetransmit = 0x2f,
   CoinCounterDec = 0x30,
   PayoutCounterInc = 0x31,
   GenericOutput1 = 0x32,
@@ -82,9 +82,9 @@ enum class JVSIOCommand : u8
   // Vendor-specific commands:
   NAMCOCommand = 0x70,
 
-  Reset = 0xF0,
-  SetAddress = 0xF1,
-  CommMethodChange = 0xF2,
+  Reset = 0xf0,
+  SetAddress = 0xf1,
+  CommMethodChange = 0xf2,
 };
 
 namespace TriforcePeripheral
@@ -93,7 +93,7 @@ namespace TriforcePeripheral
 class JVSClient
 {
 public:
-  void Process(std::span<const u8> data);
+  void ProcessJVSIO(std::span<const u8> data);
 
   struct JVSIOFrameContext
   {

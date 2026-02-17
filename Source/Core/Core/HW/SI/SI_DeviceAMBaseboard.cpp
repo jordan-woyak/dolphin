@@ -63,15 +63,23 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   switch (AMMediaboard::GetGameType())
   {
   case FZeroAX:
-  case FZeroAXMonster:
     m_mag_card_reader = std::make_unique<MagCard::C1231BR>(&m_mag_card_settings);
     m_peripheral = std::make_unique<TriforcePeripheral::FZeroAX>();
+    break;
+
+  case FZeroAXMonster:
+    m_mag_card_reader = std::make_unique<MagCard::C1231BR>(&m_mag_card_settings);
+    m_peripheral = std::make_unique<TriforcePeripheral::FZeroAXMonster>();
     break;
 
   case MarioKartGP:
   case MarioKartGP2:
     m_mag_card_reader = std::make_unique<MagCard::C1231LR>(&m_mag_card_settings);
     m_peripheral = std::make_unique<TriforcePeripheral::MarioKartGP>();
+    break;
+
+  case VirtuaStriker3:
+    m_peripheral = std::make_unique<TriforcePeripheral::VirtuaStriker3>();
     break;
 
   case VirtuaStriker4:
@@ -88,8 +96,6 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
     break;
 
   default:
-  // TODO:
-  case VirtuaStriker3:
     break;
   }
 }
@@ -146,8 +152,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
       std::array<u8, 0x80> data_out{};
       u32 data_offset = 0;
 
-      data_out[data_offset++] = 1;
-      data_out[data_offset++] = 1;
+      data_out[data_offset++] = 1;  // TODO: necessary?
+      data_out[data_offset++] = 1;  // Becomes length.
 
       u8* data_in = buffer + 2;
       if (buffer_position >= buffer_length)
@@ -195,42 +201,9 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         {
         case GCAMCommand::StatusSwitches:
         {
-          if (!validate_data_in_out(1, 4, "StatusSwitches"))
-            break;
-
-          const u8 status = *data_in++;
-          DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x10, {:02x} (READ STATUS&SWITCHES)",
-                        status);
-
-          data_out[data_offset++] = gcam_command;
-          data_out[data_offset++] = 0x2;
-
-          // We read Test/Service from the JVS-I/O SwitchesInput instead
-          //
-          // const GCPadStatus pad_status = Pad::GetStatus(ISIDevice::m_device_number);
-          // baseboard test/service switches
-          // if (pad_status.button & PAD_BUTTON_Y)	// Test
-          //  dip_switch_0 &= ~0x80;
-          // if (pad_status.button & PAD_BUTTON_X)	// Service
-          //  dip_switch_0 &= ~0x40;
-
-          // Horizontal Scanning Frequency switch
-          // Required for F-Zero AX booting via Sega Boot
-          if (AMMediaboard::GetGameType() == FZeroAX ||
-              AMMediaboard::GetGameType() == FZeroAXMonster)
-          {
-            m_dip_switch_0 &= ~0x20;
-          }
-
-          // Disable camera in MKGP1/2
-          if (AMMediaboard::GetGameType() == MarioKartGP ||
-              AMMediaboard::GetGameType() == MarioKartGP2)
-          {
-            m_dip_switch_0 &= ~0x10;
-          }
-
-          data_out[data_offset++] = m_dip_switch_0;
-          data_out[data_offset++] = m_dip_switch_1;
+          std::tie(data_out[data_offset + 0], data_out[data_offset + 1]) =
+              m_peripheral->GetDipSwitches();
+          data_offset += 2;
           break;
         }
         case GCAMCommand::SerialNumber:
@@ -454,517 +427,22 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         case GCAMCommand::JVSIOA:
         case GCAMCommand::JVSIOB:
         {
-          if (!validate_data_in_out(4, 0, "JVSIO"))
-            break;
-
-          JVSIOMessage message;
+          // JVSIOMessage message;
 
           const u8* const frame = &data_in[0];
-          const u8 nr_bytes = frame[3];  // Byte after E0 xx
-          u32 frame_len = nr_bytes + 3;  // Header(2) + length byte + payload + checksum
+          // const u8 nr_bytes = frame[3];  // Byte after E0 xx
+          //  u32 frame_len = nr_bytes + 3;  // Header(2) + length byte + payload + checksum
 
-          u8 jvs_buf[0x80];
+          // m_peripheral->ProcessJVSIO();
 
-          frame_len = std::min<u32>(frame_len, sizeof(jvs_buf));
-
-          if (!validate_data_in_out(frame_len, 0, "JVSIO"))
-            break;
-          DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "GC-AM: Command {:02x} (JVS IO), hexdump:\n{}",
-                        gcam_command, HexDump(data_in, frame_len));
-
-          memcpy(jvs_buf, frame, frame_len);
-
-          // Extract node and payload pointers
-          u8 node = jvs_buf[2];
-          u8* jvs_io = jvs_buf + 4;                 // First payload byte
-          u8* const jvs_end = jvs_buf + frame_len;  // One byte before checksum
-          u8* const jvs_begin = jvs_io;
-
-          message.Start(0);
-          message.AddData(1);
-
-          // Helper to check that iterating over jvs_io n times is safe,
-          // i.e. *jvs_io++ at most lead to jvs_end
-          auto validate_jvs_io = [&](u32 n, std::string_view command) -> bool {
-            if (jvs_io + n > jvs_end)
-              ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: overflow in {}", command);
-            else
-              return true;
-            ERROR_LOG_FMT(SERIALINTERFACE_JVSIO,
-                          "Overflow details:\n"
-                          " - jvs_io(begin={}, current={}, end={}, n={})\n"
-                          " - delay={}, node={}\n"
-                          " - frame(begin={}, len={})",
-                          fmt::ptr(jvs_begin), fmt::ptr(jvs_io), fmt::ptr(jvs_end), n, m_delay,
-                          node, fmt::ptr(frame), frame_len);
-            jvs_io = jvs_end;
-            return false;
-          };
-
-          // Now iterate over the payload
-          while (jvs_io < jvs_end)
-          {
-            const u8 jvsio_command = *jvs_io++;
-            DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO:node={}, command={:02x}", node,
-                          jvsio_command);
-
-            switch (JVSIOCommand(jvsio_command))
-            {
-            case JVSIOCommand::SwitchInput:
-            {
-              if (!validate_jvs_io(2, "SwitchesInput"))
-                break;
-              const u32 player_count = *jvs_io++;
-              const u32 player_byte_count = *jvs_io++;
-
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO:  Command 0x20, SwitchInputs: {} {}",
-                            player_count, player_byte_count);
-
-              message.AddData(StatusOkay);
-
-              GCPadStatus pad_status = Pad::GetStatus(0);
-
-              // Test button
-              if (pad_status.switches & SWITCH_TEST)
-              {
-                // Trying to access the test menu without SegaBoot present will cause a crash
-                if (AMMediaboard::GetTestMenu())
-                {
-                  message.AddData(0x80);
-                }
-                else
-                {
-                  PanicAlertFmt("Test menu is disabled due to missing SegaBoot");
-                }
-              }
-              else
-              {
-                message.AddData((u32)0x00);
-              }
-
-              for (u32 i = 0; i < player_count; ++i)
-              {
-                std::array<u8, 3> player_data{};
-
-                // Service button
-                if (pad_status.switches & SWITCH_SERVICE)
-                  player_data[0] |= 0x40;
-
-                switch (AMMediaboard::GetGameType())
-                {
-                // Controller configuration for F-Zero AX (DX)
-                case FZeroAX:
-                  if (i == 0)
-                  {
-                    if (m_fzdx_seatbelt)
-                    {
-                      player_data[0] |= 0x01;
-                    }
-
-                    // Start
-                    if (pad_status.button & PAD_BUTTON_START)
-                      player_data[0] |= 0x80;
-                    // Boost
-                    if (pad_status.button & PAD_BUTTON_A)
-                      player_data[0] |= 0x02;
-                    // View Change 1
-                    if (pad_status.button & PAD_BUTTON_RIGHT)
-                      player_data[0] |= 0x20;
-                    // View Change 2
-                    if (pad_status.button & PAD_BUTTON_LEFT)
-                      player_data[0] |= 0x10;
-                    // View Change 3
-                    if (pad_status.button & PAD_BUTTON_UP)
-                      player_data[0] |= 0x08;
-                    // View Change 4
-                    if (pad_status.button & PAD_BUTTON_DOWN)
-                      player_data[0] |= 0x04;
-                    player_data[1] = m_rx_reply & 0xF0;
-                  }
-                  else if (i == 1)
-                  {
-                    //  Paddle left
-                    if (pad_status.button & PAD_BUTTON_X)
-                      player_data[0] |= 0x20;
-                    //  Paddle right
-                    if (pad_status.button & PAD_BUTTON_Y)
-                      player_data[0] |= 0x10;
-
-                    if (m_fzdx_motion_stop)
-                    {
-                      player_data[0] |= 2;
-                    }
-                    if (m_fzdx_sensor_right)
-                    {
-                      player_data[0] |= 4;
-                    }
-                    if (m_fzdx_sensor_left)
-                    {
-                      player_data[0] |= 8;
-                    }
-
-                    player_data[1] = m_rx_reply << 4;
-                  }
-                  break;
-                // Controller configuration for F-Zero AX MonsterRide
-                case FZeroAXMonster:
-                  if (i == 0)
-                  {
-                    if (m_fzcc_sensor)
-                    {
-                      player_data[0] |= 0x01;
-                    }
-
-                    // Start
-                    if (pad_status.button & PAD_BUTTON_START)
-                      player_data[0] |= 0x80;
-                    // Boost
-                    if (pad_status.button & PAD_BUTTON_A)
-                      player_data[0] |= 0x02;
-                    // View Change 1
-                    if (pad_status.button & PAD_BUTTON_RIGHT)
-                      player_data[0] |= 0x20;
-                    // View Change 2
-                    if (pad_status.button & PAD_BUTTON_LEFT)
-                      player_data[0] |= 0x10;
-                    // View Change 3
-                    if (pad_status.button & PAD_BUTTON_UP)
-                      player_data[0] |= 0x08;
-                    // View Change 4
-                    if (pad_status.button & PAD_BUTTON_DOWN)
-                      player_data[0] |= 0x04;
-
-                    player_data[1] = m_rx_reply & 0xF0;
-                  }
-                  else if (i == 1)
-                  {
-                    //  Paddle left
-                    if (pad_status.button & PAD_BUTTON_X)
-                      player_data[0] |= 0x20;
-                    //  Paddle right
-                    if (pad_status.button & PAD_BUTTON_Y)
-                      player_data[0] |= 0x10;
-
-                    if (m_fzcc_seatbelt)
-                    {
-                      player_data[0] |= 2;
-                    }
-                    if (m_fzcc_service)
-                    {
-                      player_data[0] |= 4;
-                    }
-                    if (m_fzcc_emergency)
-                    {
-                      player_data[0] |= 8;
-                    }
-                  }
-                  break;
-                // Controller configuration for Virtua Striker 3 games
-                case VirtuaStriker3:
-                  pad_status = Pad::GetStatus(i);
-                  // Start
-                  if (pad_status.button & PAD_BUTTON_START)
-                    player_data[0] |= 0x80;
-                  // Shoot
-                  if (pad_status.button & PAD_BUTTON_B)
-                    player_data[0] |= 0x01;
-                  // Short Pass
-                  if (pad_status.button & PAD_BUTTON_A)
-                    player_data[1] |= 0x80;
-                  // Long Pass
-                  if (pad_status.button & PAD_BUTTON_X)
-                    player_data[0] |= 0x02;
-                  // Left
-                  if (pad_status.button & PAD_BUTTON_LEFT)
-                    player_data[0] |= 0x08;
-                  // Up
-                  if (pad_status.button & PAD_BUTTON_UP)
-                    player_data[0] |= 0x20;
-                  // Right
-                  if (pad_status.button & PAD_BUTTON_RIGHT)
-                    player_data[0] |= 0x04;
-                  // Down
-                  if (pad_status.button & PAD_BUTTON_DOWN)
-                    player_data[0] |= 0x10;
-                  break;
-                // Controller configuration for Virtua Striker 4 games
-                case VirtuaStriker4:
-                case VirtuaStriker4_2006:
-                {
-                  pad_status = Pad::GetStatus(i);
-                  // Start
-                  if (pad_status.button & PAD_BUTTON_START)
-                    player_data[0] |= 0x80;
-                  // Long Pass
-                  if (pad_status.button & PAD_BUTTON_X)
-                    player_data[0] |= 0x01;
-                  // Short Pass
-                  if (pad_status.button & PAD_BUTTON_A)
-                    player_data[0] |= 0x02;
-                  // Shoot
-                  if (pad_status.button & PAD_BUTTON_B)
-                    player_data[1] |= 0x80;
-                  // Dash
-                  if (pad_status.button & PAD_BUTTON_Y)
-                    player_data[1] |= 0x40;
-                  // Tactics (U)
-                  if (pad_status.button & PAD_BUTTON_LEFT)
-                    player_data[0] |= 0x20;
-                  // Tactics (M)
-                  if (pad_status.button & PAD_BUTTON_UP)
-                    player_data[0] |= 0x08;
-                  // Tactics (D)
-                  if (pad_status.button & PAD_BUTTON_RIGHT)
-                    player_data[0] |= 0x04;
-
-                  if (i == 0)
-                  {
-                    player_data[0] |= 0x10;  // IC-Card Switch ON
-
-                    // IC-Card Lock
-                    if (pad_status.button & PAD_BUTTON_DOWN)
-                      player_data[1] |= 0x20;
-                  }
-                }
-                break;
-                // Controller configuration for Gekitou Pro Yakyuu
-                case GekitouProYakyuu:
-                  pad_status = Pad::GetStatus(i);
-                  // Start
-                  if (pad_status.button & PAD_BUTTON_START)
-                    player_data[0] |= 0x80;
-                  //  A
-                  if (pad_status.button & PAD_BUTTON_B)
-                    player_data[0] |= 0x01;
-                  //  B
-                  if (pad_status.button & PAD_BUTTON_A)
-                    player_data[0] |= 0x02;
-                  //  Gekitou
-                  if (pad_status.button & PAD_TRIGGER_L)
-                    player_data[1] |= 0x80;
-                  // Left
-                  if (pad_status.button & PAD_BUTTON_LEFT)
-                    player_data[0] |= 0x08;
-                  // Up
-                  if (pad_status.button & PAD_BUTTON_UP)
-                    player_data[0] |= 0x20;
-                  // Right
-                  if (pad_status.button & PAD_BUTTON_RIGHT)
-                    player_data[0] |= 0x04;
-                  // Down
-                  if (pad_status.button & PAD_BUTTON_DOWN)
-                    player_data[0] |= 0x10;
-                  break;
-                // Controller configuration for Mario Kart and other games
-                default:
-                case MarioKartGP:
-                case MarioKartGP2:
-                {
-                  // Start
-                  if (pad_status.button & PAD_BUTTON_START)
-                    player_data[0] |= 0x80;
-                  // Item button
-                  if (pad_status.button & PAD_BUTTON_A)
-                    player_data[1] |= 0x20;
-                  // VS-Cancel button
-                  if (pad_status.button & PAD_BUTTON_B)
-                    player_data[1] |= 0x02;
-                }
-                break;
-                case KeyOfAvalon:
-                {
-                  // Debug On
-                  if (pad_status.button & PAD_BUTTON_START)
-                    player_data[0] |= 0x80;
-                  // Switch 1
-                  if (pad_status.button & PAD_BUTTON_A)
-                    player_data[0] |= 0x04;
-                  // Switch 2
-                  if (pad_status.button & PAD_BUTTON_B)
-                    player_data[0] |= 0x08;
-                  // Toggle inserted card
-                  if (pad_status.button & PAD_TRIGGER_L)
-                  {
-                    // TODO:
-                    // m_ic_card_status ^= ICCARDStatus::NoCard;
-                  }
-                }
-                break;
-                }
-
-                if (player_byte_count > player_data.size())
-                {
-                  WARN_LOG_FMT(SERIALINTERFACE_JVSIO,
-                               "JVS-IO:  Command 0x20, SwitchInputs: invalid player_byte_count={}",
-                               player_byte_count);
-                }
-                const u32 data_size = std::min(player_byte_count, u32(player_data.size()));
-                for (u32 j = 0; j < data_size; ++j)
-                  message.AddData(player_data[j]);
-              }
-              break;
-            }
-            case JVSIOCommand::CoinInput:
-            {
-              break;
-            }
-            case JVSIOCommand::AnalogInput:
-            {
-              if (!validate_jvs_io(1, "AnalogInput"))
-                break;
-              message.AddData(StatusOkay);
-
-              const u32 analogs = *jvs_io++;
-              GCPadStatus pad_status = Pad::GetStatus(0);
-
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x22, AnalogInput: {}",
-                            analogs);
-
-              switch (AMMediaboard::GetGameType())
-              {
-              case FZeroAX:
-              case FZeroAXMonster:
-                // Steering
-                // if (m_motor_init == 1)
-                // {
-                //   if (m_motor_force_y > 0)
-                //   {
-                //     message.AddData(0x80 - (m_motor_force_y >> 8));
-                //   }
-                //   else
-                //   {
-                //     message.AddData((m_motor_force_y >> 8));
-                //   }
-                //   message.AddData((u8)0);
-
-                //   message.AddData(pad_status.stickY);
-                //   message.AddData((u8)0);
-                // }
-                // else
-                {
-                  // The center for the Y axis is expected to be 78h this adjusts that
-                  message.AddData(pad_status.stickX - 12);
-                  message.AddData((u8)0);
-
-                  message.AddData(pad_status.stickY);
-                  message.AddData((u8)0);
-                }
-
-                // Unused
-                message.AddData((u8)0);
-                message.AddData((u8)0);
-                message.AddData((u8)0);
-                message.AddData((u8)0);
-
-                // Gas
-                message.AddData(pad_status.triggerRight);
-                message.AddData((u8)0);
-
-                // Brake
-                message.AddData(pad_status.triggerLeft);
-                message.AddData((u8)0);
-
-                message.AddData((u8)0x80);  // Motion Stop
-                message.AddData((u8)0);
-
-                message.AddData((u8)0);
-                message.AddData((u8)0);
-
-                break;
-              case VirtuaStriker4:
-              case VirtuaStriker4_2006:
-              {
-                message.AddData(-pad_status.stickY);
-                message.AddData((u8)0);
-                message.AddData(pad_status.stickX);
-                message.AddData((u8)0);
-
-                pad_status = Pad::GetStatus(1);
-
-                message.AddData(-pad_status.stickY);
-                message.AddData((u8)0);
-                message.AddData(pad_status.stickX);
-                message.AddData((u8)0);
-              }
-              break;
-              default:
-              case MarioKartGP:
-              case MarioKartGP2:
-                // Steering
-                message.AddData(pad_status.stickX);
-                message.AddData((u8)0);
-
-                // Gas
-                message.AddData(pad_status.triggerRight);
-                message.AddData((u8)0);
-
-                // Brake
-                message.AddData(pad_status.triggerLeft);
-                message.AddData((u8)0);
-                break;
-              }
-              break;
-            }
-            case JVSIOCommand::ScreenPositionInput:
-            {
-              if (!validate_jvs_io(1, "PositionInput"))
-                break;
-              const u32 channel = *jvs_io++;
-
-              const GCPadStatus pad_status = Pad::GetStatus(0);
-
-              if (pad_status.button & PAD_TRIGGER_R)
-              {
-                // Tap at center of screen (~320,240)
-                message.AddData("\x01\x00\x8C\x01\x95",
-                                5);  // X=320 (0x0140), Y=240 (0x00F0)
-              }
-              else
-              {
-                message.AddData("\x01\xFF\xFF\xFF\xFF", 5);
-              }
-
-              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x25, PositionInput:{}",
-                            channel);
-              break;
-            }
-            case JVSIOCommand::Reset:
-              if (!validate_jvs_io(1, "Reset"))
-                break;
-
-              break;
-            case JVSIOCommand::SetAddress:
-              if (!validate_jvs_io(1, "SetAddress"))
-                break;
-              node = *jvs_io++;
-              NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF1, SetAddress: node={}",
-                             node);
-              message.AddData(node == 1);
-              m_dip_switch_1 &= ~1u;
-              break;
-            default:
-
-              break;
-            }
-          }
-
-          message.End();
-
-          if (!validate_data_in_out(0, 2, "JVSIO"))
-            break;
-          data_out[data_offset++] = gcam_command;
-
-          const u8* buf = message.m_message.data();
-          const u32 len = message.m_pointer;
-          data_out[data_offset++] = len;
           const u32 in_size = frame[0] + 1;
-
-          if (!validate_data_in_out(in_size, len, "JVSIO"))
-            break;
-          for (u32 i = 0; i < len; ++i)
-            data_out[data_offset++] = buf[i];
-
           data_in += in_size;
+
+          const u8 out_length = 0;
+
+          data_out[data_offset++] = gcam_command;
+          data_out[data_offset++] = u8(out_length);
+
           break;
         }
         case GCAMCommand::Unknown_60:
@@ -1244,9 +722,6 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
   p.Do(m_last);
   p.Do(m_lastptr);
 
-  p.Do(m_coin);
-  p.Do(m_coin_pressed);
-
   m_peripheral->DoState(p);
 
   // Magnetic Card Reader
@@ -1257,24 +732,6 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
     p.Do(m_mag_card_in_buffer);
     p.Do(m_mag_card_out_buffer);
   }
-
-  // F-Zero AX (DX)
-  p.Do(m_fzdx_seatbelt);
-  p.Do(m_fzdx_motion_stop);
-  p.Do(m_fzdx_sensor_right);
-  p.Do(m_fzdx_sensor_left);
-  p.Do(m_rx_reply);
-
-  // F-Zero AX (CyCraft)
-  p.Do(m_fzcc_seatbelt);
-  p.Do(m_fzcc_sensor);
-  p.Do(m_fzcc_emergency);
-  p.Do(m_fzcc_service);
-
-  p.Do(m_dip_switch_1);
-  p.Do(m_dip_switch_0);
-
-  p.Do(m_delay);
 }
 
 }  // namespace SerialInterface

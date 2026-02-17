@@ -33,7 +33,7 @@ Peripheral::Peripheral()
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::CommunicationVersion, [](JVSIOFrameContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::CommVersion, [](JVSIOFrameContext ctx) {
     ctx.message.AddData(StatusOkay);
     ctx.message.AddData(0x10);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x13, CommunicationVersion");

@@ -89,7 +89,7 @@ void JVSIOMessage::End()
 namespace TriforcePeripheral
 {
 
-void JVSClient::Process(std::span<const u8> marked_data)
+void JVSClient::ProcessJVSIO(std::span<const u8> marked_data)
 {
   std::array<u8, 3 + 256> buffer;
   auto data = UnMarkData(marked_data, buffer);

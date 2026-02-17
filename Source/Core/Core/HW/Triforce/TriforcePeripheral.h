@@ -19,6 +19,8 @@ public:
   Peripheral();
   virtual ~Peripheral();
 
+  virtual std::pair<u8, u8> GetDipSwitches() const;
+
   // TODO: return u8 maybe ?
   virtual u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out);
 
