@@ -11,7 +11,7 @@ KeyOfAvalon::KeyOfAvalon()
   //   m_ic_card_data[0x22] = 0x26;
   //   m_ic_card_data[0x23] = 0x40;
 
-  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
     // 1 Player (15bit), 1 Coin slot, 3 Analog-in, Touch, 1 CARD, 1 Driver-out
     // (Unconfirmed)
     ctx.message.AddData("\x01\x01\x0F\x00", 4);
@@ -21,6 +21,8 @@ KeyOfAvalon::KeyOfAvalon()
     ctx.message.AddData("\x10\x01\x00\x00", 4);
     ctx.message.AddData("\x12\x01\x00\x00", 4);
     ctx.message.AddData("\x00\x00\x00\x00", 4);
+
+    return JVSIOReportCode::Normal;
   });
 }
 

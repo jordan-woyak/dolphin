@@ -510,7 +510,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
             switch (JVSIOCommand(jvsio_command))
             {
-            case JVSIOCommand::SwitchesInput:
+            case JVSIOCommand::SwitchInput:
             {
               if (!validate_jvs_io(2, "SwitchesInput"))
                 break;
@@ -905,7 +905,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               }
               break;
             }
-            case JVSIOCommand::PositionInput:
+            case JVSIOCommand::ScreenPositionInput:
             {
               if (!validate_jvs_io(1, "PositionInput"))
                 break;

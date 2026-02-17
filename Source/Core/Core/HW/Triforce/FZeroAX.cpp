@@ -36,7 +36,7 @@ FZeroAXCommon::FZeroAXCommon()
   // 0x14: Character output: width, height, type
   // 0x15: Backup
   //
-  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
     // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
     // message.AddData((void *)"\x01\x02\x0C\x00", 4);
     // message.AddData((void *)"\x02\x01\x00\x00", 4);
@@ -50,9 +50,11 @@ FZeroAXCommon::FZeroAXCommon()
     ctx.message.AddData("\x03\x08\x0A\x00", 4);
     ctx.message.AddData("\x12\x16\x00\x00", 4);
     ctx.message.AddData("\x00\x00\x00\x00", 4);
+
+    return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::GeneralDriverOutput, [this](JVSIOMessageContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [this](JVSIOFrameContext ctx) {
     // Handling of the motion seat used in F-Zero AXs DX version
     const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
     jvs_io += bytes;
@@ -74,17 +76,20 @@ FZeroAXCommon::FZeroAXCommon()
     case 0x60:
       break;
     }
+
+    return JVSIOReportCode::Normal;
   });
 }
 
 FZeroAX::FZeroAX()
 {
   // TODO: consolodate the common functionality of this..
-  SetJVSIOHandler(JVSIOCommand::IOID, [](JVSIOMessageContext ctx) {
-    ctx.message.AddData(StatusOkay);
+  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext ctx) {
     ctx.message.AddData("SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;");
     ctx.message.AddData((u32)0);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
+
+    return JVSIOReportCode::Normal;
   });
 }
 

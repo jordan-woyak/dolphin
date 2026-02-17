@@ -6,8 +6,13 @@
 #include <array>
 #include <functional>
 #include <span>
+#include <vector>
 
 #include "Common/CommonTypes.h"
+
+static constexpr u8 JVSIO_SYNC = 0xe0;
+static constexpr u8 JVSIO_MARK = 0xd0;
+static constexpr u8 JVSIO_BROADCAST_ADDRESS = 0xff;
 
 // "JAMMA Video Standard" I/O
 class JVSIOMessage
@@ -28,70 +33,86 @@ private:
   u32 m_checksum = 0;
 };
 
-// TODO: enum class
-enum JVSIOStatusCode
+enum class JVSIOStatusCode : u8
 {
-  StatusOkay = 1,
-  UnsupportedCommand = 2,
+  Normal = 1,
+  UnknownCommand = 2,
   ChecksumError = 3,
   AcknowledgeOverflow = 4,
 };
 
+enum class JVSIOReportCode : u8
+{
+  Normal = 1,
+  ParameterSizeError = 2,
+  ParameterDataError = 3,
+  Busy = 4,
+};
+
+// TODO: Clean up naming.
 enum class JVSIOCommand : u8
 {
-  IOID = 0x10,
+  IOIdentify = 0x10,
   CommandRevision = 0x11,
-  JVRevision = 0x12,
+  JVSRevision = 0x12,
   CommunicationVersion = 0x13,
-  CheckFunctionality = 0x14,
+  FeatureCheck = 0x14,
   MainID = 0x15,
 
-  SwitchesInput = 0x20,
+  SwitchInput = 0x20,
   CoinInput = 0x21,
   AnalogInput = 0x22,
   RotaryInput = 0x23,
-  KeyCodeInput = 0x24,
-  PositionInput = 0x25,
-  GeneralSwitchInput = 0x26,
+  KeycodeInput = 0x24,
+  ScreenPositionInput = 0x25,
+  MiscSwitchInput = 0x26,
 
-  PayoutRemain = 0x2E,
-  Retrans = 0x2F,
-  CoinSubOutput = 0x30,
-  PayoutAddOutput = 0x31,
-  GeneralDriverOutput = 0x32,
+  RemainingPayout = 0x2E,
+  DataRetransmit = 0x2F,
+  CoinCounterDec = 0x30,
+  PayoutCounterInc = 0x31,
+  GenericOutput1 = 0x32,
   AnalogOutput = 0x33,
   CharacterOutput = 0x34,
-  CoinAddOutput = 0x35,
-  PayoutSubOutput = 0x36,
-  GeneralDriverOutput2 = 0x37,
-  GeneralDriverOutput3 = 0x38,
+  CoinCounterInc = 0x35,
+  PayoutCounterDec = 0x36,
+  GenericOutput2 = 0x37,
+  GenericOutput3 = 0x38,
 
+  // Vendor-specific commands:
   NAMCOCommand = 0x70,
 
   Reset = 0xF0,
   SetAddress = 0xF1,
-  ChangeComm = 0xF2,
+  CommMethodChange = 0xF2,
 };
 
 namespace TriforcePeripheral
 {
 
-class JVSIOHandler
+class JVSClient
 {
 public:
-  void ProcessJVSIOFrame(std::span<const u8> frame);
+  void Process(std::span<const u8> data);
 
-  struct JVSIOMessageContext
+  struct JVSIOFrameContext
   {
+    std::vector<u8> request;
     JVSIOMessage message;
   };
 
-  using JVSIOMessageHandler = std::function<void(JVSIOMessageContext)>;
+  using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext)>;
 
   void SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler);
 
 private:
+  std::span<u8> UnMarkData(std::span<const u8> input, std::span<u8> output);
+  void ProcessFrame(std::span<const u8> data);
+
   std::array<JVSIOMessageHandler, 0x100> m_handlers;
+
+  u8 m_client_address = 0;
+  std::vector<u8> m_last_acknowledge;
 };
 
 }  // namespace TriforcePeripheral

@@ -11,7 +11,7 @@ namespace TriforcePeripheral
 
 MarioKartGP::MarioKartGP()
 {
-  SetJVSIOHandler(JVSIOCommand::CheckFunctionality, [](JVSIOMessageContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
     // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
     ctx.message.AddData("\x01\x01\x0F\x00", 4);
     ctx.message.AddData("\x02\x01\x00\x00", 4);
@@ -19,10 +19,12 @@ MarioKartGP::MarioKartGP()
     ctx.message.AddData("\x10\x01\x00\x00", 4);
     ctx.message.AddData("\x12\x01\x00\x00", 4);
     ctx.message.AddData("\x00\x00\x00\x00", 4);
+
+    return JVSIOReportCode::Normal;
   });
 
   // The lamps are controlled via this
-  SetJVSIOHandler(JVSIOCommand::GeneralDriverOutput, [](JVSIOMessageContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [](JVSIOFrameContext ctx) {
     const u32 status = *jvs_io++;
     if (status & 4)
     {
@@ -40,6 +42,8 @@ MarioKartGP::MarioKartGP()
     {
       DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button OFF");
     }
+
+    return JVSIOReportCode::Normal;
   });
 }
 

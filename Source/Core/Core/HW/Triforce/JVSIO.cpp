@@ -3,7 +3,9 @@
 
 #include "Core/HW/Triforce/JVSIO.h"
 
-#include "Common/MsgHandler.h"
+#include <numeric>
+
+#include "Common/Logging/Log.h"
 
 // TODO: default handler
 //   ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unhandled: node={}, command={:02x}",
@@ -21,7 +23,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
 {
   if (m_pointer + len >= sizeof(m_message))
   {
-    PanicAlertFmt("JVSIOMessage overrun!");
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Overrun");
     return;
   }
 
@@ -32,7 +34,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
     {
       if (m_pointer + 2 > sizeof(m_message))
       {
-        PanicAlertFmt("JVSIOMessage overrun!");
+        ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Overrun");
         break;
       }
       m_message[m_pointer++] = 0xD0;
@@ -42,7 +44,7 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
     {
       if (m_pointer >= sizeof(m_message))
       {
-        PanicAlertFmt("JVSIOMessage overrun!");
+        ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Overrun");
         break;
       }
       m_message[m_pointer++] = c;
@@ -80,11 +82,84 @@ void JVSIOMessage::End()
   }
   else
   {
-    PanicAlertFmt("JVSIOMessage: Not enough space for checksum!");
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Overrun");
   }
 }
 
 namespace TriforcePeripheral
 {
+
+void JVSClient::Process(std::span<const u8> marked_data)
+{
+  std::array<u8, 3 + 256> buffer;
+  auto data = UnMarkData(marked_data, buffer);
+
+  if (data.size() < 4)
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad Size");
+    return;
+  }
+
+  if (data[0] != JVSIO_SYNC)
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Expected JVSIO_SYNC");
+  }
+
+  const u8 destination_node = data[1];
+  const u8 byte_count = data[2];
+
+  if (data.size() - 3 < byte_count)
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad size");
+    return;
+  }
+
+  const auto range_to_checksum = data.subspan(1, byte_count - 1);
+  const u8 proper_checksum =
+      std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8(0));
+
+  if (proper_checksum != data[byte_count + 3])
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad checksum");
+    return;
+  }
+
+  if (destination_node == m_client_address || destination_node == JVSIO_BROADCAST_ADDRESS)
+  {
+    ProcessFrame(marked_data.subspan(3, byte_count));
+
+    // TODO: also send to daisy chained clients
+  }
+}
+
+std::span<u8> JVSClient::UnMarkData(std::span<const u8> input, std::span<u8> output)
+{
+  auto out = output.begin();
+  u8 mark_state = 0x00;
+  for (const u8 byte_value : input)
+  {
+    if (byte_value == JVSIO_MARK)
+    {
+      mark_state = 0x01;
+      continue;
+    }
+
+    *out = byte_value + mark_state;
+    mark_state = 0x00;
+
+    if (++out == output.end())
+      return {};
+  }
+
+  return {output.begin(), out};
+}
+
+void JVSClient::ProcessFrame(std::span<const u8> frame)
+{
+}
+
+void JVSClient::SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler)
+{
+}
 
 }  // namespace TriforcePeripheral

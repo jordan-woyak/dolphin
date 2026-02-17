@@ -13,7 +13,7 @@
 namespace TriforcePeripheral
 {
 
-class Peripheral : public JVSIOHandler
+class Peripheral : public JVSClient
 {
 public:
   Peripheral();
