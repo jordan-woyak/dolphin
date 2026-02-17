@@ -294,6 +294,19 @@ add_library(core
   HW/StreamADPCM.h
   HW/SystemTimers.cpp
   HW/SystemTimers.h
+  HW/Triforce/FZeroAX.cpp
+  HW/Triforce/FZeroAX.h
+  HW/Triforce/GekitouProYakyuu.cpp
+  HW/Triforce/GekitouProYakyuu.h
+  HW/Triforce/KeyOfAvalon.cpp
+  HW/Triforce/KeyOfAvalon.h
+  HW/Triforce/MarioKartGP.cpp
+  HW/Triforce/MarioKartGP.h
+  HW/Triforce/TriforcePeripheral.cpp
+  HW/Triforce/TriforcePeripheral.h
+  HW/Triforce/VirtuaStriker.h
+  HW/Triforce/VirtuaStriker.cpp
+  HW/Triforce/VirtuaStriker.h
   HW/VideoInterface.cpp
   HW/VideoInterface.h
   HW/WII_IPC.cpp

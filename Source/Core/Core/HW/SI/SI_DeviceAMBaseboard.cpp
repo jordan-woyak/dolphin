@@ -28,6 +28,11 @@
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/SI/SI_DeviceGCController.h"
 #include "Core/HW/SystemTimers.h"
+#include "Core/HW/Triforce/FZeroAX.h"
+#include "Core/HW/Triforce/GekitouProYakyuu.h"
+#include "Core/HW/Triforce/KeyOfAvalon.h"
+#include "Core/HW/Triforce/MarioKartGP.h"
+#include "Core/HW/Triforce/VirtuaStriker.h"
 #include "Core/Movie.h"
 #include "Core/NetPlayProto.h"
 #include "Core/System.h"
@@ -162,15 +167,35 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   m_mag_card_settings.card_name = fmt::format("tricard_{}.bin", SConfig::GetInstance().GetGameID());
 
   // TODO: Do any other games use the Magnetic Card Reader ?
+
+  // TODO: Make a factory for the peripherals.
+
   switch (AMMediaboard::GetGameType())
   {
   case FZeroAX:
+  case FZeroAXMonster:
     m_mag_card_reader = std::make_unique<MagCard::C1231BR>(&m_mag_card_settings);
+    m_peripheral = std::make_unique<TriforcePeripheral::FZeroAX>();
     break;
 
   case MarioKartGP:
   case MarioKartGP2:
     m_mag_card_reader = std::make_unique<MagCard::C1231LR>(&m_mag_card_settings);
+    m_peripheral = std::make_unique<TriforcePeripheral::MarioKartGP>();
+    break;
+
+  case VirtuaStriker3:
+  case VirtuaStriker4:
+  case VirtuaStriker4_2006:
+    m_peripheral = std::make_unique<TriforcePeripheral::VirtuaStriker>();
+    break;
+
+  case GekitouProYakyuu:
+    m_peripheral = std::make_unique<TriforcePeripheral::GekitouProYakyuu>();
+    break;
+
+  case KeyOfAvalon:
+    m_peripheral = std::make_unique<TriforcePeripheral::KeyOfAvalon>();
     break;
 
   default:

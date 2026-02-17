@@ -6,6 +6,7 @@
 #include "Core/HW/GCPad.h"
 #include "Core/HW/MagCard/MagneticCardReader.h"
 #include "Core/HW/SI/SI_Device.h"
+#include "Core/HW/Triforce/TriforcePeripheral.h"
 
 #include "InputCommon/GCPadStatus.h"
 
@@ -283,6 +284,9 @@ private:
   std::vector<u8> m_mag_card_out_buffer;
 
   std::unique_ptr<MagCard::MagneticCardReader> m_mag_card_reader;
+
+  // Game specific hardware
+  std::unique_ptr<TriforcePeripheral::Peripheral> m_peripheral;
 
   // Serial
   u32 m_wheel_init = 0;
