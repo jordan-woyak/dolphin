@@ -80,7 +80,7 @@ private:
 
   // Reply has to be delayed due a bug in the parser.
   std::array<std::array<u8, STANDARD_RESPONSE_SIZE>, 2> m_response_buffers{};
-  u8 m_current_response_buffer = 0;
+  u8 m_current_response_buffer_index = 0;
 
   // Magnetic Card Reader
   MagCard::MagneticCardReader::Settings m_mag_card_settings;

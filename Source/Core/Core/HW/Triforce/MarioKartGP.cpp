@@ -12,6 +12,11 @@ namespace TriforcePeripheral
 
 MarioKartGP::MarioKartGP() = default;
 
+std::pair<u8, u8> MarioKartGP::GetDipSwitches() const
+{
+  return {m_dip_switch_0 & ~0x10u, m_dip_switch_1};
+}
+
 JVSIOReportCode MarioKartGP::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)

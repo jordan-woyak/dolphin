@@ -133,23 +133,24 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
     // [command1][size1][data1...][command2][size2][data2...]...[checksum]
 
     const u8 command_length = buffer[1];
-    // const u8 read_checksum = buffer[command_length];
+    const u8 read_checksum = buffer[command_length];
 
-    // const auto range_to_checksum = std::span{buffer, command_length};
-    // const auto proper_checksum =
-    //     std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8());
+    const auto range_to_checksum = std::span{buffer, command_length};
+    const u8 proper_checksum =
+        ~std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8());
 
-    // if (read_checksum != proper_checksum)
-    //   WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
+    if (read_checksum != proper_checksum)
+      WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
 
-    auto& data_out = m_response_buffers[m_current_response_buffer];
+    auto& data_out = m_response_buffers[m_current_response_buffer_index];
 
     const u32 out_length = RunGCAMBuffer(std::span(buffer + 2, command_length - 2), data_out);
 
     NOTICE_LOG_FMT(SERIALINTERFACE, "RunGCAMBuffer: {}", out_length);
 
     std::fill(data_out.begin() + out_length, data_out.end(), 0);  // Sloppy.
-    const u8 output_checksum = std::accumulate(data_out.data(), data_out.data() + out_length, u8{});
+    const u8 output_checksum =
+        ~std::accumulate(data_out.data(), data_out.data() + out_length, u8{});
     data_out.back() = output_checksum;
 
     break;
@@ -161,15 +162,31 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
   }
   }
 
-  // TODO: Copy buffer..
+  if (++m_current_response_buffer_index == std::size(m_response_buffers))
+    m_current_response_buffer_index = 0;
 
-  return STANDARD_RESPONSE_SIZE;
+  auto& current_buffer = m_response_buffers[m_current_response_buffer_index];
+  const bool current_buffer_has_data = current_buffer.front() != 0x00;
+
+  if (current_buffer_has_data)
+  {
+    std::ranges::copy(current_buffer, buffer);
+    current_buffer.front() = 0x00;
+    return STANDARD_RESPONSE_SIZE;
+  }
+
+  // TODO: Is this okay?
+  return 0;
 }
 
 u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8> data_out)
 {
   auto data_in = input.begin();
   const auto data_in_end = input.end();
+
+  data_out[0] = 1;
+  data_out[1] = 0;  // Filled in later..
+
   u32 data_offset = 2;
 
   // Helper to check that iterating over data n times is safe,
@@ -270,6 +287,7 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
       break;
     case GCAMCommand::RegionSettings:
     {
+      // TODO: possibly should be 5..
       if (!validate_data_in_out(3, 0x16, "RegionSettings"))
         break;
 
@@ -436,6 +454,8 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
     data_out[gcam_command_offset] = gcam_command;
     data_out[gcam_command_offset + 1] = data_offset - gcam_output_offset;
   }
+
+  data_out[1] = data_offset - 2;
 
   return data_offset;
 }

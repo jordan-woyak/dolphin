@@ -34,11 +34,11 @@ public:
 protected:
   JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
+  u32 m_dip_switch_0 = 0xff;
+  u32 m_dip_switch_1 = 0xfe;
+
 private:
   void AdjustCoins(u8 slot, s32 adjustment);
-
-  u32 m_dip_switch_0 = 0xFF;
-  u32 m_dip_switch_1 = 0xFE;
 
   std::array<u16, 2> m_coin{};
   std::array<u32, 2> m_coin_pressed{};

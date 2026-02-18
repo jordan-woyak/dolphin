@@ -18,6 +18,11 @@ namespace TriforcePeripheral
 
 FZeroAXCommon::FZeroAXCommon() = default;
 
+std::pair<u8, u8> FZeroAXCommon::GetDipSwitches() const
+{
+  return {m_dip_switch_0 & ~0x20u, m_dip_switch_1};
+}
+
 JVSIOReportCode FZeroAXCommon::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
