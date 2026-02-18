@@ -13,7 +13,7 @@
 namespace TriforcePeripheral
 {
 
-class Peripheral : public JVSClient
+class Peripheral : public JVSIOBoard
 {
 public:
   Peripheral();
@@ -30,6 +30,9 @@ public:
   Peripheral& operator=(Peripheral&&) = delete;
 
   virtual void DoState(PointerWrap& p);
+
+protected:
+  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
 private:
   u32 m_dip_switch_0 = 0xFF;

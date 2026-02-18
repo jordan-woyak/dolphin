@@ -80,9 +80,6 @@ enum class JVSIOCommand : u8
   GenericOutput2 = 0x37,
   GenericOutput3 = 0x38,
 
-  // Vendor-specific commands:
-  NAMCOCommand = 0x70,
-
   Reset = 0xf0,
   SetAddress = 0xf1,
   CommMethodChange = 0xf2,
@@ -106,15 +103,23 @@ enum class ClientFeature : u8
   Backup = 0x15,                // 0, 0, 0
 };
 
+// CharacterOutput type:
+// 00 Unknown
+// 01 ASCII (numeric)
+// 02 ASCII (alphanumeric)
+// 03 ASCII (alphanumeric, half-width katakana)
+// 04 ASCII (kanji support, SHIFT-JIS)
+
 namespace TriforcePeripheral
 {
 
-class JVSClient
+class JVSIOBoard
 {
 public:
   // Returns the number of read bytes.
   u32 ProcessJVSIO(std::span<const u8> input);
 
+protected:
   struct ClientFeatureSpec
   {
     ClientFeature feature;
@@ -141,17 +146,17 @@ public:
     JVSIOMessage message;
   };
 
-  using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext&)>;
+  virtual JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) = 0;
 
-  void SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler);
+  // using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext&)>;
 
 private:
   std::span<u8> UnescapeData(std::span<const u8> input, std::span<u8> output);
   void ProcessFrame(std::span<const u8> data);
 
-  std::array<JVSIOMessageHandler, 0x100> m_handlers;
-
+  // 0 == address not yet assigned.
   u8 m_client_address = 0;
+
   std::vector<u8> m_last_acknowledge;
 };
 

@@ -56,6 +56,12 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
   }
 }
 
+void JVSIOMessage::AddData(std::span<const u8> data)
+{
+  for (u8 value : data)
+    AddData(value);
+}
+
 // void JVSIOMessage::AddData(const void* data, std::size_t len)
 // {
 //   AddData(static_cast<const u8*>(data), len);
@@ -88,7 +94,7 @@ void JVSIOMessage::End()
 namespace TriforcePeripheral
 {
 
-u32 JVSClient::ProcessJVSIO(std::span<const u8> input)
+u32 JVSIOBoard::ProcessJVSIO(std::span<const u8> input)
 {
   std::array<u8, 3 + 256> buffer;
   auto data = UnescapeData(input, buffer);
@@ -131,7 +137,7 @@ u32 JVSClient::ProcessJVSIO(std::span<const u8> input)
   }
 }
 
-std::span<u8> JVSClient::UnescapeData(std::span<const u8> input, std::span<u8> output)
+std::span<u8> JVSIOBoard::UnescapeData(std::span<const u8> input, std::span<u8> output)
 {
   // TODO: Stop after count bytes..
 
@@ -155,11 +161,7 @@ std::span<u8> JVSClient::UnescapeData(std::span<const u8> input, std::span<u8> o
   return {output.begin(), out};
 }
 
-void JVSClient::ProcessFrame(std::span<const u8> frame)
-{
-}
-
-void JVSClient::SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler)
+void JVSIOBoard::ProcessFrame(std::span<const u8> frame)
 {
 }
 

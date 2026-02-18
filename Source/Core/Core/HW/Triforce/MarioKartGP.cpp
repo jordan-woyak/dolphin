@@ -10,33 +10,37 @@
 namespace TriforcePeripheral
 {
 
-MarioKartGP::MarioKartGP()
-{
-  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext& ctx) {
-    // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 1, 15, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 0, 0}));
+MarioKartGP::MarioKartGP() = default;
 
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CardSystem, 1, 0, 0}));
-    ctx.message.AddData(
+JVSIOReportCode MarioKartGP::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+{
+  switch (cmd)
+  {
+  case JVSIOCommand::FeatureCheck:
+  {  // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 1, 15, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 0, 0}));
+
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CardSystem, 1, 0, 0}));
+    ctx->message.AddData(
         Common::AsU8Span(ClientFeatureSpec{ClientFeature::GeneralPurposeOutput, 1, 0, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
 
     return JVSIOReportCode::Normal;
-  });
-
+  }
   // The lamps are controlled via this
-  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [](JVSIOFrameContext& ctx) {
-    if (!ctx.request.HasCount(1))
+  case JVSIOCommand::GenericOutput1:
+  {
+    if (!ctx->request.HasCount(1))
       return JVSIOReportCode::ParameterSizeError;
 
-    const u8 byte_count = ctx.request.ReadByte();
+    const u8 byte_count = ctx->request.ReadByte();
 
-    if (!ctx.request.HasCount(byte_count))
+    if (!ctx->request.HasCount(byte_count))
       return JVSIOReportCode::ParameterSizeError;
 
-    const u8 status = ctx.request.ReadByte();
+    const u8 status = ctx->request.ReadByte();
 
     DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button {}",
                   (status & 0x04) ? "ON" : "OFF");
@@ -44,7 +48,10 @@ MarioKartGP::MarioKartGP()
                   (status & 0x08) ? "ON" : "OFF");
 
     return JVSIOReportCode::Normal;
-  });
+  }
+  default:
+    return Peripheral::HandleJVSIORequest(cmd, ctx);
+  }
 }
 
 u32 MarioKartGP::SerialA(std::span<const u8> data_in, std::span<u8> data_out)

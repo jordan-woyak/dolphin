@@ -8,10 +8,14 @@
 namespace TriforcePeripheral
 {
 
-GekitouProYakyuu::GekitouProYakyuu()
+GekitouProYakyuu::GekitouProYakyuu() = default;
+
+JVSIOReportCode GekitouProYakyuu::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
-  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
-    // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
+  switch (cmd)
+  {
+  case JVSIOCommand::FeatureCheck:
+  {  // 2 Player (13bit), 2 Coin slot, 4 Analog-in, 1 CARD, 8 Driver-out
     // ctx.message.AddData("\x01\x02\x0D\x00", 4);
     // ctx.message.AddData("\x02\x02\x00\x00", 4);
     // ctx.message.AddData("\x03\x04\x00\x00", 4);
@@ -20,7 +24,10 @@ GekitouProYakyuu::GekitouProYakyuu()
     // ctx.message.AddData("\x00\x00\x00\x00", 4);
 
     return JVSIOReportCode::Normal;
-  });
+  }
+  default:
+    return Peripheral::HandleJVSIORequest(cmd, ctx);
+  }
 }
 
 u32 GekitouProYakyuu::SerialA(std::span<const u8> data_in, std::span<u8> data_out)

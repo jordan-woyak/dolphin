@@ -16,37 +16,41 @@
 namespace TriforcePeripheral
 {
 
-FZeroAXCommon::FZeroAXCommon()
+FZeroAXCommon::FZeroAXCommon() = default;
+
+JVSIOReportCode FZeroAXCommon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
-  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
-    // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 12, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 6, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
+  switch (cmd)
+  {
+  case JVSIOCommand::FeatureCheck:
+  {  // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 12, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 6, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
 
     // DX Version: 2 Player (22bit) (p2=paddles), 2 Coin slot, 8 Analog-in,
     // 22 Driver-out
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 18, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 2, 0, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 8, 10, 0}));
-    ctx.message.AddData(
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 18, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 2, 0, 0}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 8, 10, 0}));
+    ctx->message.AddData(
         Common::AsU8Span(ClientFeatureSpec{ClientFeature::GeneralPurposeOutput, 16, 0, 0}));
-    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
+    ctx->message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
 
     return JVSIOReportCode::Normal;
-  });
-
-  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [this](JVSIOFrameContext& ctx) {
-    if (!ctx.request.HasCount(1))
+  }
+  case JVSIOCommand::GenericOutput1:
+  {
+    if (!ctx->request.HasCount(1))
       return JVSIOReportCode::ParameterSizeError;
 
-    const u8 byte_count = ctx.request.ReadByte();
+    const u8 byte_count = ctx->request.ReadByte();
 
-    if (!ctx.request.HasCount(byte_count))
+    if (!ctx->request.HasCount(byte_count))
       return JVSIOReportCode::ParameterSizeError;
 
-    ctx.request.Skip(byte_count);
+    ctx->request.Skip(byte_count);
 
     // Handling of the motion seat used in F-Zero AXs DX version
     // const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
@@ -71,23 +75,31 @@ FZeroAXCommon::FZeroAXCommon()
     // }
 
     return JVSIOReportCode::Normal;
-  });
+  }
+  default:
+    return Peripheral::HandleJVSIORequest(cmd, ctx);
+  }
 }
 
-FZeroAX::FZeroAX()
+FZeroAX::FZeroAX() = default;
+
+JVSIOReportCode FZeroAX::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
-  // TODO: consolodate the common functionality of this..
-  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext& ctx) {
-    ctx.message.AddData(
+  switch (cmd)
+  {
+  case JVSIOCommand::IOIdentify:
+  {
+    ctx->message.AddData(
         Common::AsU8Span(std::span{"SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;"}));
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
     return JVSIOReportCode::Normal;
-  });
+  }
+  default:
+    return FZeroAXCommon::HandleJVSIORequest(cmd, ctx);
+  }
 }
 
-FZeroAXMonster::FZeroAXMonster()
-{
-}
+FZeroAXMonster::FZeroAXMonster() = default;
 
 u32 FZeroAXCommon::SerialA(std::span<const u8> data_in, std::span<u8> data_out)
 {
