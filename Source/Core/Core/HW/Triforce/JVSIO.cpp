@@ -89,15 +89,15 @@ void JVSIOMessage::End()
 namespace TriforcePeripheral
 {
 
-void JVSClient::ProcessJVSIO(std::span<const u8> marked_data)
+u32 JVSClient::ProcessJVSIO(std::span<const u8> input)
 {
   std::array<u8, 3 + 256> buffer;
-  auto data = UnMarkData(marked_data, buffer);
+  auto data = UnescapeData(input, buffer);
 
   if (data.size() < 4)
   {
     ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad Size");
-    return;
+    return 0;
   }
 
   if (data[0] != JVSIO_SYNC)
@@ -111,7 +111,7 @@ void JVSClient::ProcessJVSIO(std::span<const u8> marked_data)
   if (data.size() - 3 < byte_count)
   {
     ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad size");
-    return;
+    return 0;
   }
 
   const auto range_to_checksum = data.subspan(1, byte_count - 1);
@@ -121,19 +121,21 @@ void JVSClient::ProcessJVSIO(std::span<const u8> marked_data)
   if (proper_checksum != data[byte_count + 3])
   {
     ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad checksum");
-    return;
+    return 0;
   }
 
   if (destination_node == m_client_address || destination_node == JVSIO_BROADCAST_ADDRESS)
   {
-    ProcessFrame(marked_data.subspan(3, byte_count));
+    ProcessFrame(data.subspan(3, byte_count));
 
     // TODO: also send to daisy chained clients
   }
 }
 
-std::span<u8> JVSClient::UnMarkData(std::span<const u8> input, std::span<u8> output)
+std::span<u8> JVSClient::UnescapeData(std::span<const u8> input, std::span<u8> output)
 {
+  // TODO: Stop after count bytes..
+
   auto out = output.begin();
   u8 mark_state = 0x00;
   for (const u8 byte_value : input)

@@ -27,14 +27,12 @@ Peripheral::Peripheral()
   });
 
   SetJVSIOHandler(JVSIOCommand::JVSRevision, [](JVSIOFrameContext ctx) {
-    ctx.message.AddData(StatusOkay);
     ctx.message.AddData(0x20);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x12, JVRevision");
     return JVSIOReportCode::Normal;
   });
 
   SetJVSIOHandler(JVSIOCommand::CommVersion, [](JVSIOFrameContext ctx) {
-    ctx.message.AddData(StatusOkay);
     ctx.message.AddData(0x10);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x13, CommunicationVersion");
     return JVSIOReportCode::Normal;
@@ -86,8 +84,8 @@ Peripheral::Peripheral()
 
     m_coin[slot] += (coinh << 8) | coinl;
 
-    ctx.message.AddData(StatusOkay);
     DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x35, CoinAddOutput: {}", slot);
+    return JVSIOReportCode::Normal;
   });
 
   SetJVSIOHandler(JVSIOCommand::NAMCOCommand, [](JVSIOFrameContext ctx) {

@@ -23,13 +23,13 @@ private:
   int m_delay = 0;
 };
 
-class FZeroAX final : FZeroAXCommon
+class FZeroAX final : public FZeroAXCommon
 {
 public:
   FZeroAX();
 };
 
-class FZeroAXMonster final : FZeroAXCommon
+class FZeroAXMonster final : public FZeroAXCommon
 {
 public:
   FZeroAXMonster();

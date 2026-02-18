@@ -93,7 +93,17 @@ namespace TriforcePeripheral
 class JVSClient
 {
 public:
-  void ProcessJVSIO(std::span<const u8> data);
+  // Returns the number of read bytes.
+  u32 ProcessJVSIO(std::span<const u8> input);
+
+  // struct FrameReader
+  // {
+  //   bool HasByte() const;
+  //   u8 ReadNextByte();
+
+  //   // TODO: Private:
+  //   std::span<const u8> data;
+  // };
 
   struct JVSIOFrameContext
   {
@@ -106,7 +116,7 @@ public:
   void SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler);
 
 private:
-  std::span<u8> UnMarkData(std::span<const u8> input, std::span<u8> output);
+  std::span<u8> UnescapeData(std::span<const u8> input, std::span<u8> output);
   void ProcessFrame(std::span<const u8> data);
 
   std::array<JVSIOMessageHandler, 0x100> m_handlers;
