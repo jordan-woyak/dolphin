@@ -18,39 +18,21 @@ namespace TriforcePeripheral
 
 FZeroAXCommon::FZeroAXCommon()
 {
-  // TODO: Document this better
-  // Client features:
-  //
-  // Inputs:
-  // 0x01: Switch input:  players,  buttons
-  // 0x02: Coin input:    slots
-  // 0x03: Analog input:  channels, bits
-  // 0x04: Rotary input: channels
-  // 0x05: Keycode input: 0,0,0 ?
-  // 0x06: Screen position input: X bits, Y bits, channels
-  //
-  // Outputs:
-  // 0x10: Card system: slots
-  // 0x11: Medal hopper: channels
-  // 0x12: GPO-out: slots
-  // 0x13: Analog output: channels
-  // 0x14: Character output: width, height, type
-  // 0x15: Backup
-  //
   SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
     // 2 Player (12bit) (p2=paddles), 1 Coin slot, 6 Analog-in
-    // message.AddData((void *)"\x01\x02\x0C\x00", 4);
-    // message.AddData((void *)"\x02\x01\x00\x00", 4);
-    // message.AddData((void *)"\x03\x06\x00\x00", 4);
-    // message.AddData((void *)"\x00\x00\x00\x00", 4);
-    //
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 12, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 6, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
+
     // DX Version: 2 Player (22bit) (p2=paddles), 2 Coin slot, 8 Analog-in,
     // 22 Driver-out
-    // ctx.message.AddData("\x01\x02\x12\x00", 4);
-    // ctx.message.AddData("\x02\x02\x00\x00", 4);
-    // ctx.message.AddData("\x03\x08\x0A\x00", 4);
-    // ctx.message.AddData("\x12\x16\x00\x00", 4);
-    // ctx.message.AddData("\x00\x00\x00\x00", 4);
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 2, 18, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 2, 0, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 8, 10, 0}));
+    ctx.message.AddData(
+        Common::AsU8Span(ClientFeatureSpec{ClientFeature::GeneralPurposeOutput, 16, 0, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
 
     return JVSIOReportCode::Normal;
   });

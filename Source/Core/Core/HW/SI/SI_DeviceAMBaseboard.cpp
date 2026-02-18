@@ -97,7 +97,7 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
 constexpr u32 SI_XFER_LENGTH_MASK = 0x7f;
 
 // Translate [0,1,2,...,126,127] to [128,1,2,...,126,127]
-constexpr s32 ConvertSILengthField(u32 field)
+static constexpr s32 ConvertSILengthField(u32 field)
 {
   return ((field - 1) & SI_XFER_LENGTH_MASK) + 1;
 }
@@ -327,19 +327,16 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
         break;
       const u32 length = *data_in++;
 
-      if (length)
-      {
-        if (!validate_data_in_out(length, 0, "SerialA"))
-          break;
+      if (!validate_data_in_out(length, 0, "SerialA"))
+        break;
 
-        // INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31, length=0x{:02x}, hexdump:\n{}",
-        //              length, HexDump(data_in, length));
+      // INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31, length=0x{:02x}, hexdump:\n{}",
+      //              length, HexDump(data_in, length));
 
-        const u32 written = m_peripheral->SerialA(std::span{data_in, data_in_end},
-                                                  std::span{data_out}.subspan(data_offset));
-        data_in += length;
-        data_offset += written;
-      }
+      const u32 written = m_peripheral->SerialA(std::span{data_in, data_in_end},
+                                                std::span{data_out}.subspan(data_offset));
+      data_in += length;
+      data_offset += written;
 
       // TODO: Is this some non-response ?
       // if (serial_command == 0x801000)

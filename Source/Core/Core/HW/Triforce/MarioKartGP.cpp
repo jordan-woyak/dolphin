@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/HW/Triforce/MarioKartGP.h"
+#include "Common/BitUtils.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/System.h"
@@ -13,12 +14,14 @@ MarioKartGP::MarioKartGP()
 {
   SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext& ctx) {
     // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
-    // ctx.message.AddData("\x01\x01\x0F\x00", 4);
-    // ctx.message.AddData("\x02\x01\x00\x00", 4);
-    // ctx.message.AddData("\x03\x03\x00\x00", 4);
-    // ctx.message.AddData("\x10\x01\x00\x00", 4);
-    // ctx.message.AddData("\x12\x01\x00\x00", 4);
-    // ctx.message.AddData("\x00\x00\x00\x00", 4);
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::SwitchInput, 1, 15, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CoinInput, 1, 0, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::AnalogInput, 3, 0, 0}));
+
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{ClientFeature::CardSystem, 1, 0, 0}));
+    ctx.message.AddData(
+        Common::AsU8Span(ClientFeatureSpec{ClientFeature::GeneralPurposeOutput, 1, 0, 0}));
+    ctx.message.AddData(Common::AsU8Span(ClientFeatureSpec{}));
 
     return JVSIOReportCode::Normal;
   });

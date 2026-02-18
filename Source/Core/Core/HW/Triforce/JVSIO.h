@@ -88,6 +88,24 @@ enum class JVSIOCommand : u8
   CommMethodChange = 0xf2,
 };
 
+enum class ClientFeature : u8
+{
+  SwitchInput = 0x01,          // players, buttons, 0
+  CoinInput = 0x02,            // slots, 0, 0
+  AnalogInput = 0x03,          // channels, bits, 0
+  RotaryInput = 0x04,          // channels, 0, 0
+  KeycodeInput = 0x05,         // 0, 0, 0
+  ScreenPositionInput = 0x06,  // X-bits, Y-bits, channels
+  MiscSwitchInput = 0x07,      // SW-MSB, SW-LSB, 0
+
+  CardSystem = 0x10,            // slots, 0, 0
+  MedalHopper = 0x11,           // channels, 0, 0
+  GeneralPurposeOutput = 0x12,  // slots, 0, 0
+  AnalogOutput = 0x13,          // channels, 0, 0
+  CharacterOutput = 0x14,       // width, height, type
+  Backup = 0x15,                // 0, 0, 0
+};
+
 namespace TriforcePeripheral
 {
 
@@ -96,6 +114,14 @@ class JVSClient
 public:
   // Returns the number of read bytes.
   u32 ProcessJVSIO(std::span<const u8> input);
+
+  struct ClientFeatureSpec
+  {
+    ClientFeature feature;
+    u8 param_a;
+    u8 param_b;
+    u8 param_c;
+  };
 
   struct FrameReader
   {
