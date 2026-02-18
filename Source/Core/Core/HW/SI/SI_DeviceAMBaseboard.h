@@ -56,24 +56,15 @@ private:
   {
     StatusSwitches = 0x10,
     SerialNumber = 0x11,
-    Unknown_12 = 0x12,
-    Unknown_14 = 0x14,
     FirmVersion = 0x15,
     FPGAVersion = 0x16,
     RegionSettings = 0x1F,
-
-    Unknown_21 = 0x21,
-    Unknown_22 = 0x22,
-    Unknown_23 = 0x23,
-    Unknown_24 = 0x24,
 
     SerialA = 0x31,
     SerialB = 0x32,
 
     JVSIOA = 0x40,
     JVSIOB = 0x41,
-
-    Unknown_60 = 0x60,
   };
 
   static constexpr u32 STANDARD_RESPONSE_SIZE = 0x80;

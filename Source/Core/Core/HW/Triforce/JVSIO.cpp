@@ -38,11 +38,11 @@ u32 JVSIOBoard::ProcessJVSIO(std::span<const u8> input)
     return 0;
   }
 
-  const auto range_to_checksum = std::span{buffer}.subspan(1, payload_size - 1);
+  const auto range_to_checksum = std::span{buffer}.subspan(1, payload_size + 1);
   const u8 proper_checksum =
       std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8(0));
 
-  if (proper_checksum != buffer[payload_size + 3])
+  if (proper_checksum != buffer[payload_size + 2])
   {
     ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "Bad checksum");
     return 0;
