@@ -14,13 +14,13 @@ KeyOfAvalon::KeyOfAvalon()
   SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
     // 1 Player (15bit), 1 Coin slot, 3 Analog-in, Touch, 1 CARD, 1 Driver-out
     // (Unconfirmed)
-    ctx.message.AddData("\x01\x01\x0F\x00", 4);
-    ctx.message.AddData("\x02\x01\x00\x00", 4);
-    ctx.message.AddData("\x03\x03\x00\x00", 4);
-    ctx.message.AddData("\x06\x10\x10\x01", 4);
-    ctx.message.AddData("\x10\x01\x00\x00", 4);
-    ctx.message.AddData("\x12\x01\x00\x00", 4);
-    ctx.message.AddData("\x00\x00\x00\x00", 4);
+    // ctx.message.AddData("\x01\x01\x0F\x00", 4);
+    // ctx.message.AddData("\x02\x01\x00\x00", 4);
+    // ctx.message.AddData("\x03\x03\x00\x00", 4);
+    // ctx.message.AddData("\x06\x10\x10\x01", 4);
+    // ctx.message.AddData("\x10\x01\x00\x00", 4);
+    // ctx.message.AddData("\x12\x01\x00\x00", 4);
+    // ctx.message.AddData("\x00\x00\x00\x00", 4);
 
     return JVSIOReportCode::Normal;
   });

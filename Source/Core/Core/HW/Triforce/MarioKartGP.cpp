@@ -11,37 +11,34 @@ namespace TriforcePeripheral
 
 MarioKartGP::MarioKartGP()
 {
-  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::FeatureCheck, [](JVSIOFrameContext& ctx) {
     // 1 Player (15bit), 1 Coin slot, 3 Analog-in, 1 CARD, 1 Driver-out
-    ctx.message.AddData("\x01\x01\x0F\x00", 4);
-    ctx.message.AddData("\x02\x01\x00\x00", 4);
-    ctx.message.AddData("\x03\x03\x00\x00", 4);
-    ctx.message.AddData("\x10\x01\x00\x00", 4);
-    ctx.message.AddData("\x12\x01\x00\x00", 4);
-    ctx.message.AddData("\x00\x00\x00\x00", 4);
+    // ctx.message.AddData("\x01\x01\x0F\x00", 4);
+    // ctx.message.AddData("\x02\x01\x00\x00", 4);
+    // ctx.message.AddData("\x03\x03\x00\x00", 4);
+    // ctx.message.AddData("\x10\x01\x00\x00", 4);
+    // ctx.message.AddData("\x12\x01\x00\x00", 4);
+    // ctx.message.AddData("\x00\x00\x00\x00", 4);
 
     return JVSIOReportCode::Normal;
   });
 
   // The lamps are controlled via this
-  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [](JVSIOFrameContext ctx) {
-    const u32 status = *jvs_io++;
-    if (status & 4)
-    {
-      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button ON");
-    }
-    else
-    {
-      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button OFF");
-    }
-    if (status & 8)
-    {
-      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button ON");
-    }
-    else
-    {
-      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button OFF");
-    }
+  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
+
+    const u8 byte_count = ctx.request.ReadByte();
+
+    if (!ctx.request.HasCount(byte_count))
+      return JVSIOReportCode::ParameterSizeError;
+
+    const u8 status = ctx.request.ReadByte();
+
+    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button {}",
+                  (status & 0x04) ? "ON" : "OFF");
+    DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button {}",
+                  (status & 0x08) ? "ON" : "OFF");
 
     return JVSIOReportCode::Normal;
   });

@@ -56,20 +56,19 @@ void JVSIOMessage::AddData(const u8* dst, std::size_t len, int sync = 0)
   }
 }
 
-void JVSIOMessage::AddData(const void* data, std::size_t len)
-{
-  AddData(static_cast<const u8*>(data), len);
-}
+// void JVSIOMessage::AddData(const void* data, std::size_t len)
+// {
+//   AddData(static_cast<const u8*>(data), len);
+// }
 
-void JVSIOMessage::AddData(const char* data)
-{
-  AddData(data, strlen(data));
-}
+// void JVSIOMessage::AddData(const char* data)
+// {
+//   AddData(data, strlen(data));
+// }
 
-void JVSIOMessage::AddData(u32 n)
+void JVSIOMessage::AddData(u8 n)
 {
-  const u8 cs = n;
-  AddData(&cs, 1);
+  AddData(&n, 1);
 }
 
 void JVSIOMessage::End()

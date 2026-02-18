@@ -20,9 +20,10 @@ class JVSIOMessage
 public:
   void Start(int node);
   void AddData(const u8* dst, std::size_t len, int sync);
-  void AddData(const void* data, std::size_t len);
-  void AddData(const char* data);
-  void AddData(u32 n);
+  void AddData(std::span<const u8> data);
+  // void AddData(const void* data, std::size_t len);
+  // void AddData(const char* data);
+  void AddData(u8 n);
   void End();
 
   u32 m_pointer = 0;
@@ -96,22 +97,25 @@ public:
   // Returns the number of read bytes.
   u32 ProcessJVSIO(std::span<const u8> input);
 
-  // struct FrameReader
-  // {
-  //   bool HasByte() const;
-  //   u8 ReadNextByte();
+  struct FrameReader
+  {
+    bool HasCount(u32 count) const { return m_data_end - m_data >= count; }
 
-  //   // TODO: Private:
-  //   std::span<const u8> data;
-  // };
+    u8 ReadByte() { return *(m_data++); }
+    void Skip(u32 count) { m_data += count; }
+
+    // TODO: private
+    u8* m_data;
+    u8* m_data_end;
+  };
 
   struct JVSIOFrameContext
   {
-    std::vector<u8> request;
+    FrameReader request;
     JVSIOMessage message;
   };
 
-  using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext)>;
+  using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext&)>;
 
   void SetJVSIOHandler(JVSIOCommand, JVSIOMessageHandler);
 

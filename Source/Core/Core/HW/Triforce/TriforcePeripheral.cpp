@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Core/HW/Triforce/TriforcePeripheral.h"
+#include "Common/BitUtils.h"
 #include "Core/HW/GCPad.h"
 #include "InputCommon/GCPadStatus.h"
 
@@ -12,47 +13,49 @@ Peripheral::Peripheral()
 {
   // TODO: consolodate the common functionality of this..
   // Note: Immediately overwritten by derived classes.. sloppy.
-  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext ctx) {
-    ctx.message.AddData("namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder");
-    ctx.message.AddData((u32)0);
+  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext& ctx) {
+    ctx.message.AddData(
+        Common::AsU8Span(std::span{"namco ltd.;FCA-1;Ver1.01;JPN,Multipurpose + Rotary Encoder"}));
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
 
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::CommandRevision, [](JVSIOFrameContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::CommandRevision, [](JVSIOFrameContext& ctx) {
     ctx.message.AddData(0x11);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x11, CommandRevision");
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::JVSRevision, [](JVSIOFrameContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::JVSRevision, [](JVSIOFrameContext& ctx) {
     ctx.message.AddData(0x20);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x12, JVRevision");
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::CommVersion, [](JVSIOFrameContext ctx) {
+  SetJVSIOHandler(JVSIOCommand::CommVersion, [](JVSIOFrameContext& ctx) {
     ctx.message.AddData(0x10);
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x13, CommunicationVersion");
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::MainID, [](JVSIOFrameContext ctx) {
-    const u8* const main_id = jvs_io;
-    while (jvs_io < jvs_end && *jvs_io++)
-    {
-    }
-    if (main_id < jvs_io)
-    {
-      DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command MainId:\n{}",
-                    HexDump(main_id, jvs_io - main_id));
-    }
+  SetJVSIOHandler(JVSIOCommand::MainID, [](JVSIOFrameContext& ctx) {
+    const auto null_termination = std::find(ctx.request.m_data, ctx.request.m_data_end, u8{});
+    if (null_termination == ctx.request.m_data_end)
+      return JVSIOReportCode::ParameterDataError;
+
+    std::string_view main_id_str{reinterpret_cast<const char*>(ctx.request.m_data),
+                                 reinterpret_cast<const char*>(null_termination)};
+    ctx.request.m_data = null_termination;
+
+    INFO_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command MainId: {}", main_id_str);
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::CoinCounterDec, [this](JVSIOFrameContext ctx) {
-    const u32 slots = *jvs_io++;
+  SetJVSIOHandler(JVSIOCommand::CoinCounterDec, [this](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
+    const u32 slots = ctx.request.ReadByte();
     static_assert(std::tuple_size<decltype(m_coin)>{} == 2 &&
                   std::tuple_size<decltype(m_coin_pressed)>{} == 2);
     if (slots > 2)
@@ -77,10 +80,13 @@ Peripheral::Peripheral()
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::CoinCounterInc, [this](JVSIOFrameContext ctx) {
-    const u32 slot = *jvs_io++;
-    const u8 coinh = *jvs_io++;
-    const u8 coinl = *jvs_io++;
+  SetJVSIOHandler(JVSIOCommand::CoinCounterInc, [this](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(3))
+      return JVSIOReportCode::ParameterSizeError;
+
+    const u32 slot = ctx.request.ReadByte();
+    const u8 coinh = ctx.request.ReadByte();
+    const u8 coinl = ctx.request.ReadByte();
 
     m_coin[slot] += (coinh << 8) | coinl;
 
@@ -88,26 +94,33 @@ Peripheral::Peripheral()
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::NAMCOCommand, [](JVSIOFrameContext ctx) {
-    const u32 namco_command = *jvs_io++;
+  SetJVSIOHandler(JVSIOCommand::NAMCOCommand, [](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
+    const u32 namco_command = ctx.request.ReadByte();
 
     if (namco_command == 0x18)
     {
-      // ID check
-      jvs_io += 4;
+      if (!ctx.request.HasCount(4))
+        return JVSIOReportCode::ParameterSizeError;
+      ctx.request.Skip(4);
 
       ctx.message.AddData(0xff);
     }
     else
     {
       ERROR_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Unknown:{:02x}", namco_command);
+      return JVSIOReportCode::ParameterDataError;
     }
 
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::Reset, [this](JVSIOFrameContext ctx) {
-    if (*jvs_io++ == 0xD9)
+  SetJVSIOHandler(JVSIOCommand::Reset, [this](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
+
+    if (ctx.request.ReadByte() == 0xd9)
     {
       NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF0, Reset");
       // TODO:
@@ -121,8 +134,11 @@ Peripheral::Peripheral()
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::SetAddress, [this](JVSIOFrameContext ctx) {
-    u8 node = *jvs_io++;
+  SetJVSIOHandler(JVSIOCommand::SetAddress, [this](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
+
+    const u8 node = ctx.request.ReadByte();
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0xF1, SetAddress: node={}", node);
     ctx.message.AddData(node == 1);
     m_dip_switch_1 &= ~1u;

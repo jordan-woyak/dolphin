@@ -3,6 +3,7 @@
 
 #include "Core/HW/Triforce/FZeroAX.h"
 
+#include "Common/BitUtils.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
@@ -45,37 +46,47 @@ FZeroAXCommon::FZeroAXCommon()
     //
     // DX Version: 2 Player (22bit) (p2=paddles), 2 Coin slot, 8 Analog-in,
     // 22 Driver-out
-    ctx.message.AddData("\x01\x02\x12\x00", 4);
-    ctx.message.AddData("\x02\x02\x00\x00", 4);
-    ctx.message.AddData("\x03\x08\x0A\x00", 4);
-    ctx.message.AddData("\x12\x16\x00\x00", 4);
-    ctx.message.AddData("\x00\x00\x00\x00", 4);
+    // ctx.message.AddData("\x01\x02\x12\x00", 4);
+    // ctx.message.AddData("\x02\x02\x00\x00", 4);
+    // ctx.message.AddData("\x03\x08\x0A\x00", 4);
+    // ctx.message.AddData("\x12\x16\x00\x00", 4);
+    // ctx.message.AddData("\x00\x00\x00\x00", 4);
 
     return JVSIOReportCode::Normal;
   });
 
-  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [this](JVSIOFrameContext ctx) {
-    // Handling of the motion seat used in F-Zero AXs DX version
-    const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
-    jvs_io += bytes;
+  SetJVSIOHandler(JVSIOCommand::GenericOutput1, [this](JVSIOFrameContext& ctx) {
+    if (!ctx.request.HasCount(1))
+      return JVSIOReportCode::ParameterSizeError;
 
-    switch (seat_state)
-    {
-    case 0x70:
-      m_delay++;
-      if ((m_delay % 10) == 0)
-      {
-        m_rx_reply = 0xFB;
-      }
-      break;
-    case 0xF0:
-      m_rx_reply = 0xF0;
-      break;
-    default:
-    case 0xA0:
-    case 0x60:
-      break;
-    }
+    const u8 byte_count = ctx.request.ReadByte();
+
+    if (!ctx.request.HasCount(byte_count))
+      return JVSIOReportCode::ParameterSizeError;
+
+    ctx.request.Skip(byte_count);
+
+    // Handling of the motion seat used in F-Zero AXs DX version
+    // const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
+    // jvs_io += bytes;
+
+    // switch (seat_state)
+    // {
+    // case 0x70:
+    //   m_delay++;
+    //   if ((m_delay % 10) == 0)
+    //   {
+    //     m_rx_reply = 0xFB;
+    //   }
+    //   break;
+    // case 0xF0:
+    //   m_rx_reply = 0xF0;
+    //   break;
+    // default:
+    // case 0xA0:
+    // case 0x60:
+    //   break;
+    // }
 
     return JVSIOReportCode::Normal;
   });
@@ -84,11 +95,10 @@ FZeroAXCommon::FZeroAXCommon()
 FZeroAX::FZeroAX()
 {
   // TODO: consolodate the common functionality of this..
-  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext ctx) {
-    ctx.message.AddData("SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;");
-    ctx.message.AddData((u32)0);
+  SetJVSIOHandler(JVSIOCommand::IOIdentify, [](JVSIOFrameContext& ctx) {
+    ctx.message.AddData(
+        Common::AsU8Span(std::span{"SEGA ENTERPRISES,LTD.;837-13844-01 I/O CNTL BD2 ;"}));
     NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 0x10, BoardID");
-
     return JVSIOReportCode::Normal;
   });
 }
