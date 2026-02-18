@@ -131,7 +131,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
   while (buffer_position < buffer_length)
   {
     const auto bb_command = static_cast<BaseBoardCommand>(buffer[buffer_position]);
-    ++buffer_position;
 
     switch (bb_command)
     {
@@ -143,13 +142,24 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
     }
     case BaseBoardCommand::GCAM_Command:
     {
-      const u8 command_length = buffer[buffer_position];
-      ++buffer_position;
+      // [70][size][command][params][command][params]...[checksum]
+
+      const u8 command_length = buffer[buffer_position + 1];
+      const u8 read_checksum = buffer[buffer_position + command_length];
+
+      const auto range_to_checksum = std::span{buffer + buffer_position, command_length};
+      const auto proper_checksum =
+          std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8(), std::plus{});
+
+      if (read_checksum != proper_checksum)
+        WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
+
+      buffer_position += 2;
 
       std::array<u8, 0x80> data_out{};
 
       const u32 out_length =
-          RunGCAMBuffer(std::span{buffer + buffer_position, command_length}, data_out);
+          RunGCAMBuffer(std::span(buffer + buffer_position, command_length - 2), data_out);
 
       buffer_position += out_length;
 
@@ -158,7 +168,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
     default:
     {
       ERROR_LOG_FMT(SERIALINTERFACE, "Unknown SI command (0x{:08x})", u8(bb_command));
-      PanicAlertFmt("SI: Unknown command");
       buffer_position = buffer_length;
       break;
     }
@@ -173,7 +182,7 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
 
   while (data_in != input.end())
   {
-    const u32 gcam_command = *data_in++;
+    const u8 gcam_command = *data_in++;
     switch (GCAMCommand(gcam_command))
     {
     case GCAMCommand::StatusSwitches:
