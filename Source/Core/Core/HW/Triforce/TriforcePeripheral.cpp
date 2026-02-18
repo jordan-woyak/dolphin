@@ -15,7 +15,7 @@ std::pair<u8, u8> Peripheral::GetDipSwitches() const
   return {m_dip_switch_0, m_dip_switch_1};
 }
 
-JVSIOReportCode Peripheral::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode Peripheral::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   // Vendor-specific commands:
   static constexpr auto NAMCO_COMMAND = JVSIOCommand(0x70);

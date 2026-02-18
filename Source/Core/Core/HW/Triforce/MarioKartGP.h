@@ -17,7 +17,7 @@ public:
   u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out) override;
 
 protected:
-  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
+  JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
 private:
   u32 m_wheel_init = 0;

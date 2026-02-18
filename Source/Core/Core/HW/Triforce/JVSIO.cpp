@@ -151,7 +151,7 @@ bool JVSIOBoard::ProcessFrame(std::span<const u8> frame)
     ctx.message.StartReport();
 
     const auto cmd = JVSIOCommand(ctx.request.ReadByte());
-    const auto report_code = HandleJVSIORequest(cmd, &ctx);
+    const auto report_code = HandleJVSCommand(cmd, &ctx);
 
     ctx.message.SetLastReportCode(report_code);
 

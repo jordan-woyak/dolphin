@@ -12,7 +12,7 @@ namespace TriforcePeripheral
 
 MarioKartGP::MarioKartGP() = default;
 
-JVSIOReportCode MarioKartGP::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode MarioKartGP::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -50,7 +50,7 @@ JVSIOReportCode MarioKartGP::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameCont
     return JVSIOReportCode::Normal;
   }
   default:
-    return Peripheral::HandleJVSIORequest(cmd, ctx);
+    return Peripheral::HandleJVSCommand(cmd, ctx);
   }
 }
 

@@ -9,7 +9,7 @@ namespace TriforcePeripheral
 
 VirtuaStrikerCommon::VirtuaStrikerCommon() = default;
 
-JVSIOReportCode VirtuaStrikerCommon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode VirtuaStrikerCommon::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -22,13 +22,13 @@ JVSIOReportCode VirtuaStrikerCommon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOF
     return JVSIOReportCode::Normal;
   }
   default:
-    return Peripheral::HandleJVSIORequest(cmd, ctx);
+    return Peripheral::HandleJVSCommand(cmd, ctx);
   }
 }
 
 VirtuaStriker3::VirtuaStriker3() = default;
 
-JVSIOReportCode VirtuaStriker3::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode VirtuaStriker3::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -43,13 +43,13 @@ JVSIOReportCode VirtuaStriker3::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameC
     return JVSIOReportCode::Normal;
   }
   default:
-    return VirtuaStrikerCommon::HandleJVSIORequest(cmd, ctx);
+    return VirtuaStrikerCommon::HandleJVSCommand(cmd, ctx);
   }
 }
 
 VirtuaStriker4::VirtuaStriker4() = default;
 
-JVSIOReportCode VirtuaStriker4::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode VirtuaStriker4::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   //   m_ic_card_data[0x22] = 0x44;
   //   m_ic_card_data[0x23] = 0x00;
@@ -67,7 +67,7 @@ JVSIOReportCode VirtuaStriker4::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameC
     return JVSIOReportCode::Normal;
   }
   default:
-    return VirtuaStrikerCommon::HandleJVSIORequest(cmd, ctx);
+    return VirtuaStrikerCommon::HandleJVSCommand(cmd, ctx);
   }
 }
 

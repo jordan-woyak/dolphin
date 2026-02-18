@@ -32,7 +32,7 @@ public:
   virtual void DoState(PointerWrap& p);
 
 protected:
-  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
+  JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
 private:
   void AdjustCoins(u8 slot, s32 adjustment);

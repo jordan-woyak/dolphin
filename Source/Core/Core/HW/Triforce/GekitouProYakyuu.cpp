@@ -10,7 +10,7 @@ namespace TriforcePeripheral
 
 GekitouProYakyuu::GekitouProYakyuu() = default;
 
-JVSIOReportCode GekitouProYakyuu::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode GekitouProYakyuu::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -26,7 +26,7 @@ JVSIOReportCode GekitouProYakyuu::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFram
     return JVSIOReportCode::Normal;
   }
   default:
-    return Peripheral::HandleJVSIORequest(cmd, ctx);
+    return Peripheral::HandleJVSCommand(cmd, ctx);
   }
 }
 

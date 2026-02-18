@@ -390,18 +390,12 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
     case GCAMCommand::JVSIOB:
     {
       // JVSIOMessage message;
-
-      const u8* const frame = &data_in[0];
-      // const u8 nr_bytes = frame[3];  // Byte after E0 xx
-      //  u32 frame_len = nr_bytes + 3;  // Header(2) + length byte + payload + checksum
-
-      const auto written = m_peripheral->ProcessJVSIO({data_in, data_in_end});
-
-      const u32 in_size = frame[0] + 1;
+      const auto in_size = m_peripheral->ProcessJVSIO({data_in, data_in_end});
       data_in += in_size;
 
-      const u8 out_length = 0;
-
+      const auto& response = m_peripheral->GetJVSIOResponse();
+      std::ranges::copy(response, data_out.data() + data_offset);
+      data_offset += response.size();
       break;
     }
     case GCAMCommand::Unknown_60:
@@ -431,6 +425,8 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
     data_out[gcam_command_offset] = gcam_command;
     data_out[gcam_command_offset + 1] = data_offset = gcam_command_offset;
   }
+
+  return data_offset;
 }
 
 DataResponse CSIDevice_AMBaseboard::GetData(u32&, u32&)

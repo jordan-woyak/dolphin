@@ -99,6 +99,8 @@ public:
   // Returns the number of read bytes.
   u32 ProcessJVSIO(std::span<const u8> input);
 
+  const auto& GetJVSIOResponse() const { return m_last_response; }
+
 protected:
   struct ClientFeatureSpec
   {
@@ -198,7 +200,7 @@ protected:
     ResponseWriter message;
   };
 
-  virtual JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) = 0;
+  virtual JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) = 0;
 
 private:
   // Returns read count.

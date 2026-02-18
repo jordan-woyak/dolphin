@@ -9,7 +9,7 @@ namespace TriforcePeripheral
 
 KeyOfAvalon::KeyOfAvalon() = default;
 
-JVSIOReportCode KeyOfAvalon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode KeyOfAvalon::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   //   m_ic_card_data[0x22] = 0x26;
   //   m_ic_card_data[0x23] = 0x40;
@@ -35,7 +35,7 @@ JVSIOReportCode KeyOfAvalon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameCont
     return JVSIOReportCode::Normal;
   }
   default:
-    return Peripheral::HandleJVSIORequest(cmd, ctx);
+    return Peripheral::HandleJVSCommand(cmd, ctx);
   }
 }
 

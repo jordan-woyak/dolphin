@@ -18,7 +18,7 @@ namespace TriforcePeripheral
 
 FZeroAXCommon::FZeroAXCommon() = default;
 
-JVSIOReportCode FZeroAXCommon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode FZeroAXCommon::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -77,13 +77,13 @@ JVSIOReportCode FZeroAXCommon::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameCo
     return JVSIOReportCode::Normal;
   }
   default:
-    return Peripheral::HandleJVSIORequest(cmd, ctx);
+    return Peripheral::HandleJVSCommand(cmd, ctx);
   }
 }
 
 FZeroAX::FZeroAX() = default;
 
-JVSIOReportCode FZeroAX::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx)
+JVSIOReportCode FZeroAX::HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx)
 {
   switch (cmd)
   {
@@ -95,7 +95,7 @@ JVSIOReportCode FZeroAX::HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext*
     return JVSIOReportCode::Normal;
   }
   default:
-    return FZeroAXCommon::HandleJVSIORequest(cmd, ctx);
+    return FZeroAXCommon::HandleJVSCommand(cmd, ctx);
   }
 }
 

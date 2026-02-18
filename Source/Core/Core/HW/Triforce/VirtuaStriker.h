@@ -15,7 +15,7 @@ public:
   VirtuaStrikerCommon();
 
 protected:
-  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
+  JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 };
 
 class VirtuaStriker3 final : public VirtuaStrikerCommon
@@ -24,7 +24,7 @@ public:
   VirtuaStriker3();
 
 protected:
-  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
+  JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 };
 
 // Handles both VirtuaStriker4 and VirtuaStriker4_2006.
@@ -36,7 +36,7 @@ public:
   u32 SerialA(std::span<const u8> data_in, std::span<u8> data_out) override;
 
 protected:
-  JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
+  JVSIOReportCode HandleJVSCommand(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
 private:
   ICCardReader m_ic_card_reader;
