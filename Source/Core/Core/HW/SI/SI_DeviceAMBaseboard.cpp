@@ -117,6 +117,8 @@ void CSIDevice_AMBaseboard::SwapBuffers(u8* buffer, u32* buffer_length)
 int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 {
   const auto& serial_interface = m_system.GetSerialInterface();
+
+  // TODO: Make these make sense..
   u32 buffer_length = ConvertSILengthField(serial_interface.GetInLength());
 
   // Debug logging
@@ -130,6 +132,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
   {
   case BaseBoardCommand::GCAM_Reset:  // Returns ID and dip switches
   {
+    // Request is just the 1 byte.
+
     const u32 id = Common::swap32(SI_AM_BASEBOARD | 0x100);
     std::memcpy(buffer, &id, sizeof(id));
     return sizeof(id);
