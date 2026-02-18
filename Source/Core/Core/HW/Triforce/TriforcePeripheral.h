@@ -35,6 +35,8 @@ protected:
   JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) override;
 
 private:
+  void AdjustCoins(u8 slot, s32 adjustment);
+
   u32 m_dip_switch_0 = 0xFF;
   u32 m_dip_switch_1 = 0xFE;
 

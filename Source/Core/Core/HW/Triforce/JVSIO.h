@@ -10,29 +10,11 @@
 
 #include "Common/CommonTypes.h"
 
+// "JAMMA Video Standard" I/O
+
 static constexpr u8 JVSIO_SYNC = 0xe0;
 static constexpr u8 JVSIO_MARK = 0xd0;
 static constexpr u8 JVSIO_BROADCAST_ADDRESS = 0xff;
-
-// "JAMMA Video Standard" I/O
-class JVSIOMessage
-{
-public:
-  void Start(int node);
-  void AddData(const u8* dst, std::size_t len, int sync);
-  void AddData(std::span<const u8> data);
-  // void AddData(const void* data, std::size_t len);
-  // void AddData(const char* data);
-  void AddData(u8 n);
-  void End();
-
-  u32 m_pointer = 0;
-  std::array<u8, 0x80> m_message;
-
-private:
-  u32 m_last_start = 0;
-  u32 m_checksum = 0;
-};
 
 enum class JVSIOStatusCode : u8
 {
@@ -136,28 +118,89 @@ protected:
     void Skip(u32 count) { m_data += count; }
 
     // TODO: private
+    const u8* m_data;
+    const u8* m_data_end;
+  };
+
+  struct ResponseWriter
+  {
+    friend JVSIOBoard;
+
+    void AddData(u8 value)
+    {
+      m_checksum += value;
+
+      if (m_data != m_data_end)
+        *(m_data++) = value;
+    }
+
+    void AddData(std::span<const u8> data)
+    {
+      for (u8 value : data)
+        AddData(value);
+    }
+
+  private:
+    void StartFrame(u8 node)
+    {
+      m_checksum = 0;
+      *(m_data++) = JVSIO_SYNC;
+      AddData(node);
+      AddData(0);  // Later becomes byte count.
+      AddData(u8(JVSIOStatusCode::Normal));
+    }
+
+    u32 EndFrame()
+    {
+      if (m_data == m_data_end)
+      {
+        // TODO: Set overflow error.
+        return 0;
+      }
+
+      // TODO: Fill in count.
+      *(m_data++) = m_checksum;
+
+      // TODO: Return size..
+      return 5;
+    }
+
+    void StartReport() { AddData(0); }
+
+    void SetLastReportCode(JVSIOReportCode code)
+    {
+      const u8 value = u8(code);
+      *m_last_report_code_index = value;
+      m_checksum += value;
+    }
+
     u8* m_data;
     u8* m_data_end;
+
+    u8 m_checksum = 0;
+
+    u8* m_last_report_code_index;
   };
 
   struct JVSIOFrameContext
   {
     FrameReader request;
-    JVSIOMessage message;
+    ResponseWriter message;
   };
 
   virtual JVSIOReportCode HandleJVSIORequest(JVSIOCommand cmd, JVSIOFrameContext* ctx) = 0;
 
-  // using JVSIOMessageHandler = std::function<JVSIOReportCode(JVSIOFrameContext&)>;
-
 private:
-  std::span<u8> UnescapeData(std::span<const u8> input, std::span<u8> output);
-  void ProcessFrame(std::span<const u8> data);
+  // Returns read count.
+  u32 UnescapeData(std::span<const u8> input, std::span<u8> output);
+
+  bool ProcessBroadcastFrame(std::span<const u8> frame);
+  bool ProcessFrame(std::span<const u8> frame);
 
   // 0 == address not yet assigned.
   u8 m_client_address = 0;
 
-  std::vector<u8> m_last_acknowledge;
+  std::vector<u8> m_last_response;
 };
 
 }  // namespace TriforcePeripheral

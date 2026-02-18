@@ -76,24 +76,6 @@ private:
     Unknown_60 = 0x60,
   };
 
-  // TODO: Eliminate..
-  enum CARDCommand
-  {
-    Init = 0x10,
-    GetState = 0x20,
-    Read = 0x33,
-    IsPresent = 0x40,
-    Write = 0x53,
-    SetPrintParam = 0x78,
-    RegisterFont = 0x7A,
-    WriteInfo = 0x7C,
-    Erase = 0x7D,
-    Eject = 0x80,
-    Clean = 0xA0,
-    Load = 0xB0,
-    SetShutter = 0xD0,
-  };
-
   static constexpr u32 STANDARD_RESPONSE_SIZE = 0x80;
 
   // Reply has to be delayed due a bug in the parser.
@@ -110,18 +92,6 @@ private:
 
   // Game specific hardware
   std::unique_ptr<TriforcePeripheral::Peripheral> m_peripheral;
-
-  // F-Zero AX (DX)
-  bool m_fzdx_seatbelt = true;
-  bool m_fzdx_motion_stop = false;
-  bool m_fzdx_sensor_right = false;
-  bool m_fzdx_sensor_left = false;
-
-  // F-Zero AX (CyCraft)
-  bool m_fzcc_seatbelt = true;
-  bool m_fzcc_sensor = false;
-  bool m_fzcc_emergency = false;
-  bool m_fzcc_service = false;
 };
 
 }  // namespace SerialInterface
