@@ -141,10 +141,8 @@ bool JVSIOBoard::ProcessFrame(std::span<const u8> frame)
 
   JVSIOFrameContext ctx{
       .request{frame.data(), frame.data() + frame.size()},
+      .message{m_last_response},
   };
-
-  ctx.message.m_data = m_last_response.data();
-  ctx.message.m_data_end = m_last_response.data() + m_last_response.size();
 
   ctx.message.StartFrame(m_client_address);
 
@@ -161,7 +159,8 @@ bool JVSIOBoard::ProcessFrame(std::span<const u8> frame)
       break;
   }
 
-  m_last_response.resize(ctx.message.EndFrame());
+  const auto frame_size = ctx.message.EndFrame();
+  m_last_response.resize(frame_size);
   return true;
 }
 

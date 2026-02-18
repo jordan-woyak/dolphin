@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <array>
-#include <functional>
 #include <span>
 #include <vector>
 
@@ -122,9 +120,16 @@ protected:
     const u8* m_data_end;
   };
 
-  struct ResponseWriter
+  class ResponseWriter
   {
     friend JVSIOBoard;
+
+  public:
+    explicit ResponseWriter(std::span<u8> buffer)
+        : m_data{buffer.data()}, m_data_begin{buffer.data()},
+          m_data_end{buffer.data() + buffer.size()}
+    {
+    }
 
     void AddData(u8 value)
     {
@@ -158,11 +163,15 @@ protected:
         return 0;
       }
 
-      // TODO: Fill in count.
+      // Write checksum.
       *(m_data++) = m_checksum;
 
-      // TODO: Return size..
-      return 5;
+      const u32 frame_size = m_data - m_data_begin;
+
+      // Write byte count to header.
+      m_data_begin[2] = frame_size - 3;
+
+      return frame_size;
     }
 
     void StartReport() { AddData(0); }
@@ -175,7 +184,8 @@ protected:
     }
 
     u8* m_data;
-    u8* m_data_end;
+    u8* const m_data_begin;
+    const u8* const m_data_end;
 
     u8 m_checksum = 0;
 
@@ -200,6 +210,7 @@ private:
   // 0 == address not yet assigned.
   u8 m_client_address = 0;
 
+  // TODO: Eliminate this.
   std::vector<u8> m_last_response;
 };
 
