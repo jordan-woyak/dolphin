@@ -18,14 +18,12 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/DVD/AMMediaboard.h"
-#include "Core/HW/GCPad.h"
 #include "Core/HW/MagCard/C1231BR.h"
 #include "Core/HW/MagCard/C1231LR.h"
 #include "Core/HW/Memmap.h"
 #include "Core/HW/ProcessorInterface.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
-#include "Core/HW/SI/SI_DeviceGCController.h"
 #include "Core/HW/SystemTimers.h"
 #include "Core/HW/Triforce/FZeroAX.h"
 #include "Core/HW/Triforce/GekitouProYakyuu.h"
@@ -33,10 +31,7 @@
 #include "Core/HW/Triforce/MarioKartGP.h"
 #include "Core/HW/Triforce/VirtuaStriker.h"
 #include "Core/Movie.h"
-#include "Core/NetPlayProto.h"
 #include "Core/System.h"
-
-#include "InputCommon/GCPadStatus.h"
 
 namespace SerialInterface
 {
@@ -128,51 +123,55 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
   ISIDevice::RunBuffer(buffer, buffer_length);
 
   u32 buffer_position = 0;
-  while (buffer_position < buffer_length)
+
+  const auto bb_command = static_cast<BaseBoardCommand>(buffer[buffer_position]);
+
+  switch (bb_command)
   {
-    const auto bb_command = static_cast<BaseBoardCommand>(buffer[buffer_position]);
-
-    switch (bb_command)
-    {
-    case BaseBoardCommand::GCAM_Reset:  // Returns ID and dip switches
-    {
-      const u32 id = Common::swap32(SI_AM_BASEBOARD | 0x100);
-      std::memcpy(buffer, &id, sizeof(id));
-      return sizeof(id);
-    }
-    case BaseBoardCommand::GCAM_Command:
-    {
-      // [70][size][command][params][command][params]...[checksum]
-
-      const u8 command_length = buffer[buffer_position + 1];
-      const u8 read_checksum = buffer[buffer_position + command_length];
-
-      const auto range_to_checksum = std::span{buffer + buffer_position, command_length};
-      const auto proper_checksum =
-          std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8(), std::plus{});
-
-      if (read_checksum != proper_checksum)
-        WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
-
-      buffer_position += 2;
-
-      std::array<u8, 0x80> data_out{};
-
-      const u32 out_length =
-          RunGCAMBuffer(std::span(buffer + buffer_position, command_length - 2), data_out);
-
-      buffer_position += out_length;
-
-      break;
-    }
-    default:
-    {
-      ERROR_LOG_FMT(SERIALINTERFACE, "Unknown SI command (0x{:08x})", u8(bb_command));
-      buffer_position = buffer_length;
-      break;
-    }
-    }
+  case BaseBoardCommand::GCAM_Reset:  // Returns ID and dip switches
+  {
+    const u32 id = Common::swap32(SI_AM_BASEBOARD | 0x100);
+    std::memcpy(buffer, &id, sizeof(id));
+    return sizeof(id);
   }
+  case BaseBoardCommand::GCAM_Command:
+  {
+    // Request:
+    // [70][size][command][params][command][params]...[checksum]
+    //
+    // Response:
+    // [command][size][...][checksum]
+
+    const u8 command_length = buffer[buffer_position + 1];
+    const u8 read_checksum = buffer[buffer_position + command_length];
+
+    const auto range_to_checksum = std::span{buffer + buffer_position, command_length};
+    const auto proper_checksum =
+        std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8(), std::plus{});
+
+    if (read_checksum != proper_checksum)
+      WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
+
+    buffer_position += 2;
+
+    std::array<u8, 0x80> data_out{};
+
+    const u32 out_length =
+        RunGCAMBuffer(std::span(buffer + buffer_position, command_length - 2), data_out);
+
+    buffer_position += out_length;
+
+    break;
+  }
+  default:
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE, "Unknown SI command (0x{:08x})", u8(bb_command));
+    buffer_position = buffer_length;
+    break;
+  }
+  }
+
+  return buffer_position;
 }
 
 u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8> data_out)
