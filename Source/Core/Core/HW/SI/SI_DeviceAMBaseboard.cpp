@@ -133,18 +133,24 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
     // [command1][size1][data1...][command2][size2][data2...]...[checksum]
 
     const u8 command_length = buffer[1];
-    const u8 read_checksum = buffer[command_length];
+    // const u8 read_checksum = buffer[command_length];
 
-    const auto range_to_checksum = std::span{buffer, command_length};
-    const auto proper_checksum =
-        std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8());
+    // const auto range_to_checksum = std::span{buffer, command_length};
+    // const auto proper_checksum =
+    //     std::accumulate(range_to_checksum.begin(), range_to_checksum.end(), u8());
 
-    if (read_checksum != proper_checksum)
-      WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
+    // if (read_checksum != proper_checksum)
+    //   WARN_LOG_FMT(SERIALINTERFACE, "Bad checksum");
 
     auto& data_out = m_response_buffers[m_current_response_buffer];
 
     const u32 out_length = RunGCAMBuffer(std::span(buffer + 2, command_length - 2), data_out);
+
+    NOTICE_LOG_FMT(SERIALINTERFACE, "RunGCAMBuffer: {}", out_length);
+
+    std::fill(data_out.begin() + out_length, data_out.end(), 0);  // Sloppy.
+    const u8 output_checksum = std::accumulate(data_out.data(), data_out.data() + out_length, u8{});
+    data_out.back() = output_checksum;
 
     break;
   }
@@ -188,8 +194,13 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
 
   while (data_in != data_in_end)
   {
-    const auto gcam_command_offset = data_offset;
     const u8 gcam_command = *data_in++;
+
+    // Make room for header.
+    const auto gcam_command_offset = data_offset;
+    data_offset += 2;
+
+    const auto gcam_output_offset = data_offset;
 
     switch (GCAMCommand(gcam_command))
     {
@@ -197,6 +208,7 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
     {
       std::tie(data_out[data_offset + 0], data_out[data_offset + 1]) =
           m_peripheral->GetDipSwitches();
+      data_in++;
       data_offset += 2;
       break;
     }
@@ -258,19 +270,18 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
       break;
     case GCAMCommand::RegionSettings:
     {
-      if (!validate_data_in_out(5, 0x16, "RegionSettings"))
+      if (!validate_data_in_out(3, 0x16, "RegionSettings"))
         break;
 
       // Used by SegaBoot for region checks (dev mode skips this check)
       // In some games this also controls the displayed language
-      NOTICE_LOG_FMT(SERIALINTERFACE_AMBB,
-                     "GC-AM: Command 0x1F, {:02x} {:02x} {:02x} {:02x} {:02x} (REGION)", data_in[0],
-                     data_in[1], data_in[2], data_in[3], data_in[4]);
+      NOTICE_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x1F, {:02x} {:02x} {:02x} (REGION)",
+                     data_in[0], data_in[1], data_in[2]);
 
       for (int i = 0; i < 0x14; ++i)
         data_out[data_offset++] = s_region_flags[i];
 
-      data_in += 5;
+      data_in += 3;
     }
     break;
     // No reply
@@ -423,7 +434,7 @@ u32 CSIDevice_AMBaseboard::RunGCAMBuffer(std::span<const u8> input, std::span<u8
 
     // Write the 2-byte header.
     data_out[gcam_command_offset] = gcam_command;
-    data_out[gcam_command_offset + 1] = data_offset = gcam_command_offset;
+    data_out[gcam_command_offset + 1] = data_offset - gcam_output_offset;
   }
 
   return data_offset;
