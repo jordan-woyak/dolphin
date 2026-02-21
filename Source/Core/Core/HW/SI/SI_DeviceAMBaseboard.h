@@ -7,6 +7,11 @@
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
 
+namespace Triforce
+{
+class SerialDevice;
+}
+
 namespace SerialInterface
 {
 
@@ -113,67 +118,12 @@ private:
     AcknowledgeOverflow = 4,
   };
 
-  enum ICCARDCommand
-  {
-    GetStatus = 0x10,
-    SetBaudrate = 0x11,
-    FieldOn = 0x14,
-    FieldOff = 0x15,
-    InsertCheck = 0x20,
-    AntiCollision = 0x21,
-    SelectCard = 0x22,
-    ReadPage = 0x24,
-    WritePage = 0x25,
-    DecreaseUseCount = 0x26,
-    ReadUseCount = 0x33,
-    ReadPages = 0x34,
-    WritePages = 0x35,
-  };
-
-  enum ICCARDStatus
-  {
-    Okay = 0,
-    NoCard = 0x8000,
-    Unknown = 0x800E,
-    BadCard = 0xFFFF,
-  };
-
-  enum CDReaderCommand
-  {
-    ShutterAuto = 0x61,
-    BootVersion = 0x62,
-    SensLock = 0x63,
-    SensCard = 0x65,
-    FirmwareUpdate = 0x66,
-    ShutterGet = 0x67,
-    CameraCheck = 0x68,
-    ShutterCard = 0x69,
-    ProgramChecksum = 0x6B,
-    BootChecksum = 0x6D,
-    ShutterLoad = 0x6F,
-    ReadCard = 0x72,
-    ShutterSave = 0x73,
-    SelfTest = 0x74,
-    ProgramVersion = 0x76,
-  };
-
-  // NOTE: Used to be an union with `u8 data[81 + 4 + 4 + 4]`
-  // TODO: Should the struct be packed?
-  struct ICCommand
-  {
-    u32 pktcmd : 8;
-    u32 pktlen : 8;
-    u32 fixed : 8;
-    u32 command : 8;
-    u32 flag : 8;
-    u32 length : 8;
-    u32 status : 16;
-
-    u8 extdata[81] = {};
-    u32 extlen;
-  };
-
   static constexpr u32 RESPONSE_SIZE = SerialInterfaceManager::BUFFER_SIZE;
+
+  // This value prevents F-Zero AX mag card breakage.
+  // It's now used for both serial ports.
+  // TODO: Verify how the hardware actually works.
+  static constexpr u32 SERIAL_PORT_MAX_READ_SIZE = 0x2f;
 
   // Reply has to be delayed due a bug in the parser
   std::array<std::array<u8, RESPONSE_SIZE>, 2> m_response_buffers{};
@@ -182,26 +132,17 @@ private:
   std::array<u16, 2> m_coin{};
   std::array<u32, 2> m_coin_pressed{};
 
-  u8 m_ic_card_data[2048] = {};
-
-  // Setup IC-card
-  u16 m_ic_card_state = 0x20;
-  u16 m_ic_card_status = ICCARDStatus::Okay;
-  u16 m_ic_card_session = 0x23;
-
-  u8 m_ic_write_buffer[512] = {};
-  u32 m_ic_write_offset = 0;
-  u32 m_ic_write_size = 0;
-
   // Magnetic Card Reader
   MagCard::MagneticCardReader::Settings m_mag_card_settings;
 
-  std::vector<u8> m_mag_card_in_buffer;
-  std::vector<u8> m_mag_card_out_buffer;
+  // Serial A
+  std::unique_ptr<Triforce::SerialDevice> m_serial_device_a;
 
-  std::unique_ptr<MagCard::MagneticCardReader> m_mag_card_reader;
+  // Serial B
+  std::unique_ptr<Triforce::SerialDevice> m_serial_device_b;
 
-  // Serial
+  // TODO: Move the rest of this into SerialDevice classes.
+
   u32 m_wheel_init = 0;
 
   u32 m_motor_init = 0;
@@ -225,8 +166,6 @@ private:
   u32 m_dip_switch_0 = 0xFF;
 
   int m_delay = 0;
-
-  void ICCardSendReply(ICCommand* iccommand, u8* buffer, u32* length);
 };
 
 }  // namespace SerialInterface

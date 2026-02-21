@@ -294,6 +294,10 @@ add_library(core
   HW/StreamADPCM.h
   HW/SystemTimers.cpp
   HW/SystemTimers.h
+  HW/Triforce/ICCardReader.cpp
+  HW/Triforce/ICCardReader.h
+  HW/Triforce/SerialDevice.cpp
+  HW/Triforce/SerialDevice.h
   HW/VideoInterface.cpp
   HW/VideoInterface.h
   HW/WII_IPC.cpp
