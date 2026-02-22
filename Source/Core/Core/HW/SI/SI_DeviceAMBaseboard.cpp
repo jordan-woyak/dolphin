@@ -1162,7 +1162,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         }
         case GCAMCommand::SerialB:
         {
-          DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 32 (CARD-Interface)");
+          DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 32 (touch screen)");
 
           if (!validate_data_in_out(1, 0, "SerialB"))
             break;
@@ -1174,27 +1174,19 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           if (!validate_data_in_out(in_length, max_packet_size + 2, "SerialB"))
             break;
 
-          if (m_mag_card_reader)
-          {
-            // Append the data to our buffer.
-            const auto prev_size = m_mag_card_in_buffer.size();
-            m_mag_card_in_buffer.resize(prev_size + in_length);
-            std::ranges::copy(std::span{data_in, in_length},
-                              m_mag_card_in_buffer.data() + prev_size);
-
-            // Send and receive data with the magnetic card reader.
-            m_mag_card_reader->Process(&m_mag_card_in_buffer, &m_mag_card_out_buffer);
-          }
-
           data_in += in_length;
-          const auto out_length = std::min(u32(m_mag_card_out_buffer.size()), max_packet_size);
+
+          std::array<u8, 10> garbage_touch_data{};
+          garbage_touch_data.fill(0xff);
+
+          const auto out_length = garbage_touch_data.size();
 
           // Write the 2-byte header.
           data_out[data_offset++] = gcam_command;
           data_out[data_offset++] = u8(out_length);
 
           // Write the data.
-          std::copy_n(m_mag_card_out_buffer.data(), out_length, data_out.data() + data_offset);
+          std::copy_n(garbage_touch_data.data(), out_length, data_out.data() + data_offset);
           data_offset += out_length;
 
           // Remove the data from our buffer.
