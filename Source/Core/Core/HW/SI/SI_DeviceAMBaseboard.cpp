@@ -1168,30 +1168,59 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             break;
           const u32 in_length = *data_in++;
 
-          static constexpr u32 max_packet_size = 0x2f;
-
-          // Also accounting for the 2-byte header.
-          if (!validate_data_in_out(in_length, max_packet_size + 2, "SerialB"))
-            break;
-
+          // FYI: Avalon seems to not send anything.
           data_in += in_length;
 
-          std::array<u8, 10> garbage_touch_data{};
-          garbage_touch_data.fill(0xff);
+#pragma pack(push, 1)
+          // "SmartSet Data Protocol"
+          struct AvalonTouchPacket
+          {
+            u8 lead_in;  // 0x55 (ignored by game)
+            u8 cmd;      // must be 0x54
+            u8 status;   // (ignored by game)
 
-          const auto out_length = garbage_touch_data.size();
+            // Note, game applies a bias of 4 for both X and Y.
+            // We should compensate for that.
+            u16 x;  // Little endian (0-4095)
+            u16 y;  // Little endian (0-4095)
+
+            u8 pressure;
+            u8 unused;    // Reserved for pressure high bits ?
+            u8 checksum;  // All previous bytes + 0xaa
+          };
+#pragma pack(pop)
+          static_assert(sizeof(AvalonTouchPacket) == 10);
+
+          const auto pad_status = Pad::GetStatus(0);
+
+          AvalonTouchPacket hacky_packet{
+              .lead_in = 0x55,
+              .cmd = 0x54,
+              .status = 0xff,
+              .x = Common::ExpandValue(u16(pad_status.substickX), 4),
+              .y = Common::ExpandValue(u16(pad_status.substickY), 4),
+              .pressure = pad_status.triggerRight,
+          };
+
+          // Compute checksum.
+          hacky_packet.checksum =
+              std::accumulate(&hacky_packet.lead_in, &hacky_packet.checksum, u8{0xaa});
+
+          const auto hacky_packet_span = Common::AsU8Span(hacky_packet);
+          const auto out_length = hacky_packet_span.size();
+
+          // Also accounting for the 2-byte header.
+          if (!validate_data_in_out(in_length, out_length + 2, "SerialB"))
+            break;
 
           // Write the 2-byte header.
           data_out[data_offset++] = gcam_command;
           data_out[data_offset++] = u8(out_length);
 
           // Write the data.
-          std::copy_n(garbage_touch_data.data(), out_length, data_out.data() + data_offset);
+          std::ranges::copy(hacky_packet_span, data_out.data() + data_offset);
           data_offset += out_length;
 
-          // Remove the data from our buffer.
-          m_mag_card_out_buffer.erase(m_mag_card_out_buffer.begin(),
-                                      m_mag_card_out_buffer.begin() + s32(out_length));
           break;
         }
         case GCAMCommand::JVSIOA:
