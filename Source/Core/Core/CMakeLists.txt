@@ -298,6 +298,8 @@ add_library(core
   HW/Triforce/ICCardReader.h
   HW/Triforce/SerialDevice.cpp
   HW/Triforce/SerialDevice.h
+  HW/Triforce/Touchscreen.cpp
+  HW/Triforce/Touchscreen.h
   HW/VideoInterface.cpp
   HW/VideoInterface.h
   HW/WII_IPC.cpp

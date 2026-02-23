@@ -28,6 +28,7 @@
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/SystemTimers.h"
 #include "Core/HW/Triforce/ICCardReader.h"
+#include "Core/HW/Triforce/Touchscreen.h"
 #include "Core/Movie.h"
 #include "Core/System.h"
 
@@ -139,7 +140,6 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   m_mag_card_settings.card_path = File::GetUserPath(D_TRIUSER_IDX);
   m_mag_card_settings.card_name = fmt::format("tricard_{}.bin", SConfig::GetInstance().GetGameID());
 
-  // TODO: Do any other games use the Magnetic Card Reader ?
   switch (AMMediaboard::GetGameType())
   {
   case FZeroAX:
@@ -149,6 +149,10 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   case MarioKartGP:
   case MarioKartGP2:
     m_serial_device_b = std::make_unique<MagCard::C1231LR>(&m_mag_card_settings);
+    break;
+
+  case KeyOfAvalon:
+    m_serial_device_b = std::make_unique<Triforce::Touchscreen>();
     break;
 
   default:
