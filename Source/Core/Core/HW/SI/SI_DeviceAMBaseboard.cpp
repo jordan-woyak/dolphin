@@ -113,11 +113,6 @@ void JVSIOMessage::End()
   }
 }
 
-static constexpr u8 CheckSumXOR(const u8* data, u32 length)
-{
-  return std::accumulate(data, data + length, u8{}, std::bit_xor());
-}
-
 const constexpr u8 s_region_flags[] = "\x00\x00\x30\x00"
                                       //   "\x01\xfe\x00\x00"  // JAPAN
                                       "\x02\xfd\x00\x00"  // USA

@@ -293,7 +293,7 @@ void ICCardReader::Process()
       {
         // TODO: better error.
         ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                      "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{}({:x})", page,
+                      "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{} ({})", page,
                       count, payload_size);
       }
       else
@@ -302,9 +302,8 @@ void ICCardReader::Process()
       }
     }
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD,
-                 "GC-AM: Command 0x31 (IC-CARD) Write Pages:{} Count:{}({:x})", page, count,
-                 payload_size);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Pages:{} Count:{} ({})",
+                 page, count, payload_size);
 
     break;
   }
@@ -400,7 +399,6 @@ void ICCardReader::Process()
 
   const auto header_span = Common::AsU8Span(reply_header);
 
-  // TODO: Is this checksum real ?
   const u8 checksum = CheckSumXOR(header_span) ^ CheckSumXOR(extdata_span);
 
   OutputBytes(header_span);
