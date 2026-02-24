@@ -882,7 +882,7 @@ void MagneticCardReader::BuildPacket()
 
   OutputByte(END_OF_TEXT);
 
-  // Checksum is XOR of previous bytes after START_OF_TEXT.
+  // Checksum is XOR of bytes after START_OF_TEXT.
   const u8 packet_checksum = std::accumulate(lead_in.begin(), lead_in.end(), u8{}, std::bit_xor{}) ^
                              std::accumulate(m_command_payload.begin(), m_command_payload.end(),
                                              END_OF_TEXT, std::bit_xor{});
