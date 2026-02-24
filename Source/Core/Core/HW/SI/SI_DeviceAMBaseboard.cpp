@@ -717,7 +717,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
             m_serial_device_b->TakeOutput(out_span);
 
-            DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialA reply: {}", HexDump(out_span));
+            DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialB reply: {}", HexDump(out_span));
 
             data_offset += out_length;
           }

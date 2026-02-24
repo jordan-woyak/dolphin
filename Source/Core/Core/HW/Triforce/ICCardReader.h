@@ -34,7 +34,12 @@ protected:
   void Process() override;
 
 private:
-  u8 m_ic_card_data[2048] = {};
+  static constexpr u32 PAGE_SIZE = 8;
+  static constexpr u32 PAGE_COUNT = 256;
+
+  static constexpr u32 PAGE_INDEX_MASK = 0xff;
+
+  std::array<u8, PAGE_SIZE * PAGE_COUNT> m_ic_card_data{};
 
   u16 m_ic_card_state = 0x20;
   u16 m_ic_card_status = ICCARDStatus::Okay;
