@@ -16,11 +16,11 @@ namespace
 // This is the "SmartSet Data Protocol".
 struct SmartSetDataPacket
 {
-  u8 lead_in = 0x55;  // Seems to be ignored by the game.
-  u8 cmd = 0x54;      // Always 0x54.
-  u8 status = 0xff;   // Seems to be ignored by the game.
-  u16 x{};            // Little endian (0-4095).
-  u16 y{};            // Little endian (0-4095).
+  u8 lead_in = 0x55;
+  u8 cmd = 0x54;     // Always 0x54.
+  u8 status = 0xff;  // Seems to be ignored by the game.
+  u16 x{};           // Little endian (0-4095).
+  u16 y{};           // Little endian (0-4095).
   u8 pressure{};
   u8 unused{};
   u8 checksum{};  // All previous bytes + 0xaa.
@@ -60,7 +60,8 @@ void Touchscreen::Process()
       .pressure = pad_status.triggerRight,
   };
 
-  packet.checksum = std::accumulate(&packet.lead_in, &packet.checksum, u8{0xaa});
+  // All previous bytes + 0xaa (Same as all previous bytes minus the `lead_in`).
+  packet.checksum = std::accumulate(&packet.cmd, &packet.checksum, u8{});
 
   OutputBytes(Common::AsU8Span(packet));
 }
