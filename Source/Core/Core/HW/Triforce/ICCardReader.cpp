@@ -157,7 +157,8 @@ void ICCardReader::Process()
   switch (ICCARDCommand(card_command))
   {
   case ICCARDCommand::GetStatus:
-    reply_header.status = m_ic_card_state;
+    // TODO:
+    // reply_header.status = m_ic_card_state;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
                  m_ic_card_state);
