@@ -13,7 +13,10 @@ namespace Triforce
 
 enum ICCARDStatus
 {
-  Okay = 0,
+  Okay = 0x0000,
+  // SelectFirstCard = 0x0001,  // The game tests for this sometimes.
+  FieldOnStart = 0x0020,
+  InitializeEnd = 0x0030,
   NoCard = 0x8000,
   Unknown = 0x800e,
   BadCard = 0xffff,
@@ -40,10 +43,6 @@ private:
   static constexpr u32 PAGE_INDEX_MASK = 0xff;
 
   std::array<u8, PAGE_SIZE * PAGE_COUNT> m_ic_card_data{};
-
-  u16 m_ic_card_state = 0x20;
-  u16 m_ic_card_status = ICCARDStatus::Okay;
-  u16 m_ic_card_session = 0x23;
 };
 
 }  // namespace Triforce

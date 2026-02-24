@@ -9,6 +9,7 @@
 #include "Common/BitUtils.h"
 #include "Common/ChunkFile.h"
 #include "Common/Logging/Log.h"
+#include "Common/ScopeGuard.h"
 #include "Common/Swap.h"
 
 #include "Core/HW/DVD/AMMediaboard.h"
@@ -32,6 +33,7 @@ constexpr u8 CheckSumXOR(std::span<const u8> data)
   return std::accumulate(data.data(), data.data() + data.size(), u8{}, std::bit_xor());
 }
 
+constexpr u32 READ_ONLY_PAGE_INDEX = 4;
 constexpr u32 USE_COUNT_OFFSET = 0x28;
 
 }  // namespace
@@ -41,14 +43,12 @@ namespace Triforce
 
 struct ICCardReplyHeader
 {
-  u8 fixed;
+  u8 fixed;  // Games seem to usually expect 0x10.
   u8 command;
+  u16 length;  // Big-endian, includes status and all remaining bytes.
+  u16 status;  // Big-endian.
 
-  u8 flag;
-  u8 length;  // Number of payload bytes (status + extdata).
-  u16 status;
-
-  // Following the 6 header bytes are a variable length "extdata" and checksum byte.
+  // old status was [4],[5].
 };
 
 enum CDReaderCommand
@@ -89,6 +89,8 @@ enum ICCARDCommand
 
 ICCardReader::ICCardReader()
 {
+  // Note: This data is in the READ_ONLY_PAGE_INDEX area.
+
   // Card ID
   m_ic_card_data[0x20] = 0x95;
   m_ic_card_data[0x21] = 0x71;
@@ -110,10 +112,17 @@ ICCardReader::ICCardReader()
     break;
   }
 
-  // Use count
+  // Use count.
+  // This seems to be a big-endian count down from 0xffff.
   m_ic_card_data[USE_COUNT_OFFSET + 0] = 0xff;
   m_ic_card_data[USE_COUNT_OFFSET + 1] = 0xff;
 }
+
+// TODO:
+// u16 m_ic_card_state = 0x20;
+// u16 m_ic_card_status = ICCARDStatus::Okay;
+
+static constexpr u8 IC_CARD_SESSION = 0x23;
 
 void ICCardReader::Process()
 {
@@ -123,15 +132,16 @@ void ICCardReader::Process()
 
   const u16 payload_size = Common::swap16(input_span.data() + 2);
   // 4 header bytes + 1 checksum byte
-  const u32 total_size = payload_size + 5u;
+  const u32 total_request_size = payload_size + 5u;
 
-  if (input_span.size() < total_size)
+  if (input_span.size() < total_request_size)
     return;  // Wait for more data.
 
-  const auto request_data = input_span.first(total_size);
+  const auto request_data = input_span.first(total_request_size);
+  Common::ScopeGuard chew_request{[&] { ChewBytes(total_request_size); }};
 
   const u8 read_checksum = request_data.back();
-  const u8 proper_checksum = CheckSumXOR(std::span{request_data}.first(total_size - 1));
+  const u8 proper_checksum = CheckSumXOR(std::span{request_data}.first(total_request_size - 1));
 
   if (read_checksum != proper_checksum)
   {
@@ -153,22 +163,22 @@ void ICCardReader::Process()
   switch (ICCARDCommand(card_command))
   {
   case ICCARDCommand::GetStatus:
-    reply_header.status = m_ic_card_state;
+    // reply_header.status = m_ic_card_state;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
-                 m_ic_card_state);
+    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
+    //              m_ic_card_state);
     break;
   case ICCARDCommand::SetBaudrate:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Set Baudrate");
     break;
   case ICCARDCommand::FieldOn:
-    m_ic_card_state |= 0x10;
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
+    // m_ic_card_state |= 0x10;
+    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
     break;
   case ICCARDCommand::InsertCheck:
-    reply_header.status = m_ic_card_status;
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
-                 m_ic_card_status);
+    // reply_header.status = m_ic_card_status;
+    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
+    //              m_ic_card_status);
     break;
   case ICCARDCommand::AntiCollision:
 
@@ -192,7 +202,7 @@ void ICCardReader::Process()
 
     // Session
     small_extdata[0] = 0x00;
-    small_extdata[1] = m_ic_card_session;
+    small_extdata[1] = IC_CARD_SESSION;
     small_extdata[2] = 0x00;
     small_extdata[3] = 0x00;
     small_extdata[4] = 0x00;
@@ -201,11 +211,12 @@ void ICCardReader::Process()
     small_extdata[7] = 0x00;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Select Card:{}",
-                 m_ic_card_session);
+                 IC_CARD_SESSION);
     break;
   case ICCARDCommand::ReadPage:
   case ICCARDCommand::ReadUseCount:
   {
+    // TODO: Is this sane for ReadUseCount ?
     const std::size_t page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
     const auto byte_offset = page * PAGE_SIZE;
 
@@ -218,8 +229,7 @@ void ICCardReader::Process()
   {
     const std::size_t page = Common::swap16(request_data.data() + 8) & PAGE_INDEX_MASK;
 
-    // Write only one page
-    if (page == 4)
+    if (page == READ_ONLY_PAGE_INDEX)  // Read Only Page, must return error
     {
       reply_header.status = 0x80;
     }
@@ -240,6 +250,8 @@ void ICCardReader::Process()
 
     extdata_span = std::span{small_extdata}.first(2);
 
+    // TODO: I think the expected response length is 10.
+
     // Counter
     small_extdata[0] = m_ic_card_data[USE_COUNT_OFFSET + 0];
     small_extdata[1] = m_ic_card_data[USE_COUNT_OFFSET + 1];
@@ -249,6 +261,7 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::ReadPages:
   {
+    // TODO: I think these are just u8s
     const u16 page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
     const u16 count = Common::swap16(request_data.data() + 8);
 
@@ -269,7 +282,8 @@ void ICCardReader::Process()
     const u32 write_size = count * PAGE_SIZE;
     const u32 write_offset = page * PAGE_SIZE;
 
-    if (page == 4)  // Read Only Page, must return error
+    // TODO: This should probably test for any write that touches page 4.
+    if (page == READ_ONLY_PAGE_INDEX)  // Read Only Page, must return error
     {
       reply_header.status = 0x80;
     }
@@ -277,6 +291,7 @@ void ICCardReader::Process()
     {
       if (write_size + write_offset > sizeof(m_ic_card_data))
       {
+        // TODO: better error.
         ERROR_LOG_FMT(SERIALINTERFACE_CARD,
                       "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{}({:x})", page,
                       count, payload_size);
@@ -297,7 +312,7 @@ void ICCardReader::Process()
     // Handle Deck Reader commands
     const u8 cd_reader_command = request_data[0];
     reply_header.command = cd_reader_command;
-    reply_header.flag = 0;
+    // reply_header.flag = 0;
     switch (CDReaderCommand(cd_reader_command))
     {
     case CDReaderCommand::ProgramVersion:
@@ -348,11 +363,11 @@ void ICCardReader::Process()
       break;
     case CDReaderCommand::SelfTest:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Self Test");
-      reply_header.flag = 0x00;
+      // reply_header.flag = 0x00;
       break;
     case CDReaderCommand::SensLock:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Lock");
-      reply_header.flag = 0x01;
+      // reply_header.flag = 0x01;
       break;
     case CDReaderCommand::SensCard:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Card");
@@ -364,15 +379,10 @@ void ICCardReader::Process()
     {
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Read Card");
 
-      reply_header.fixed = 0xAA;
-      reply_header.flag = 0xAA;
+      // reply_header.fixed = 0xAA;
+      // reply_header.flag = 0xAA;
 
       extdata_span = cdr_card_data;
-
-      // TODO: How is the length field treated here ?
-
-      // TODO: This is swapped back later. Is that correct ?
-      reply_header.status = Common::swap16(extdata_span.size());
 
       break;
     }
@@ -385,12 +395,12 @@ void ICCardReader::Process()
     break;
   }
 
-  // TODO: How are large sizes supposed to be handled .. ?
-
-  reply_header.length = sizeof(reply_header.status) + extdata_span.size();
-  reply_header.status = Common::swap16(reply_header.status);
+  reply_header.length = Common::swap16(sizeof(reply_header.status) + extdata_span.size());
+  // reply_header.status = 0;
 
   const auto header_span = Common::AsU8Span(reply_header);
+
+  // TODO: Is this checksum real ?
   const u8 checksum = CheckSumXOR(header_span) ^ CheckSumXOR(extdata_span);
 
   OutputBytes(header_span);
@@ -401,16 +411,14 @@ void ICCardReader::Process()
 void ICCardReader::ToggleCardState()
 {
   NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader::ToggleCardState");
-  m_ic_card_status ^= ICCARDStatus::NoCard;
+
+  // TODO:
+  // m_ic_card_status ^= ICCARDStatus::NoCard;
 }
 
 void ICCardReader::DoState(PointerWrap& p)
 {
   p.Do(m_ic_card_data);
-
-  p.Do(m_ic_card_state);
-  p.Do(m_ic_card_status);
-  p.Do(m_ic_card_session);
 }
 
 }  // namespace Triforce
