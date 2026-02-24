@@ -47,8 +47,6 @@ struct ICCardReplyHeader
   u8 command;
   u16 length;  // Big-endian, includes status and all remaining bytes.
   u16 status;  // Big-endian.
-
-  // old status was [4],[5].
 };
 
 enum CDReaderCommand
@@ -89,7 +87,7 @@ enum ICCARDCommand
 
 ICCardReader::ICCardReader()
 {
-  // Note: This data is in the READ_ONLY_PAGE_INDEX area.
+  // FYI: This data is in the READ_ONLY_PAGE_INDEX area.
 
   // Card ID
   m_ic_card_data[0x20] = 0x95;
@@ -113,16 +111,10 @@ ICCardReader::ICCardReader()
   }
 
   // Use count.
-  // This seems to be a big-endian count down from 0xffff.
+  // A big-endian count down from 0xffff.
   m_ic_card_data[USE_COUNT_OFFSET + 0] = 0xff;
   m_ic_card_data[USE_COUNT_OFFSET + 1] = 0xff;
 }
-
-// TODO:
-// u16 m_ic_card_state = 0x20;
-// u16 m_ic_card_status = ICCARDStatus::Okay;
-
-static constexpr u8 IC_CARD_SESSION = 0x23;
 
 void ICCardReader::Process()
 {
@@ -130,9 +122,9 @@ void ICCardReader::Process()
   if (input_span.size() < 4)
     return;  // Wait for more data.
 
-  const u16 payload_size = Common::swap16(input_span.data() + 2);
+  const u16 input_payload_size = Common::swap16(input_span.data() + 2);
   // 4 header bytes + 1 checksum byte
-  const u32 total_request_size = payload_size + 5u;
+  const u32 total_request_size = input_payload_size + 5u;
 
   if (input_span.size() < total_request_size)
     return;  // Wait for more data.
@@ -145,7 +137,7 @@ void ICCardReader::Process()
 
   if (read_checksum != proper_checksum)
   {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "Bad checksum!");
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Bad checksum!");
     return;
   }
 
@@ -156,62 +148,64 @@ void ICCardReader::Process()
       .command = card_command,
   };
 
-  std::array<u8, 8> small_extdata{};
+  // To avoid unnecessary dynamic storage.
+  std::array<u8, 8> small_payload{};
 
-  std::span<const u8> extdata_span;
+  // Will be later assigned to part of `small_response_payload` or the card data itself.
+  std::span<const u8> response_payload_span;
 
   switch (ICCARDCommand(card_command))
   {
   case ICCARDCommand::GetStatus:
-    // reply_header.status = m_ic_card_state;
+    reply_header.status = m_ic_card_state;
 
-    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
-    //              m_ic_card_state);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
+                 m_ic_card_state);
     break;
   case ICCARDCommand::SetBaudrate:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Set Baudrate");
     break;
   case ICCARDCommand::FieldOn:
-    // m_ic_card_state |= 0x10;
-    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
+    m_ic_card_state |= 0x10;
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
     break;
   case ICCARDCommand::InsertCheck:
-    // reply_header.status = m_ic_card_status;
-    // INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
-    //              m_ic_card_status);
+    reply_header.status = m_ic_card_status;
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
+                 m_ic_card_status);
     break;
   case ICCARDCommand::AntiCollision:
 
-    extdata_span = small_extdata;
-
     // Card ID
-    small_extdata[0] = 0x00;
-    small_extdata[1] = 0x00;
-    small_extdata[2] = 0x54;
-    small_extdata[3] = 0x4D;
-    small_extdata[4] = 0x50;
-    small_extdata[5] = 0x00;
-    small_extdata[6] = 0x00;
-    small_extdata[7] = 0x00;
+    small_payload[0] = 0x00;
+    small_payload[1] = 0x00;
+    small_payload[2] = 0x54;
+    small_payload[3] = 0x4D;
+    small_payload[4] = 0x50;
+    small_payload[5] = 0x00;
+    small_payload[6] = 0x00;
+    small_payload[7] = 0x00;
+
+    response_payload_span = small_payload;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Anti Collision");
     break;
   case ICCARDCommand::SelectCard:
 
-    extdata_span = small_extdata;
-
     // Session
-    small_extdata[0] = 0x00;
-    small_extdata[1] = IC_CARD_SESSION;
-    small_extdata[2] = 0x00;
-    small_extdata[3] = 0x00;
-    small_extdata[4] = 0x00;
-    small_extdata[5] = 0x00;
-    small_extdata[6] = 0x00;
-    small_extdata[7] = 0x00;
+    small_payload[0] = 0x00;
+    small_payload[1] = m_ic_card_session;
+    small_payload[2] = 0x00;
+    small_payload[3] = 0x00;
+    small_payload[4] = 0x00;
+    small_payload[5] = 0x00;
+    small_payload[6] = 0x00;
+    small_payload[7] = 0x00;
+
+    response_payload_span = small_payload;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Select Card:{}",
-                 IC_CARD_SESSION);
+                 m_ic_card_session);
     break;
   case ICCARDCommand::ReadPage:
   case ICCARDCommand::ReadUseCount:
@@ -220,7 +214,7 @@ void ICCardReader::Process()
     const std::size_t page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
     const auto byte_offset = page * PAGE_SIZE;
 
-    extdata_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
+    response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Read Page:{}", page);
     break;
@@ -248,20 +242,19 @@ void ICCardReader::Process()
     auto ic_card_data = Common::BitCastPtr<u16>(m_ic_card_data.data() + USE_COUNT_OFFSET);
     ic_card_data = ic_card_data - 1;
 
-    extdata_span = std::span{small_extdata}.first(2);
-
     // TODO: I think the expected response length is 10.
 
     // Counter
-    small_extdata[0] = m_ic_card_data[USE_COUNT_OFFSET + 0];
-    small_extdata[1] = m_ic_card_data[USE_COUNT_OFFSET + 1];
+    small_payload[0] = m_ic_card_data[USE_COUNT_OFFSET + 0];
+    small_payload[1] = m_ic_card_data[USE_COUNT_OFFSET + 1];
+
+    response_payload_span = std::span{small_payload}.first(2);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Decrease Use Count:{}", page);
     break;
   }
   case ICCARDCommand::ReadPages:
   {
-    // TODO: I think these are just u8s
     const u16 page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
     const u16 count = Common::swap16(request_data.data() + 8);
 
@@ -269,7 +262,7 @@ void ICCardReader::Process()
     u32 byte_count = count * PAGE_SIZE;
 
     // TODO: Check bounds !
-    extdata_span = std::span{m_ic_card_data}.subspan(byte_offset, byte_count);
+    response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, byte_count);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Read Pages:{} Count:{}", page,
                  count);
@@ -294,7 +287,7 @@ void ICCardReader::Process()
         // TODO: better error.
         ERROR_LOG_FMT(SERIALINTERFACE_CARD,
                       "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{} ({})", page,
-                      count, payload_size);
+                      count, input_payload_size);
       }
       else
       {
@@ -303,7 +296,7 @@ void ICCardReader::Process()
     }
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Pages:{} Count:{} ({})",
-                 page, count, payload_size);
+                 page, count, input_payload_size);
 
     break;
   }
@@ -311,61 +304,79 @@ void ICCardReader::Process()
     // Handle Deck Reader commands
     const u8 cd_reader_command = request_data[0];
     reply_header.command = cd_reader_command;
+
+    // TODO:
     // reply_header.flag = 0;
+
     switch (CDReaderCommand(cd_reader_command))
     {
     case CDReaderCommand::ProgramVersion:
     {
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Program Version");
-      extdata_span = Common::AsU8Span(cdr_program_version);
+      response_payload_span = Common::AsU8Span(cdr_program_version);
       break;
     }
     case CDReaderCommand::BootVersion:
     {
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Boot Version");
-      extdata_span = Common::AsU8Span(cdr_boot_version);
+      response_payload_span = Common::AsU8Span(cdr_boot_version);
       break;
     }
     case CDReaderCommand::ShutterGet:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Shutter Get");
-      extdata_span = std::span{small_extdata}.first(4);
-      small_extdata[0] = 0;
-      small_extdata[1] = 0;
-      small_extdata[2] = 0;
-      small_extdata[3] = 0;
+
+      small_payload[0] = 0;
+      small_payload[1] = 0;
+      small_payload[2] = 0;
+      small_payload[3] = 0;
+
+      response_payload_span = std::span{small_payload}.first(4);
+
       break;
     case CDReaderCommand::CameraCheck:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Camera Check");
-      extdata_span = std::span{small_extdata}.first(6);
-      small_extdata[0] = 0x23;
-      small_extdata[1] = 0x28;
-      small_extdata[2] = 0x45;
-      small_extdata[3] = 0x29;
-      small_extdata[4] = 0x45;
-      small_extdata[5] = 0x29;
+
+      small_payload[0] = 0x23;
+      small_payload[1] = 0x28;
+      small_payload[2] = 0x45;
+      small_payload[3] = 0x29;
+      small_payload[4] = 0x45;
+      small_payload[5] = 0x29;
+
+      response_payload_span = std::span{small_payload}.first(6);
+
       break;
     case CDReaderCommand::ProgramChecksum:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Program Checksum");
-      extdata_span = std::span{small_extdata}.first(4);
-      small_extdata[0] = 0x23;
-      small_extdata[1] = 0x28;
-      small_extdata[2] = 0x45;
-      small_extdata[3] = 0x29;
+
+      small_payload[0] = 0x23;
+      small_payload[1] = 0x28;
+      small_payload[2] = 0x45;
+      small_payload[3] = 0x29;
+
+      response_payload_span = std::span{small_payload}.first(4);
+
       break;
     case CDReaderCommand::BootChecksum:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Boot Checksum");
-      extdata_span = std::span{small_extdata}.first(4);
-      small_extdata[0] = 0x23;
-      small_extdata[1] = 0x28;
-      small_extdata[2] = 0x45;
-      small_extdata[3] = 0x29;
+
+      small_payload[0] = 0x23;
+      small_payload[1] = 0x28;
+      small_payload[2] = 0x45;
+      small_payload[3] = 0x29;
+
+      response_payload_span = std::span{small_payload}.first(4);
+
       break;
     case CDReaderCommand::SelfTest:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Self Test");
+
+      // TODO:
       // reply_header.flag = 0x00;
       break;
     case CDReaderCommand::SensLock:
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Lock");
+      // TODO:
       // reply_header.flag = 0x01;
       break;
     case CDReaderCommand::SensCard:
@@ -378,10 +389,11 @@ void ICCardReader::Process()
     {
       INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Read Card");
 
-      // reply_header.fixed = 0xAA;
+      reply_header.fixed = 0xAA;
+      // TODO:
       // reply_header.flag = 0xAA;
 
-      extdata_span = cdr_card_data;
+      response_payload_span = cdr_card_data;
 
       break;
     }
@@ -394,15 +406,17 @@ void ICCardReader::Process()
     break;
   }
 
-  reply_header.length = Common::swap16(sizeof(reply_header.status) + extdata_span.size());
+  reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
+
+  // TODO:
   // reply_header.status = 0;
 
   const auto header_span = Common::AsU8Span(reply_header);
 
-  const u8 checksum = CheckSumXOR(header_span) ^ CheckSumXOR(extdata_span);
+  const u8 checksum = CheckSumXOR(header_span) ^ CheckSumXOR(response_payload_span);
 
   OutputBytes(header_span);
-  OutputBytes(extdata_span);
+  OutputBytes(response_payload_span);
   OutputByte(checksum);
 }
 
@@ -411,12 +425,17 @@ void ICCardReader::ToggleCardState()
   NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader::ToggleCardState");
 
   // TODO:
-  // m_ic_card_status ^= ICCARDStatus::NoCard;
+  m_ic_card_status ^= ICCARDStatus::NoCard;
 }
 
 void ICCardReader::DoState(PointerWrap& p)
 {
   p.Do(m_ic_card_data);
+
+  p.Do(m_ic_card_state);
+  p.Do(m_ic_card_status);
+
+  p.Do(m_ic_card_session);
 }
 
 }  // namespace Triforce
