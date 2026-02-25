@@ -49,6 +49,23 @@ struct ICCardReplyHeader
   u16 status;  // Big-endian.
 };
 
+enum ICCARDCommand
+{
+  GetStatus = 0x10,
+  SetBaudrate = 0x11,
+  FieldOn = 0x14,
+  FieldOff = 0x15,
+  InsertCheck = 0x20,
+  AntiCollision = 0x21,
+  SelectCard = 0x22,
+  ReadPage = 0x24,
+  WritePage = 0x25,
+  DecreaseUseCount = 0x26,
+  ReadUseCount = 0x33,
+  ReadPages = 0x34,
+  WritePages = 0x35,
+};
+
 enum CDReaderCommand
 {
   ShutterAuto = 0x61,
@@ -66,23 +83,6 @@ enum CDReaderCommand
   ShutterSave = 0x73,
   SelfTest = 0x74,
   ProgramVersion = 0x76,
-};
-
-enum ICCARDCommand
-{
-  GetStatus = 0x10,
-  SetBaudrate = 0x11,
-  FieldOn = 0x14,
-  FieldOff = 0x15,
-  InsertCheck = 0x20,
-  AntiCollision = 0x21,
-  SelectCard = 0x22,
-  ReadPage = 0x24,
-  WritePage = 0x25,
-  DecreaseUseCount = 0x26,
-  ReadUseCount = 0x33,
-  ReadPages = 0x34,
-  WritePages = 0x35,
 };
 
 ICCardReader::ICCardReader()
@@ -122,6 +122,16 @@ void ICCardReader::Process()
   if (input_span.size() < 4)
     return;  // Wait for more data.
 
+  // For reference:
+  // struct RequestLayout
+  // {
+  //   u8 cd_reader_command;
+  //   u8 ic_card_command;
+  //   u16 payload_size;  // Big-endian.
+  //   u8 payload[payload_size];
+  //   u8 checksum;
+  // };
+
   const u16 input_payload_size = Common::swap16(input_span.data() + 2);
   // 4 header bytes + 1 checksum byte
   const u32 total_request_size = input_payload_size + 5u;
@@ -135,6 +145,8 @@ void ICCardReader::Process()
   const u8 read_checksum = request_data.back();
   const u8 proper_checksum = CheckSumXOR(std::span{request_data}.first(total_request_size - 1));
 
+  const auto input_payload = request_data.subspan(4, input_payload_size);
+
   if (read_checksum != proper_checksum)
   {
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Bad checksum!");
@@ -142,6 +154,23 @@ void ICCardReader::Process()
   }
 
   const u8 card_command = request_data[1];
+
+  const auto check_input_payload_size = [&](u32 expected_size) {
+    if (input_payload_size < expected_size)
+    {
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Undersized payload size {} for ICCARDCommand:{:02x}",
+                    input_payload_size, card_command);
+      return false;
+    }
+
+    if (input_payload_size > expected_size)
+    {
+      WARN_LOG_FMT(SERIALINTERFACE_CARD, "Oversized payload size {} for ICCARDCommand:{:02x}",
+                   input_payload_size, card_command);
+    }
+
+    return true;
+  };
 
   ICCardReplyHeader reply_header{
       .fixed = 0x10,
@@ -157,25 +186,49 @@ void ICCardReader::Process()
   switch (ICCARDCommand(card_command))
   {
   case ICCARDCommand::GetStatus:
+  {
+    if (!check_input_payload_size(0))
+      break;
+
     // TODO:
     // reply_header.status = m_ic_card_state;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
                  m_ic_card_state);
     break;
+  }
   case ICCARDCommand::SetBaudrate:
+  {
+    if (!check_input_payload_size(8))  // d44f314eff7f0000
+      break;                           // 00(also saw 10 here) 04 01 00 00 00 00 00
+
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Set Baudrate");
+
     break;
+  }
   case ICCARDCommand::FieldOn:
+  {
+    // What sort of data?
+
+    if (!check_input_payload_size(2))
+      break;
+
     m_ic_card_state |= 0x10;
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
     break;
+  }
   case ICCARDCommand::InsertCheck:
+  {
+    // 00(also saw 10 here) 04 01 00 00 00 00 00 NOOO ? just 0x00s ?
+
     reply_header.status = m_ic_card_status;
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
                  m_ic_card_status);
     break;
+  }
   case ICCARDCommand::AntiCollision:
+  {
+    // FYI: Requests seem to include 16 bytes of 0x00.
 
     // Card ID
     small_payload[0] = 0x00;
@@ -191,7 +244,10 @@ void ICCardReader::Process()
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Anti Collision");
     break;
+  }
   case ICCARDCommand::SelectCard:
+  {
+    // FYI: Requests seem to include 8 bytes: 0000544d50000000
 
     // Session
     small_payload[0] = 0x00;
@@ -208,11 +264,16 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Select Card:{}",
                  m_ic_card_session);
     break;
+  }
   case ICCARDCommand::ReadPage:
   case ICCARDCommand::ReadUseCount:
   {
+    if (!check_input_payload_size(4))
+      break;
+
     // TODO: Is this sane for ReadUseCount ?
-    const std::size_t page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
+    const u16 card_session = Common::swap16(input_payload.data() + 0);
+    const std::size_t page = Common::swap16(input_payload.data() + 2) & PAGE_INDEX_MASK;
     const auto byte_offset = page * PAGE_SIZE;
 
     response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
@@ -222,7 +283,12 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::WritePage:
   {
-    const std::size_t page = Common::swap16(request_data.data() + 8) & PAGE_INDEX_MASK;
+    if (!check_input_payload_size(2))
+      break;
+
+    const u16 card_session = Common::swap16(input_payload.data() + 0);
+    const u16 count = Common::swap16(input_payload.data() + 2);
+    const std::size_t page = Common::swap16(input_payload.data() + 4) & PAGE_INDEX_MASK;
 
     if (page == READ_ONLY_PAGE_INDEX)  // Read Only Page, must return error
     {
@@ -230,7 +296,7 @@ void ICCardReader::Process()
     }
     else
     {
-      std::copy_n(request_data.data() + 10, 8, m_ic_card_data.data() + (page * PAGE_SIZE));
+      std::copy_n(request_data.data() + 8, 8, m_ic_card_data.data() + (page * PAGE_SIZE));
     }
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Page:{}", page);
@@ -238,12 +304,15 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::DecreaseUseCount:
   {
-    const u16 page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
+    if (!check_input_payload_size(2))
+      break;
+
+    const u16 page = Common::swap16(request_data.data() + 0) & PAGE_INDEX_MASK;
 
     auto ic_card_data = Common::BitCastPtr<u16>(m_ic_card_data.data() + USE_COUNT_OFFSET);
     ic_card_data = ic_card_data - 1;
 
-    // TODO: I think the expected response length is 10.
+    // TODO: I think this is supposed to return the entire block (8 bytes).
 
     // Counter
     small_payload[0] = m_ic_card_data[USE_COUNT_OFFSET + 0];
@@ -256,8 +325,13 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::ReadPages:
   {
-    const u16 page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
-    const u16 count = Common::swap16(request_data.data() + 8);
+    if (!check_input_payload_size(8))
+      break;
+
+    const u16 card_session = Common::swap16(input_payload.data() + 0);
+    const u16 page = Common::swap16(request_data.data() + 2) & PAGE_INDEX_MASK;
+    const u16 count = Common::swap16(request_data.data() + 4);
+    // Last byte seems to be 0x00.
 
     const u32 byte_offset = page * PAGE_SIZE;
     u32 byte_count = count * PAGE_SIZE;
@@ -271,8 +345,12 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::WritePages:
   {
-    const u32 page = Common::swap16(request_data.data() + 6) & PAGE_INDEX_MASK;
-    const u32 count = Common::swap16(request_data.data() + 8);
+    if (!check_input_payload_size(8))
+      break;
+
+    const u16 card_session = Common::swap16(input_payload.data() + 0);
+    const u32 page = Common::swap16(request_data.data() + 2) & PAGE_INDEX_MASK;
+    const u32 count = Common::swap16(request_data.data() + 4);
     const u32 write_size = count * PAGE_SIZE;
     const u32 write_offset = page * PAGE_SIZE;
 
@@ -292,7 +370,7 @@ void ICCardReader::Process()
       }
       else
       {
-        std::copy_n(request_data.data() + 13, write_size, m_ic_card_data.data() + write_offset);
+        std::copy_n(request_data.data() + 8, write_size, m_ic_card_data.data() + write_offset);
       }
     }
 
@@ -302,7 +380,7 @@ void ICCardReader::Process()
     break;
   }
   default:
-    // Handle Deck Reader commands
+    // Handle Deck Reader commands.
     const u8 cd_reader_command = request_data[0];
     reply_header.command = cd_reader_command;
 
@@ -399,9 +477,8 @@ void ICCardReader::Process()
       break;
     }
     default:
-      ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                    "ICCardReader: Unknown CDReaderCommand command {:02x} request: {}",
-                    cd_reader_command, HexDump(request_data));
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader: Unhandled request: {}",
+                    HexDump(request_data));
       break;
     }
     break;
