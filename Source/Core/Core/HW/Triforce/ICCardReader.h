@@ -37,6 +37,9 @@ protected:
   void Process() override;
 
 private:
+  // HAX
+  u32 m_reply_delay = 0;
+
   static constexpr u32 PAGE_SIZE = 8;
   static constexpr u32 PAGE_COUNT = 256;
 
@@ -47,8 +50,6 @@ private:
   // TODO:
   u16 m_ic_card_state = 0x20;
   u16 m_ic_card_status = ICCARDStatus::Okay;
-
-  u8 m_ic_card_session = 0x23;
 };
 
 }  // namespace Triforce

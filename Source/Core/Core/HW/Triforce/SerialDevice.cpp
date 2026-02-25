@@ -24,8 +24,6 @@ void SerialDevice::WriteBytes(std::span<const u8> bytes)
   m_rx_buffer.resize(prev_size + bytes.size());
   std::ranges::copy(bytes, m_rx_buffer.begin() + prev_size);
 #endif
-
-  Process();
 }
 
 void SerialDevice::TakeOutput(std::span<u8> bytes)

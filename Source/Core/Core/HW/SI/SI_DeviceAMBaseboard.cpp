@@ -126,7 +126,7 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
   // Serial IC-CARD / Serial Deck Reader
   if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
       AMMediaboard::GetGameType() == VirtuaStriker4_2006 ||
-      AMMediaboard::GetGameType() == KeyOfAvalon)
+      AMMediaboard::GetGameType() == GekitouProYakyuu || AMMediaboard::GetGameType() == KeyOfAvalon)
   {
     m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
   }
@@ -473,55 +473,33 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           }
 
           // Serial - Unknown
-          if (AMMediaboard::GetGameType() == GekitouProYakyuu)
-          {
-            if (!validate_data_in_out(sizeof(u32), 0, "SerialA (Unknown)"))
-              break;
-            const u32 serial_command = Common::BitCastPtr<u32>(data_in);
+          // if (AMMediaboard::GetGameType() == GekitouProYakyuu)
+          // {
+          //   if (!validate_data_in_out(sizeof(u32), 0, "SerialA (Unknown)"))
+          //     break;
+          //   const u32 serial_command = Common::BitCastPtr<u32>(data_in);
 
-            if (serial_command == 0x00001000)
-            {
-              if (!validate_data_in_out(0, 5, "SerialA (Unknown)"))
-                break;
-              data_out[data_offset++] = gcam_command;
-              data_out[data_offset++] = 0x03;
-              data_out[data_offset++] = 1;
-              data_out[data_offset++] = 2;
-              data_out[data_offset++] = 3;
-            }
+          //   if (serial_command == 0x00001000)
+          //   {
+          //     if (!validate_data_in_out(0, 5, "SerialA (Unknown)"))
+          //       break;
+          //     data_out[data_offset++] = gcam_command;
+          //     data_out[data_offset++] = 0x03;
+          //     data_out[data_offset++] = 1;
+          //     data_out[data_offset++] = 2;
+          //     data_out[data_offset++] = 3;
+          //   }
 
-            if (!validate_data_in_out(length, 0, "SerialA (Unknown)"))
-              break;
-            data_in += length;
-            break;
-          }
+          //   if (!validate_data_in_out(length, 0, "SerialA (Unknown)"))
+          //     break;
+          //   data_in += length;
+          //   break;
+          // }
 
           if (m_serial_device_a != nullptr)
           {
             m_serial_device_a->WriteBytes({data_in, length});
             data_in += length;
-
-            const auto out_length =
-                std::min(u32(m_serial_device_a->GetOutputCount()), SERIAL_PORT_MAX_READ_SIZE);
-
-            if (out_length != 0)
-            {
-              // Also accounting for the 2-byte header.
-              if (!validate_data_in_out(0, out_length + 2, "SerialA"))
-                break;
-
-              // Write the 2-byte header.
-              data_out[data_offset++] = gcam_command;
-              data_out[data_offset++] = u8(out_length);
-
-              const auto out_span = std::span{data_out}.subspan(data_offset, out_length);
-
-              m_serial_device_a->TakeOutput(out_span);
-
-              DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialA reply: {}", HexDump(out_span));
-
-              data_offset += out_length;
-            }
             break;
           }
         }
@@ -1566,6 +1544,33 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                       "GC-AM: Command {:02x} (unknown) {:02x} {:02x} {:02x} {:02x} {:02x}",
                       gcam_command, data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]);
         break;
+      }
+    }
+
+    if (m_serial_device_a != nullptr)
+    {
+      m_serial_device_a->Process();
+
+      const auto out_length =
+          std::min(u32(m_serial_device_a->GetOutputCount()), SERIAL_PORT_MAX_READ_SIZE);
+
+      if (out_length != 0)
+      {
+        // Also accounting for the 2-byte header.
+        if (!validate_data_in_out(0, out_length + 2, "SerialA"))
+          break;
+
+        // Write the 2-byte header.
+        data_out[data_offset++] = GCAMCommand::SerialA;
+        data_out[data_offset++] = u8(out_length);
+
+        const auto out_span = std::span{data_out}.subspan(data_offset, out_length);
+
+        m_serial_device_a->TakeOutput(out_span);
+
+        DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialA reply: {}", HexDump(out_span));
+
+        data_offset += out_length;
       }
     }
 

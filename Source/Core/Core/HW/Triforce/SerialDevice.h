@@ -34,10 +34,10 @@ public:
   // Caller should ensure buffer contains byte.size() bytes.
   void TakeOutput(std::span<u8> bytes);
 
-protected:
   // TODO: Better name.
   virtual void Process() = 0;
 
+protected:
   std::span<const u8> GetInputSpan() const { return m_rx_buffer; }
 
   void ChewBytes(std::size_t count);
