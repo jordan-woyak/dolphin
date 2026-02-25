@@ -38,7 +38,7 @@ protected:
 
 private:
   // HAX
-  u32 m_reply_delay = 0;
+  // u32 m_reply_delay = 0;
 
   static constexpr u32 PAGE_SIZE = 8;
   static constexpr u32 PAGE_COUNT = 256;

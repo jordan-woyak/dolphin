@@ -144,10 +144,10 @@ void ICCardReader::Process()
   if (input_span.size() < 4)
     return;  // Wait for more data.
 
-  if (++m_reply_delay < 5)
-    return;
+  // if (++m_reply_delay < 5)
+  //   return;
 
-  m_reply_delay = 0;
+  // m_reply_delay = 0;
 
   // For reference:
   // struct RequestLayout
@@ -248,6 +248,8 @@ void ICCardReader::Process()
   {
     if (!check_input_payload_size(8))
       break;
+
+    // Avalon gets stuck here sending this. It wants a certain response..
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
