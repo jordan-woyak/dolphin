@@ -27,7 +27,7 @@ void CheckCardSession(u16 card_session)
 {
   if (card_session != IC_CARD_SESSION)
   {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "WritePage: Unexpected Card Session: {:04x}", card_session);
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "Unexpected card session: {:04x}", card_session);
   }
 }
 
@@ -48,8 +48,21 @@ struct ICCardReplyHeader
 {
   u8 fixed;  // Games seem to usually expect 0x10.
   u8 command;
-  u16 length;  // Big-endian, includes status and all remaining bytes.
+  u16 length;  // Big-endian, includes status and payload bytes.
   u16 status;  // Big-endian.
+};
+
+// FYI: I'm not so sure that the `status` field is actually a universal status.
+// The tested values seem to be very command-specific.
+enum ICCARDStatus
+{
+  Okay = 0x0000,
+  FieldOnStart = 0x0020,
+  InitializeEnd = 0x0030,
+  // These seem to trigger a re-read of a Page.
+  NoCard = 0x8000,
+  Unknown = 0x800e,
+  BadCard = 0xffff,
 };
 
 enum ICCARDCommand
@@ -58,40 +71,30 @@ enum ICCARDCommand
   SetBaudrate = 0x11,
   FieldOn = 0x14,
   FieldOff = 0x15,
-  Unknown_16 = 0x16,  // Gekitou sends this.
+  Unknown_16 = 0x16,  // Gekitou sends this on boot.
   InsertCheck = 0x20,
   AntiCollision = 0x21,
   SelectCard = 0x22,
   ReadPage = 0x24,
   WritePage = 0x25,
   DecreaseUseCount = 0x26,
-  Halt = 0x27,
+  HaltCard = 0x27,
   ReadUseCount = 0x33,
   ReadPages = 0x34,
   WritePages = 0x35,
-};
-
-enum ICCARDStatus
-{
-  Okay = 0x0000,
-  // SelectFirstCard = 0x0001,  // The game tests for this sometimes.
-  FieldOnStart = 0x0020,
-  InitializeEnd = 0x0030,
-
-  // These seem to trigger a re-read of a Page.
-  NoCard = 0x8000,
-  Unknown = 0x800e,
-
-  BadCard = 0xffff,
 };
 
 ICCardReader::ICCardReader()
 {
   // FYI: This data is in the READ_ONLY_PAGE_INDEX area.
 
+  // TODO: Probably needs to be unique for multiple cards.
   // Card ID
   m_ic_card_data[0x20] = 0x95;
   m_ic_card_data[0x21] = 0x71;
+
+  // TODO: Get this game specific stuff out of here.
+  // TODO: Gekitou need anything ?
 
   switch (AMMediaboard::GetGameType())
   {
@@ -110,10 +113,8 @@ ICCardReader::ICCardReader()
     break;
   }
 
-  // Use count.
-  // A big-endian count down from 0xffff.
-  m_ic_card_data[USE_COUNT_OFFSET + 0] = 0xff;
-  m_ic_card_data[USE_COUNT_OFFSET + 1] = 0xff;
+  // The use count is a big endian count down.
+  Common::WriteSwap16(m_ic_card_data.data() + USE_COUNT_OFFSET, 0xffff);
 }
 
 void ICCardReader::Process()
@@ -128,7 +129,7 @@ void ICCardReader::Process()
   //   u8 cd_reader_command;
   //   u8 ic_card_command;
   //   u16 payload_size;  // Big-endian.
-  //   u8 payload[payload_size];  // Generally starts with card session.
+  //   u8 payload[payload_size];
   //   u8 checksum;
   // };
 
@@ -140,7 +141,6 @@ void ICCardReader::Process()
     return;  // Wait for more data.
 
   const auto request_data = input_span.first(total_request_size);
-  Common::ScopeGuard chew_request{[&] { ChewBytes(total_request_size); }};
 
   const u8 read_checksum = request_data.back();
   const u8 proper_checksum = CheckSumXOR(std::span{request_data}.first(total_request_size - 1));
@@ -150,12 +150,15 @@ void ICCardReader::Process()
   if (read_checksum != proper_checksum)
   {
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Bad checksum!");
+    ChewBytes(1);
     return;
   }
 
+  Common::ScopeGuard chew_request{[&] { ChewBytes(total_request_size); }};
+
   const u8 card_command = request_data[1];
 
-  const auto check_input_payload_size = [&](u32 expected_size) {
+  const auto validate_input_payload_size = [&](u32 expected_size) {
     if (input_payload_size < expected_size)
     {
       ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Undersized payload size {} for ICCARDCommand:{:02x}",
@@ -178,8 +181,8 @@ void ICCardReader::Process()
   };
 
   // To avoid unnecessary dynamic storage.
-  // Note that many commands expect an 8-byte response even for small amounts of data.
-  std::array<u8, 8> small_response_payload{};
+  // Note: Commands generally expect a full 8-byte response even for small amounts of data.
+  std::array<u8, PAGE_SIZE> small_response_payload{};
 
   // Will be later assigned to `small_response_payload` or some region of the card data itself.
   std::span<const u8> response_payload_span;
@@ -188,39 +191,58 @@ void ICCardReader::Process()
   {
   case ICCARDCommand::GetStatus:
   {
-    if (!check_input_payload_size(0))
+    if (!validate_input_payload_size(0))
       break;
 
     // TODO:
     // reply_header.status = 0x20;
     reply_header.status = 0x30;  // Skips "FIELD ON START".
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: GetStatus: {:02x}", m_ic_card_state);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: GetStatus");
     break;
   }
   case ICCARDCommand::SetBaudrate:
   {
-    if (!check_input_payload_size(8))  // d44f314eff7f0000
-      break;                           // 00(also saw 10 here) 04 01 00 00 00 00 00
+    if (!validate_input_payload_size(8))
+      break;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: SetBaudrate: {:02x}",
                  fmt::join(input_payload, " "));
-
     break;
   }
   case ICCARDCommand::FieldOn:
   {
-    if (!check_input_payload_size(0))
+    if (!validate_input_payload_size(0))
       break;
 
-    m_ic_card_state |= 0x10;
+    // TODO:
+    // m_ic_card_state |= 0x10;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: FieldOn");
     break;
   }
+  case ICCARDCommand::FieldOff:
+  {
+    if (!validate_input_payload_size(0))
+      break;
+
+    // TODO:
+    // m_ic_card_state &= ~0x10;
+
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: FieldOff");
+    break;
+  }
+  case ICCARDCommand::Unknown_16:
+  {
+    if (!validate_input_payload_size(0))
+      break;
+
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown_16 (NOT IMPLEMENTED)");
+    break;
+  }
   case ICCARDCommand::InsertCheck:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
@@ -235,53 +257,59 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::AntiCollision:
   {
-    // FYI: Requests seem to include 16 bytes of 0x00.
-    // Avalon's logic optionally includes an integer and 8 memcpy'd bytes but never seems to do it.
+    if (!validate_input_payload_size(16))
+      break;
+
+    // Avalon's logic optionally sets param0=0x20 and 8 memcpy'd bytes but never seems to do it.
+    const u16 unknown_param0 = Common::swap16(input_payload.data() + 0);
+    const auto unknown_param1 = input_payload.subspan(2, 8);
 
     // Card ID
     response_payload_span = CARD_ID;
 
+    // TODO:
     // Avalon seems to like a value of 0x0 or 0x1. 0x1 Causes two cards to be processed.
-    // It doesn't like when the second card returns 0x1 tho?
     // reply_header.status = 0x01;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "AntiCollision: {:02x}", fmt::join(input_payload, " "));
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "AntiCollision: {:04x} {:02x}", unknown_param0,
+                 fmt::join(unknown_param1, " "));
     break;
   }
   case ICCARDCommand::SelectCard:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
+    const auto card_id = input_payload.first(8);
+
     // FYI: The request includes the Card ID that we produced in `AntiCollision`.
-    if (!std::ranges::equal(input_payload, CARD_ID))
+    if (!std::ranges::equal(card_id, CARD_ID))
     {
       WARN_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: Unexpected Card ID: {:02x}",
-                   fmt::join(input_payload, " "));
+                   fmt::join(card_id, " "));
     }
 
-    // TODO: I think a non-zero status means there are more cards.
+    // TODO: I think a non-zero status means there are multiple cards ?
     // reply_header.status = 0x00;
 
     // Session
     Common::WriteSwap16(small_response_payload.data(), IC_CARD_SESSION);
 
-    // Avalon seems to only use 2 of the 8 expected bytes.
     response_payload_span = small_response_payload;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: {:02x}", fmt::join(input_payload, " "));
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: {:02x}", fmt::join(card_id, " "));
     break;
   }
   // FYI: These two seem to have the same parameters.
-  // Perhaps ReadUseCount is only meant to copy 2 bytes, but the response is still expected to be 8.
+  // Maybe ReadUseCount is meant to copy just 2 bytes? The response is still expected to be 8.
   case ICCARDCommand::ReadPage:
   case ICCARDCommand::ReadUseCount:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
-    const std::size_t page = Common::swap16(input_payload.data() + 2) & PAGE_INDEX_MASK;
+    const u16 page = Common::swap16(input_payload.data() + 2) & PAGE_INDEX_MASK;
 
     CheckCardSession(card_session);
 
@@ -289,18 +317,18 @@ void ICCardReader::Process()
 
     response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPage: session:{:04x}, page:{}", card_session, page);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPage: session:{:04x} page:{}", card_session, page);
     break;
   }
   case ICCARDCommand::WritePage:
   {
-    if (!check_input_payload_size(16))
+    if (!validate_input_payload_size(16))
       break;
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
     // Avalon specifically puts a zero here.
     const u16 unknown = Common::swap16(input_payload.data() + 2);
-    const std::size_t page = Common::swap16(input_payload.data() + 4) & PAGE_INDEX_MASK;
+    const u16 page = Common::swap16(input_payload.data() + 4) & PAGE_INDEX_MASK;
 
     CheckCardSession(card_session);
 
@@ -310,8 +338,8 @@ void ICCardReader::Process()
     }
     else
     {
-      // TODO: bounds check !
-      std::copy_n(input_payload.data() + 8, PAGE_SIZE, m_ic_card_data.data() + (page * PAGE_SIZE));
+      std::ranges::copy(input_payload.subspan(8, PAGE_SIZE),
+                        m_ic_card_data.data() + (page * PAGE_SIZE));
     }
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePage: session:{:04x} unknown:{} page:{}", card_session,
@@ -320,7 +348,7 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::DecreaseUseCount:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
@@ -343,24 +371,24 @@ void ICCardReader::Process()
                  card_session, page, amount);
     break;
   }
-  case ICCARDCommand::Halt:
+  case ICCARDCommand::HaltCard:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
 
     CheckCardSession(card_session);
 
-    // TODO: I think this is supposed to make a particular card stop responding
-    // to remove it from anti-collision cycles.
+    // TODO: I think this is supposed to make a particular card stop responding,
+    //  to remove it from responses in AntiCollision.
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "Halt: session:{:04x}", card_session);
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Halt (NOT IMPLEMENTED): session:{:04x}", card_session);
     break;
   }
   case ICCARDCommand::ReadPages:
   {
-    if (!check_input_payload_size(8))
+    if (!validate_input_payload_size(8))
       break;
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
@@ -381,8 +409,12 @@ void ICCardReader::Process()
   }
   case ICCARDCommand::WritePages:
   {
-    if (!check_input_payload_size(8))
+    if (input_payload_size < 8)
+    {
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "WritePages: Undersized payload size: {}",
+                    input_payload_size);
       break;
+    }
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
     const u32 page = Common::swap16(input_payload.data() + 2) & PAGE_INDEX_MASK;
@@ -390,17 +422,21 @@ void ICCardReader::Process()
 
     CheckCardSession(card_session);
 
-    const u32 write_offset = page * PAGE_SIZE;
-    const u32 write_size = page_count * PAGE_SIZE;
+    const u32 byte_offset = page * PAGE_SIZE;
+    const u32 byte_count = page_count * PAGE_SIZE;
 
-    // TODO: This should probably test for any write that touches page 4.
-    if (page == READ_ONLY_PAGE_INDEX)  // Read-only page, must return error
+    if (!validate_input_payload_size(8 + byte_count))
+      break;
+
+    // TODO: This should probably test for any write that touches page 4 ?
+    if (page == READ_ONLY_PAGE_INDEX)
     {
+      // Read-only page, must return error
       reply_header.status = 0x80;
     }
     else
     {
-      if (write_size + write_offset > sizeof(m_ic_card_data))
+      if (byte_count + byte_offset > sizeof(m_ic_card_data))
       {
         // TODO: better error.
         WARN_LOG_FMT(SERIALINTERFACE_CARD, "WritePages session:{:04x} page:{} page_count:{}",
@@ -408,23 +444,26 @@ void ICCardReader::Process()
       }
       else
       {
-        std::copy_n(input_payload.data() + 8, write_size, m_ic_card_data.data() + write_offset);
+        std::ranges::copy(input_payload.subspan(8, byte_count),
+                          m_ic_card_data.data() + byte_offset);
       }
     }
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePages session:{:04x} page:{} page_count:{}",
                  card_session, page, page_count);
-
     break;
   }
   default:
-    // Handle Deck Reader commands.
+  {  // Handle Deck Reader commands.
     const u8 cd_reader_command = request_data[0];
     reply_header.command = cd_reader_command;
 
     // TODO:
     // reply_header.flag = 0;
     m_deck_reader.Process(cd_reader_command);
+
+    break;
+  }
   }
 
   reply_header.status = Common::swap16(reply_header.status);
@@ -453,8 +492,6 @@ void ICCardReader::ToggleCardState()
 void ICCardReader::DoState(PointerWrap& p)
 {
   p.Do(m_ic_card_data);
-
-  p.Do(m_ic_card_state);
 }
 
 }  // namespace Triforce

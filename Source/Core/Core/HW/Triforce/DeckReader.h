@@ -3,13 +3,12 @@
 
 #pragma once
 
-#include <span>
-
 #include "Common/CommonTypes.h"
 
 namespace Triforce
 {
 
+// Serial deck reader used by The Key of Avalon.
 class DeckReader
 {
 public:

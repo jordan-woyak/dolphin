@@ -123,14 +123,6 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
                                              int device_number)
     : ISIDevice(system, device, device_number)
 {
-  // Serial IC-CARD / Serial Deck Reader
-  if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
-      AMMediaboard::GetGameType() == VirtuaStriker4_2006 ||
-      AMMediaboard::GetGameType() == GekitouProYakyuu || AMMediaboard::GetGameType() == KeyOfAvalon)
-  {
-    m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
-  }
-
   // Magnetic Card Reader
   m_mag_card_settings.card_path = File::GetUserPath(D_TRIUSER_IDX);
   m_mag_card_settings.card_name = fmt::format("tricard_{}.bin", SConfig::GetInstance().GetGameID());
@@ -146,7 +138,14 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
     m_serial_device_b = std::make_unique<MagCard::C1231LR>(&m_mag_card_settings);
     break;
 
+  case VirtuaStriker4:
+  case VirtuaStriker4_2006:
+  case GekitouProYakyuu:
+    m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
+    break;
+
   case KeyOfAvalon:
+    m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
     m_serial_device_b = std::make_unique<Triforce::Touchscreen>();
     break;
 

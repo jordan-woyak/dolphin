@@ -56,18 +56,18 @@ void DeckReader::Process(u8 cd_reader_command)
   {
   case CDReaderCommand::ProgramVersion:
   {
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: ProgramVersion");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ProgramVersion");
     response_payload_span = Common::AsU8Span(CDR_PROGRAM_VERSION);
     break;
   }
   case CDReaderCommand::BootVersion:
   {
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: BootVersion");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "BootVersion");
     response_payload_span = Common::AsU8Span(CDR_BOOT_VERSION);
     break;
   }
   case CDReaderCommand::ShutterGet:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: ShutterGet");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ShutterGet");
 
     small_response_payload[0] = 0;
     small_response_payload[1] = 0;
@@ -78,7 +78,7 @@ void DeckReader::Process(u8 cd_reader_command)
 
     break;
   case CDReaderCommand::CameraCheck:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: CameraCheck");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "CameraCheck");
 
     small_response_payload[0] = 0x23;
     small_response_payload[1] = 0x28;
@@ -91,7 +91,7 @@ void DeckReader::Process(u8 cd_reader_command)
 
     break;
   case CDReaderCommand::ProgramChecksum:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: ProgramChecksum");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ProgramChecksum");
 
     small_response_payload[0] = 0x23;
     small_response_payload[1] = 0x28;
@@ -102,7 +102,7 @@ void DeckReader::Process(u8 cd_reader_command)
 
     break;
   case CDReaderCommand::BootChecksum:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: BootChecksum");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "BootChecksum");
 
     small_response_payload[0] = 0x23;
     small_response_payload[1] = 0x28;
@@ -113,25 +113,25 @@ void DeckReader::Process(u8 cd_reader_command)
 
     break;
   case CDReaderCommand::SelfTest:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: SelfTest");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelfTest");
 
     // TODO:
     // reply_header.flag = 0x00;
     break;
   case CDReaderCommand::SensLock:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: SensLock");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensLock");
     // TODO:
     // reply_header.flag = 0x01;
     break;
   case CDReaderCommand::SensCard:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: SensCard");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensCard");
     break;
   case CDReaderCommand::ShutterCard:
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: ShutterCard");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ShutterCard");
     break;
   case CDReaderCommand::ReadCard:
   {
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DeckReader: ReadCard");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadCard");
 
     // TODO:
     // reply_header.fixed = 0xAA;

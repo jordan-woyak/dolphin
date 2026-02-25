@@ -11,7 +11,8 @@
 namespace Triforce
 {
 
-// Serial IC-CARD / Serial Deck Reader
+// IC card reader.
+// Used by: GekitouProYakyuu, KeyOfAvalon, VirtuaStriker4[_2006]
 class ICCardReader final : public SerialDevice
 {
 public:
@@ -26,17 +27,15 @@ protected:
   void Process() override;
 
 private:
-  static constexpr u32 PAGE_SIZE = 8;
+  static constexpr std::size_t PAGE_SIZE = 8;
   static constexpr u32 PAGE_COUNT = 256;
 
   static constexpr u32 PAGE_INDEX_MASK = 0xff;
 
+  // TODO: Write this to the filesystem.
   std::array<u8, PAGE_SIZE * PAGE_COUNT> m_ic_card_data{};
 
-  // TODO:
-  u16 m_ic_card_state = 0x20;
-
-  // TODO: I think only Avalon should have this.
+  // TODO: Only Avalon should have this.
   DeckReader m_deck_reader;
 };
 
