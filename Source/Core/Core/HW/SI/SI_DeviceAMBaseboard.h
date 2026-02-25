@@ -123,7 +123,7 @@ private:
   // This value prevents F-Zero AX mag card breakage.
   // It's now used for both serial ports.
   // TODO: Verify how the hardware actually works.
-  static constexpr u32 SERIAL_PORT_MAX_READ_SIZE = 0x2f;
+  static constexpr u32 SERIAL_PORT_MAX_READ_SIZE = 0x1f;
 
   // Reply has to be delayed due a bug in the parser
   std::array<std::array<u8, RESPONSE_SIZE>, 2> m_response_buffers{};

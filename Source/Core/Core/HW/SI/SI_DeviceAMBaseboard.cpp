@@ -411,6 +411,13 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           if (!validate_data_in_out(length, 0, "SerialA"))
             break;
 
+          if (m_serial_device_a != nullptr)
+          {
+            m_serial_device_a->WriteBytes({data_in, length});
+            data_in += length;
+            break;
+          }
+
           INFO_LOG_FMT(SERIALINTERFACE_AMBB, "GC-AM: Command 0x31, length=0x{:02x}, hexdump:\n{}",
                        length, HexDump(data_in, length));
 
@@ -468,37 +475,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             // u16 Roll          = ptr(10);
             if (!validate_data_in_out(length, 0, "SerialA (Wheel)"))
               break;
-            data_in += length;
-            break;
-          }
-
-          // Serial - Unknown
-          // if (AMMediaboard::GetGameType() == GekitouProYakyuu)
-          // {
-          //   if (!validate_data_in_out(sizeof(u32), 0, "SerialA (Unknown)"))
-          //     break;
-          //   const u32 serial_command = Common::BitCastPtr<u32>(data_in);
-
-          //   if (serial_command == 0x00001000)
-          //   {
-          //     if (!validate_data_in_out(0, 5, "SerialA (Unknown)"))
-          //       break;
-          //     data_out[data_offset++] = gcam_command;
-          //     data_out[data_offset++] = 0x03;
-          //     data_out[data_offset++] = 1;
-          //     data_out[data_offset++] = 2;
-          //     data_out[data_offset++] = 3;
-          //   }
-
-          //   if (!validate_data_in_out(length, 0, "SerialA (Unknown)"))
-          //     break;
-          //   data_in += length;
-          //   break;
-          // }
-
-          if (m_serial_device_a != nullptr)
-          {
-            m_serial_device_a->WriteBytes({data_in, length});
             data_in += length;
             break;
           }
@@ -672,28 +648,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         if (m_serial_device_b != nullptr)
         {
           m_serial_device_b->WriteBytes({data_in, in_length});
-
-          const auto out_length =
-              std::min(u32(m_serial_device_b->GetOutputCount()), SERIAL_PORT_MAX_READ_SIZE);
-
-          if (out_length != 0)
-          {
-            // Also accounting for the 2-byte header.
-            if (!validate_data_in_out(0, out_length + 2, "SerialB"))
-              break;
-
-            // Write the 2-byte header.
-            data_out[data_offset++] = gcam_command;
-            data_out[data_offset++] = u8(out_length);
-
-            const auto out_span = std::span{data_out}.subspan(data_offset, out_length);
-
-            m_serial_device_b->TakeOutput(out_span);
-
-            DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialB reply: {}", HexDump(out_span));
-
-            data_offset += out_length;
-          }
         }
 
         data_in += in_length;
@@ -1569,6 +1523,35 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
         m_serial_device_a->TakeOutput(out_span);
 
         DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialA reply: {}", HexDump(out_span));
+
+        data_offset += out_length;
+      }
+    }
+
+    // TODO: De-duplicate this code !
+
+    if (m_serial_device_b != nullptr)
+    {
+      m_serial_device_b->Process();
+
+      const auto out_length =
+          std::min(u32(m_serial_device_b->GetOutputCount()), SERIAL_PORT_MAX_READ_SIZE);
+
+      if (out_length != 0)
+      {
+        // Also accounting for the 2-byte header.
+        if (!validate_data_in_out(0, out_length + 2, "SerialB"))
+          break;
+
+        // Write the 2-byte header.
+        data_out[data_offset++] = GCAMCommand::SerialB;
+        data_out[data_offset++] = u8(out_length);
+
+        const auto out_span = std::span{data_out}.subspan(data_offset, out_length);
+
+        m_serial_device_b->TakeOutput(out_span);
+
+        DEBUG_LOG_FMT(SERIALINTERFACE_AMBB, "SerialB reply: {}", HexDump(out_span));
 
         data_offset += out_length;
       }
