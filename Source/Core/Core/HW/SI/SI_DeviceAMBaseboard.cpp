@@ -1530,6 +1530,7 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
     // TODO: De-duplicate this code !
 
+    // TODO: don't return this data constantly ?
     if (m_serial_device_b != nullptr)
     {
       m_serial_device_b->Process();

@@ -1,4 +1,3 @@
-
 // Copyright 2026 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -17,17 +16,6 @@
 
 namespace
 {
-
-constexpr std::string_view CDR_PROGRAM_VERSION = "           Version 1.22,2003/09/19,171-8213B";
-constexpr std::string_view CDR_BOOT_VERSION = "           Version 1.04,2003/06/17,171-8213B";
-
-constexpr u8 CDR_CARD_DATA[] = {
-    0x00, 0x6E, 0x00, 0x00, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x07, 0x00, 0x00, 0x0B, 0x00, 0x00,
-    0x0E, 0x00, 0x00, 0x10, 0x00, 0x00, 0x17, 0x00, 0x00, 0x19, 0x00, 0x00, 0x1A, 0x00, 0x00, 0x1B,
-    0x00, 0x00, 0x1D, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x20, 0x00, 0x00, 0x22, 0x00, 0x00, 0x23, 0x00,
-    0x00, 0x24, 0x00, 0x00, 0x27, 0x00, 0x00, 0x28, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x2F, 0x00, 0x00,
-    0x34, 0x00, 0x00, 0x35, 0x00, 0x00, 0x37, 0x00, 0x00, 0x38, 0x00, 0x00, 0x39, 0x00, 0x00, 0x3D,
-};
 
 constexpr u8 CARD_ID[8] = {0x00, 0x00, 0x54, 0x4D, 0x50, 0x00, 0x00, 0x00};
 
@@ -77,34 +65,24 @@ enum ICCARDCommand
   ReadPage = 0x24,
   WritePage = 0x25,
   DecreaseUseCount = 0x26,
-
-  // Avalon includes a 2 byte card session in an 8 byte payload request.
-  // It seems to expect no response data.
-  // It logs "[INHERIT]_REQUEST_STD_START" upon response.
-  Unknown_27 = 0x27,
-
+  Halt = 0x27,
   ReadUseCount = 0x33,
   ReadPages = 0x34,
   WritePages = 0x35,
 };
 
-enum CDReaderCommand
+enum ICCARDStatus
 {
-  ShutterAuto = 0x61,
-  BootVersion = 0x62,
-  SensLock = 0x63,
-  SensCard = 0x65,
-  FirmwareUpdate = 0x66,
-  ShutterGet = 0x67,
-  CameraCheck = 0x68,
-  ShutterCard = 0x69,
-  ProgramChecksum = 0x6b,
-  BootChecksum = 0x6d,
-  ShutterLoad = 0x6f,
-  ReadCard = 0x72,
-  ShutterSave = 0x73,
-  SelfTest = 0x74,
-  ProgramVersion = 0x76,
+  Okay = 0x0000,
+  // SelectFirstCard = 0x0001,  // The game tests for this sometimes.
+  FieldOnStart = 0x0020,
+  InitializeEnd = 0x0030,
+
+  // These seem to trigger a re-read of a Page.
+  NoCard = 0x8000,
+  Unknown = 0x800e,
+
+  BadCard = 0xffff,
 };
 
 ICCardReader::ICCardReader()
@@ -143,11 +121,6 @@ void ICCardReader::Process()
   const auto input_span = GetInputSpan();
   if (input_span.size() < 4)
     return;  // Wait for more data.
-
-  // if (++m_reply_delay < 5)
-  //   return;
-
-  // m_reply_delay = 0;
 
   // For reference:
   // struct RequestLayout
@@ -205,9 +178,10 @@ void ICCardReader::Process()
   };
 
   // To avoid unnecessary dynamic storage.
-  std::array<u8, 8> small_payload{};
+  // Note that many commands expect an 8-byte response even for small amounts of data.
+  std::array<u8, 8> small_response_payload{};
 
-  // Will be later assigned to part of `small_response_payload` or the card data itself.
+  // Will be later assigned to `small_response_payload` or some region of the card data itself.
   std::span<const u8> response_payload_span;
 
   switch (ICCARDCommand(card_command))
@@ -218,10 +192,10 @@ void ICCardReader::Process()
       break;
 
     // TODO:
-    reply_header.status = 0x30;
+    // reply_header.status = 0x20;
+    reply_header.status = 0x30;  // Skips "FIELD ON START".
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
-                 m_ic_card_state);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: GetStatus: {:02x}", m_ic_card_state);
     break;
   }
   case ICCARDCommand::SetBaudrate:
@@ -229,19 +203,19 @@ void ICCardReader::Process()
     if (!check_input_payload_size(8))  // d44f314eff7f0000
       break;                           // 00(also saw 10 here) 04 01 00 00 00 00 00
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Set Baudrate");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: SetBaudrate: {:02x}",
+                 fmt::join(input_payload, " "));
 
     break;
   }
   case ICCARDCommand::FieldOn:
   {
-    // What sort of data?
-
     if (!check_input_payload_size(0))
       break;
 
     m_ic_card_state |= 0x10;
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Field On");
+
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: FieldOn");
     break;
   }
   case ICCARDCommand::InsertCheck:
@@ -249,17 +223,14 @@ void ICCardReader::Process()
     if (!check_input_payload_size(8))
       break;
 
-    // Avalon gets stuck here sending this. It wants a certain response..
-
     // Avalon sends 0 or 1 here, not sure what the meaning is.
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
 
-    // TODO:
-    // reply_header.status = 0x30;
+    // TODO: I think status is whether or not a card is present.
+    // Avalon does another InsertCheck when it's non-zero.
+    // reply_header.status = m_ic_card_status;
 
-    reply_header.status = m_ic_card_status;
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
-                 m_ic_card_status);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "InsertCheck: {}", unknown_parameter);
     break;
   }
   case ICCARDCommand::AntiCollision:
@@ -270,7 +241,11 @@ void ICCardReader::Process()
     // Card ID
     response_payload_span = CARD_ID;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Anti Collision");
+    // Avalon seems to like a value of 0x0 or 0x1. 0x1 Causes two cards to be processed.
+    // It doesn't like when the second card returns 0x1 tho?
+    // reply_header.status = 0x01;
+
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "AntiCollision: {:02x}", fmt::join(input_payload, " "));
     break;
   }
   case ICCARDCommand::SelectCard:
@@ -282,17 +257,19 @@ void ICCardReader::Process()
     if (!std::ranges::equal(input_payload, CARD_ID))
     {
       WARN_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: Unexpected Card ID: {:02x}",
-                   fmt::join(input_payload, ","));
+                   fmt::join(input_payload, " "));
     }
 
+    // TODO: I think a non-zero status means there are more cards.
+    // reply_header.status = 0x00;
+
     // Session
-    Common::WriteSwap16(small_payload.data(), IC_CARD_SESSION);
+    Common::WriteSwap16(small_response_payload.data(), IC_CARD_SESSION);
 
     // Avalon seems to only use 2 of the 8 expected bytes.
-    response_payload_span = small_payload;
+    response_payload_span = small_response_payload;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Select Card:{:04x}",
-                 IC_CARD_SESSION);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: {:02x}", fmt::join(input_payload, " "));
     break;
   }
   // FYI: These two seem to have the same parameters.
@@ -312,7 +289,7 @@ void ICCardReader::Process()
 
     response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Read Page:{}", page);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPage: session:{:04x}, page:{}", card_session, page);
     break;
   }
   case ICCARDCommand::WritePage:
@@ -337,7 +314,8 @@ void ICCardReader::Process()
       std::copy_n(input_payload.data() + 8, PAGE_SIZE, m_ic_card_data.data() + (page * PAGE_SIZE));
     }
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Page:{}", page);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePage: session:{:04x} unknown:{} page:{}", card_session,
+                 unknown, page);
     break;
   }
   case ICCARDCommand::DecreaseUseCount:
@@ -357,11 +335,27 @@ void ICCardReader::Process()
     const u16 use_count = Common::swap16(addr);
     Common::WriteSwap16(addr, use_count - amount);
 
-    std::copy_n(addr, sizeof(u16), small_payload.data());
+    std::copy_n(addr, sizeof(u16), small_response_payload.data());
 
-    response_payload_span = small_payload;
+    response_payload_span = small_response_payload;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Decrease Use Count:{}", page);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "DecreaseUseCount: session:{:04x}, page:{} amount:{}",
+                 card_session, page, amount);
+    break;
+  }
+  case ICCARDCommand::Halt:
+  {
+    if (!check_input_payload_size(8))
+      break;
+
+    const u16 card_session = Common::swap16(input_payload.data() + 0);
+
+    CheckCardSession(card_session);
+
+    // TODO: I think this is supposed to make a particular card stop responding
+    // to remove it from anti-collision cycles.
+
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "Halt: session:{:04x}", card_session);
     break;
   }
   case ICCARDCommand::ReadPages:
@@ -381,8 +375,8 @@ void ICCardReader::Process()
     // TODO: Check bounds !
     response_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, byte_count);
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 31 (IC-CARD) Read Pages:{} Count:{}", page,
-                 page_count);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPages session:{:04x} page:{} page_count:{}",
+                 card_session, page, page_count);
     break;
   }
   case ICCARDCommand::WritePages:
@@ -409,9 +403,8 @@ void ICCardReader::Process()
       if (write_size + write_offset > sizeof(m_ic_card_data))
       {
         // TODO: better error.
-        ERROR_LOG_FMT(SERIALINTERFACE_CARD,
-                      "GC-AM: Command 0x31 (IC-CARD) Data overflow: Pages:{} Count:{} ({})", page,
-                      page_count, input_payload_size);
+        WARN_LOG_FMT(SERIALINTERFACE_CARD, "WritePages session:{:04x} page:{} page_count:{}",
+                     card_session, page, page_count);
       }
       else
       {
@@ -419,8 +412,8 @@ void ICCardReader::Process()
       }
     }
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Write Pages:{} Count:{} ({})",
-                 page, page_count, input_payload_size);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePages session:{:04x} page:{} page_count:{}",
+                 card_session, page, page_count);
 
     break;
   }
@@ -431,102 +424,7 @@ void ICCardReader::Process()
 
     // TODO:
     // reply_header.flag = 0;
-
-    switch (CDReaderCommand(cd_reader_command))
-    {
-    case CDReaderCommand::ProgramVersion:
-    {
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Program Version");
-      response_payload_span = Common::AsU8Span(CDR_PROGRAM_VERSION);
-      break;
-    }
-    case CDReaderCommand::BootVersion:
-    {
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Boot Version");
-      response_payload_span = Common::AsU8Span(CDR_BOOT_VERSION);
-      break;
-    }
-    case CDReaderCommand::ShutterGet:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Shutter Get");
-
-      small_payload[0] = 0;
-      small_payload[1] = 0;
-      small_payload[2] = 0;
-      small_payload[3] = 0;
-
-      response_payload_span = small_payload;
-
-      break;
-    case CDReaderCommand::CameraCheck:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Camera Check");
-
-      small_payload[0] = 0x23;
-      small_payload[1] = 0x28;
-      small_payload[2] = 0x45;
-      small_payload[3] = 0x29;
-      small_payload[4] = 0x45;
-      small_payload[5] = 0x29;
-
-      response_payload_span = small_payload;
-
-      break;
-    case CDReaderCommand::ProgramChecksum:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Program Checksum");
-
-      small_payload[0] = 0x23;
-      small_payload[1] = 0x28;
-      small_payload[2] = 0x45;
-      small_payload[3] = 0x29;
-
-      response_payload_span = small_payload;
-
-      break;
-    case CDReaderCommand::BootChecksum:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Boot Checksum");
-
-      small_payload[0] = 0x23;
-      small_payload[1] = 0x28;
-      small_payload[2] = 0x45;
-      small_payload[3] = 0x29;
-
-      response_payload_span = small_payload;
-
-      break;
-    case CDReaderCommand::SelfTest:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Self Test");
-
-      // TODO:
-      // reply_header.flag = 0x00;
-      break;
-    case CDReaderCommand::SensLock:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Lock");
-      // TODO:
-      // reply_header.flag = 0x01;
-      break;
-    case CDReaderCommand::SensCard:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Sens Card");
-      break;
-    case CDReaderCommand::ShutterCard:
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Shutter Card");
-      break;
-    case CDReaderCommand::ReadCard:
-    {
-      INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (DECK READER) Read Card");
-
-      reply_header.fixed = 0xAA;
-      // TODO:
-      // reply_header.flag = 0xAA;
-
-      response_payload_span = CDR_CARD_DATA;
-
-      break;
-    }
-    default:
-      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader: Unhandled request: {}",
-                    HexDump(request_data));
-      break;
-    }
-    break;
+    m_deck_reader.Process(cd_reader_command);
   }
 
   reply_header.status = Common::swap16(reply_header.status);
@@ -549,7 +447,7 @@ void ICCardReader::ToggleCardState()
   NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader::ToggleCardState");
 
   // TODO:
-  m_ic_card_status ^= ICCARDStatus::NoCard;
+  // m_ic_card_status ^= ICCARDStatus::NoCard;
 }
 
 void ICCardReader::DoState(PointerWrap& p)
@@ -557,7 +455,6 @@ void ICCardReader::DoState(PointerWrap& p)
   p.Do(m_ic_card_data);
 
   p.Do(m_ic_card_state);
-  p.Do(m_ic_card_status);
 }
 
 }  // namespace Triforce
