@@ -218,7 +218,7 @@ void ICCardReader::Process()
       break;
 
     // TODO:
-    // reply_header.status = m_ic_card_state;
+    reply_header.status = 0x30;
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Get Status:{:02x}",
                  m_ic_card_state);
@@ -253,6 +253,9 @@ void ICCardReader::Process()
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
+
+    // TODO:
+    // reply_header.status = 0x30;
 
     reply_header.status = m_ic_card_status;
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GC-AM: Command 0x31 (IC-CARD) Insert Check:{:02x}",
@@ -526,6 +529,7 @@ void ICCardReader::Process()
     break;
   }
 
+  reply_header.status = Common::swap16(reply_header.status);
   reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
 
   // TODO:
