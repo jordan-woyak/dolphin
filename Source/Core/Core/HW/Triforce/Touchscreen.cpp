@@ -42,11 +42,6 @@ void Touchscreen::Process()
     ChewBytes(input.size());
   }
 
-  if (m_counter++ < 1)
-    return;
-
-  m_counter = 0;
-
   // We currently feed the touch screen from c-stick and right-trigger just to make use usable.
   // TODO: Expose it in a better way.
 
@@ -65,8 +60,7 @@ void Touchscreen::Process()
       .pressure = pad_status.triggerRight,
   };
 
-  // All previous bytes + 0xaa (Same as all previous except `lead_in`).
-  packet.checksum = std::accumulate(&packet.cmd, &packet.checksum, u8{});
+  packet.checksum = std::accumulate(&packet.lead_in, &packet.checksum, u8{0xaa});
 
   OutputBytes(Common::AsU8Span(packet));
 }

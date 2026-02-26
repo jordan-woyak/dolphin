@@ -13,10 +13,6 @@ class Touchscreen final : public SerialDevice
 {
 protected:
   void Process() override;
-
-private:
-  // TODO: hax
-  u8 m_counter{};
 };
 
 }  // namespace Triforce
