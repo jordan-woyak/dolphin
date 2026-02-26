@@ -5,6 +5,8 @@
 
 #include "Common/CommonTypes.h"
 
+class PointerWrap;
+
 namespace Triforce
 {
 
@@ -13,6 +15,8 @@ class DeckReader
 {
 public:
   void Process(u8 cd_reader_command);
+
+  void DoState(PointerWrap& p);
 
 private:
 };

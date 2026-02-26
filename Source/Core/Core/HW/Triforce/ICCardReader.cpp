@@ -492,6 +492,8 @@ void ICCardReader::ToggleCardState()
 void ICCardReader::DoState(PointerWrap& p)
 {
   p.Do(m_ic_card_data);
+
+  m_deck_reader.DoState(p);
 }
 
 }  // namespace Triforce

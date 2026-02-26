@@ -147,4 +147,8 @@ void DeckReader::Process(u8 cd_reader_command)
   }
 }
 
+void DeckReader::DoState(PointerWrap& p)
+{
+}
+
 }  // namespace Triforce
