@@ -7,6 +7,7 @@
 
 #include "Common/BitUtils.h"
 #include "Common/Logging/Log.h"
+#include "Common/Swap.h"
 
 namespace
 {
@@ -46,9 +47,9 @@ enum CDReaderCommand
   ProgramVersion = 0x76,
 };
 
-void DeckReader::Process(u8 cd_reader_command)
+void DeckReader::Process(u8 cd_reader_command,
+                         const std::function<void(std::span<const u8>)>& callback)
 {
-  // TODO: Kill these !
   std::array<u8, 8> small_response_payload{};
   std::span<const u8> response_payload_span;
 
@@ -143,8 +144,24 @@ void DeckReader::Process(u8 cd_reader_command)
   }
   default:
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown CDReaderCommand: {:02x}", cd_reader_command);
-    break;
+    return;
   }
+
+  ICCardReplyHeader reply_header{
+      .fixed = 0xaa,
+      .command = cd_reader_command,
+  };
+
+  reply_header.status = Common::swap16(reply_header.status);
+  reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
+
+  const auto header_span = Common::AsU8Span(reply_header);
+
+  const u8 checksum = CheckSumXOR(header_span) ^ CheckSumXOR(response_payload_span);
+
+  callback(header_span);
+  callback(response_payload_span);
+  callback(Common::AsU8Span(checksum));
 }
 
 void DeckReader::DoState(PointerWrap& p)

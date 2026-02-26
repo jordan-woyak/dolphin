@@ -34,23 +34,10 @@ void CheckCardSession(u16 card_session)
 constexpr u32 READ_ONLY_PAGE_INDEX = 4;
 constexpr u32 USE_COUNT_OFFSET = 0x28;
 
-constexpr u8 CheckSumXOR(std::span<const u8> data)
-{
-  return std::accumulate(data.data(), data.data() + data.size(), u8{}, std::bit_xor());
-}
-
 }  // namespace
 
 namespace Triforce
 {
-
-struct ICCardReplyHeader
-{
-  u8 fixed;  // Games seem to usually expect 0x10.
-  u8 command;
-  u16 length;  // Big-endian, includes status and payload bytes.
-  u16 status;  // Big-endian.
-};
 
 // FYI: I'm not so sure that the `status` field is actually a universal status.
 // The tested values seem to be very command-specific.
@@ -181,7 +168,7 @@ void ICCardReader::Process()
   };
 
   // To avoid unnecessary dynamic storage.
-  // Note: Commands generally expect a full 8-byte response even for small amounts of data.
+  // Note: Commands seem to expect full 8-byte responses even for small amounts of data.
   std::array<u8, PAGE_SIZE> small_response_payload{};
 
   // Will be later assigned to `small_response_payload` or some region of the card data itself.
@@ -454,23 +441,18 @@ void ICCardReader::Process()
     break;
   }
   default:
-  {  // Handle Deck Reader commands.
+  {
+    // Handle Deck Reader commands.
     const u8 cd_reader_command = request_data[0];
-    reply_header.command = cd_reader_command;
+    m_deck_reader.Process(cd_reader_command, std::bind_front(&ICCardReader::OutputBytes, this));
 
-    // TODO:
-    // reply_header.flag = 0;
-    m_deck_reader.Process(cd_reader_command);
-
-    break;
+    // No IC Reader reply.
+    return;
   }
   }
 
   reply_header.status = Common::swap16(reply_header.status);
   reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
-
-  // TODO:
-  // reply_header.status = 0;
 
   const auto header_span = Common::AsU8Span(reply_header);
 
