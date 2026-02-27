@@ -467,8 +467,8 @@ void ICCardReader::Process()
   }
   }
 
-  reply_header.status = Common::swap16(reply_header.status);
   reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
+  reply_header.status = Common::swap16(reply_header.status);
 
   const auto header_span = Common::AsU8Span(reply_header);
 

@@ -54,7 +54,7 @@ void DeckReader::Process(u8 cd_reader_command,
   std::span<const u8> response_payload_span;
 
   ICCardReplyHeader reply_header{
-      .fixed = 0xff,
+      .fixed = 0x10,
       .command = cd_reader_command,
   };
 
@@ -125,14 +125,21 @@ void DeckReader::Process(u8 cd_reader_command,
     // reply_header.flag = 0x00;
     break;
   case CDReaderCommand::SensLock:
+  {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensLock");
     // TODO:
     // reply_header.status = 0x01;
 
-    // callback(Common::AsU8Span(u8(0xff)));
-    // callback(Common::AsU8Span(u8(0x01)));
+    const u8 fixed_data[] = {
+        0x10, 0x63, 0x01, 0x02, 0x00, 0x00, 0x00,
+    };
+
+    callback(fixed_data);
+
+    return;
 
     break;
+  }
   case CDReaderCommand::SensCard:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensCard");
     break;
@@ -155,8 +162,8 @@ void DeckReader::Process(u8 cd_reader_command,
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unhandled CDReaderCommand: {:02x}", cd_reader_command);
   }
 
-  reply_header.status = Common::swap16(reply_header.status);
   reply_header.length = Common::swap16(sizeof(reply_header.status) + response_payload_span.size());
+  reply_header.status = Common::swap16(reply_header.status);
 
   const auto header_span = Common::AsU8Span(reply_header);
 
