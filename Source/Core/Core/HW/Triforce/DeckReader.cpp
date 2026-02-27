@@ -15,17 +15,12 @@ namespace
 constexpr std::string_view CDR_PROGRAM_VERSION = "Version 1.22,2003/09/19,171-8213B";
 constexpr std::string_view CDR_BOOT_VERSION = "Version 1.04,2003/06/17,171-8213B";
 
-constexpr u8 CDR_CARD_DATA[] = {
-    0x6E, 0x00, 0x00, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x07, 0x00, 0x00, 0x0B, 0x00, 0x00, 0x0E,
-    0x00, 0x00, 0x10, 0x00, 0x00, 0x17, 0x00, 0x00, 0x19, 0x00, 0x00, 0x1A, 0x00, 0x00, 0x1B, 0x00,
-    0x00, 0x1D, 0x00, 0x00, 0x1F, 0x00, 0x00, 0x20, 0x00, 0x00, 0x22, 0x00, 0x00, 0x23, 0x00, 0x00,
-    0x24, 0x00, 0x00, 0x27, 0x00, 0x00, 0x28, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x2F, 0x00, 0x00, 0x34,
-    0x00, 0x00, 0x35, 0x00, 0x00, 0x37, 0x00, 0x00, 0x38, 0x00, 0x00, 0x39, 0x00, 0x00, 0x3D,
-};
-
-// Note: Avalon literally just cuts off `strlen("Version ")` bytes.
+// Note: Avalon literally skips `strlen("Version ")` bytes.
 constexpr std::size_t EXPECTED_VERSION_FRONT_PADDING = 8;
 constexpr std::size_t EXPECTED_VERSION_LENGTH = 40;
+
+// Avalon seems to not care about the actual value.
+constexpr u32 SHUTTER_TIME = 1234567890;
 
 }  // namespace
 
@@ -55,19 +50,15 @@ enum class CDReaderCommand : u8
 void DeckReader::Process(u8 cd_reader_command,
                          const std::function<void(std::span<const u8>)>& callback)
 {
-  // FYI: byte[0] of a response set to 0xaa seems to trigger poorly implemented error handling.
-  // Other that that, Avalon appears to largely not inspect the leading 2 bytes,
-  //  and trailing 1 byte that are expected in most responses.
+  // A leading 2 bytes and trailing 1 byte are expected for all responses.
+  // However, Avalon appears to largely never inspect the actual values.
 
   const auto put_header = [&] {
-    std::array<u8, 2> header{};
+    std::array<u8, 2> header{0xaa, cd_reader_command};
     callback(header);
   };
 
-  const auto put_footer = [&] {
-    std::array<u8, 1> header{};
-    callback(header);
-  };
+  const auto put_footer = [&] { callback(Common::AsU8Span(u8{})); };
 
   switch (CDReaderCommand(cd_reader_command))
   {
@@ -77,8 +68,8 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    std::array<u8, 1> result = {0x00};
-    callback(result);
+    // Avalon appears to not inspect this value.
+    callback(Common::AsU8Span(u8(0x00)));
 
     put_footer();
     break;
@@ -89,7 +80,9 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    const u8 result[] = {0x01};
+    constexpr bool is_closed = true;
+
+    const u8 result[] = {is_closed ? 0x01 : 0x00};
     callback(result);
 
     put_footer();
@@ -137,9 +130,9 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    // Avalon seems to not care.
-    Common::BigEndianValue<u32> some_value{0xdeadbeef};
-    callback(Common::AsU8Span(some_value));
+    // Avalon seems to not care about the actual value.
+    Common::BigEndianValue<u32> fake_checksum{0xdeadbeef};
+    callback(Common::AsU8Span(fake_checksum));
 
     put_footer();
     break;
@@ -150,9 +143,9 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    // Avalon seems to not care.
-    Common::BigEndianValue<u32> some_value{0xdeadbeef};
-    callback(Common::AsU8Span(some_value));
+    // Avalon seems to not care about the actual value.
+    Common::BigEndianValue<u32> fake_checksum{0xdeadbeef};
+    callback(Common::AsU8Span(fake_checksum));
 
     put_footer();
     break;
@@ -161,6 +154,7 @@ void DeckReader::Process(u8 cd_reader_command,
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "CameraCheck");
 
+    // FYI: If `header[1] != 0x68` the game inspects some bits and 9 bytes. Some error state ?
     put_header();
 
     std::array<u8, 10> response{};
@@ -175,8 +169,7 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    Common::BigEndianValue<u32> some_value{1234567890};
-    callback(Common::AsU8Span(some_value));
+    callback(Common::AsU8Span(Common::BigEndianValue<u32>{SHUTTER_TIME}));
 
     put_footer();
     break;
@@ -187,8 +180,7 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    std::array<u8, 4> response{};
-    callback(response);
+    callback(Common::AsU8Span(Common::BigEndianValue<u32>{SHUTTER_TIME}));
 
     put_footer();
     break;
@@ -224,7 +216,10 @@ void DeckReader::Process(u8 cd_reader_command,
 
     put_header();
 
-    std::array<u8, 1> response{};
+    // TODO: Is this what this is ? Does Avalon use the value ?
+    constexpr bool are_cards_present = true;
+
+    std::array<u8, 1> response = {are_cards_present ? 0x01 : 0x00};
     callback(response);
 
     put_footer();
@@ -234,31 +229,73 @@ void DeckReader::Process(u8 cd_reader_command,
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadCard");
 
-    put_header();
+    constexpr bool are_results_pending = false;
 
-    callback(CDR_CARD_DATA);
+    if (are_results_pending)
+    {
+      // This causes Avalon to retry the command again in a bit.
+      // I suppose it means that the device is actively scanning the cards.
+      callback(std::array<u8, 2>{0xaa, 0x52});
+    }
+    else
+    {
+      // Two headers are expected.
+      put_header();  // Avalon has logic to handle a 0x52 response here, what's that about ? That
+                     // might mean no cards ?
+      put_header();
+
+#pragma pack(push, 1)
+      struct CardID
+      {
+        // When 0x01 bit is set, Avalon indexes the table at offset 0xa0.
+        // Avalon requires 0x80, 0x40, and 0x20 bits are not set.
+        // Maybe this is like "card type" ?
+        u8 use_second_table;
+
+        // Avalon requires index < 0x100.
+        Common::BigEndianValue<u16> index;
+      };
+#pragma pack(pop)
+
+      // What happens with more than 30 cards ?
+      constexpr u32 card_count = 30;
+
+      callback(Common::AsU8Span(u8(card_count * sizeof(CardID))));
+
+      for (u32 i = 0; i != card_count; ++i)
+      {
+        CardID card_id{
+            .use_second_table = 0x01,
+            .index{u16(96 + i)},
+        };
+
+        callback(Common::AsU8Span(card_id));
+      }
+    }
 
     put_footer();
     break;
   }
-  case CDReaderCommand::FirmwareUpdate:
-  {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "FirmwareUpdate");
+  // case CDReaderCommand::FirmwareUpdate:
+  // {
+  //   WARN_LOG_FMT(SERIALINTERFACE_CARD, "FirmwareUpdate");
 
-    // The game will send many raw bytes over the stream. I don't know what signifies how many.
-    // Afterward I think we are supposed to respond with 3 bytes.
-    constexpr bool actually_start_update = false;
+  //   // The game will send many raw bytes over the stream. I don't know what signifies how many.
+  //   // Afterward I think we are supposed to respond with 3 bytes.
 
-    std::array<u8, 2> response{0xaa, actually_start_update ? 0x66 : 0};
-    callback(response);
+  //   // TODO: Make ICCardReader not break from this !
 
-    put_footer();
-    break;
-  }
+  //   put_header();
+  //   put_footer();
+  //   break;
+  // }
   default:
   {
-    // Responses seem to be variable in length and unspecified so we can't do much.
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown command: {:02x}", cd_reader_command);
+
+    // Responses seem to be variable in length and unspecified so we can't do much.
+    constexpr std::array<u8, 3> fail = {0xaa, 0xff, 0xff};
+    callback(fail);
     break;
   }
   }
