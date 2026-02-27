@@ -106,7 +106,24 @@ ICCardReader::ICCardReader()
 
 void ICCardReader::Process()
 {
+  // TODO: Put this whole thing in a loop ?
+
   const auto input_span = GetInputSpan();
+  if (input_span.empty())
+    return;  // Wait for more data.
+
+  // Handle Deck Reader commands.
+  const u8 cd_reader_command = input_span.front();
+  if (cd_reader_command != 0x00)
+  {
+    m_deck_reader.Process(cd_reader_command, std::bind_front(&ICCardReader::OutputBytes, this));
+
+    // TODO: I think the deck reader commands are variable length.
+    // This potentially needs to chew more bytes. Re: FirmwareUpdate
+    ChewBytes(1);
+    return;
+  }
+
   if (input_span.size() < 4)
     return;  // Wait for more data.
 
@@ -173,6 +190,9 @@ void ICCardReader::Process()
 
   // Will be later assigned to `small_response_payload` or some region of the card data itself.
   std::span<const u8> response_payload_span;
+
+  // FYI: Many of the big-endian u16 parameters are potentially just u8 values.
+  // Avalon writes just single bytes, but there's room for a u16..
 
   switch (ICCARDCommand(card_command))
   {
@@ -442,12 +462,8 @@ void ICCardReader::Process()
   }
   default:
   {
-    // Handle Deck Reader commands.
-    const u8 cd_reader_command = request_data[0];
-    m_deck_reader.Process(cd_reader_command, std::bind_front(&ICCardReader::OutputBytes, this));
-
-    // No IC Reader reply.
-    return;
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown ICCARDCommand: {:02x}", card_command);
+    break;
   }
   }
 
