@@ -12,6 +12,7 @@
 namespace
 {
 
+// Note: Game code literally cuts off strlen("Version ") characters.
 constexpr std::string_view CDR_PROGRAM_VERSION = "           Version 1.22,2003/09/19,171-8213B";
 constexpr std::string_view CDR_BOOT_VERSION = "           Version 1.04,2003/06/17,171-8213B";
 
@@ -75,12 +76,14 @@ void DeckReader::Process(u8 cd_reader_command,
   case CDReaderCommand::ShutterGet:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ShutterGet");
 
-    small_response_payload[0] = 0;
-    small_response_payload[1] = 0;
-    small_response_payload[2] = 0;
-    small_response_payload[3] = 0;
+    // I think this is supposed to have no payload.
 
-    response_payload_span = small_response_payload;
+    // small_response_payload[0] = 0;
+    // small_response_payload[1] = 0;
+    // small_response_payload[2] = 0;
+    // small_response_payload[3] = 0;
+
+    // response_payload_span = small_response_payload;
 
     break;
   case CDReaderCommand::CameraCheck:
@@ -99,10 +102,10 @@ void DeckReader::Process(u8 cd_reader_command,
   case CDReaderCommand::ProgramChecksum:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ProgramChecksum");
 
-    small_response_payload[0] = 0x23;
-    small_response_payload[1] = 0x28;
-    small_response_payload[2] = 0x45;
-    small_response_payload[3] = 0x29;
+    // small_response_payload[0] = 0x23;
+    // small_response_payload[1] = 0x28;
+    // small_response_payload[2] = 0x45;
+    // small_response_payload[3] = 0x29;
 
     response_payload_span = small_response_payload;
 
@@ -110,10 +113,10 @@ void DeckReader::Process(u8 cd_reader_command,
   case CDReaderCommand::BootChecksum:
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "BootChecksum");
 
-    small_response_payload[0] = 0x23;
-    small_response_payload[1] = 0x28;
-    small_response_payload[2] = 0x45;
-    small_response_payload[3] = 0x29;
+    // small_response_payload[0] = 0x23;
+    // small_response_payload[1] = 0x28;
+    // small_response_payload[2] = 0x45;
+    // small_response_payload[3] = 0x29;
 
     response_payload_span = small_response_payload;
 
@@ -130,9 +133,7 @@ void DeckReader::Process(u8 cd_reader_command,
     // TODO:
     // reply_header.status = 0x01;
 
-    const u8 fixed_data[] = {
-        0x10, 0x63, 0x01, 0x02, 0x00, 0x00, 0x00,
-    };
+    const u8 fixed_data[] = {0x10, 0x62, 0x01, 0x00};
 
     callback(fixed_data);
 

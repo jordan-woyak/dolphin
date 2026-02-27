@@ -17,6 +17,8 @@ namespace Triforce
 // TODO: Better name ?
 struct ICCardReplyHeader
 {
+  // TODO: Responding with {0xff, 0x01} is some kind of reset ?
+
   u8 fixed;  // Games seem to usually expect 0x10.
   u8 command;
   u16 length;  // Big-endian, includes status and payload bytes.
