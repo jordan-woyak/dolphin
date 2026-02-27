@@ -128,15 +128,17 @@ void ICCardReader::Process()
   if (input_span.size() < 4)
     return;  // Wait for more data.
 
-  // For reference:
-  // struct RequestLayout
-  // {
-  //   u8 fixed;   // Seems to be always zero.
-  //   u8 ic_card_command;
-  //   u16 payload_size;  // Big-endian.
-  //   u8 payload[payload_size];
-  //   u8 checksum;
-  // };
+// For reference:
+#if 0
+  struct RequestPacket
+  {
+    u8 fixed;   // Seems to be always 0x00.
+    u8 ic_card_command;
+    u16 payload_size;  // Big-endian.
+    u8 payload[payload_size];
+    u8 checksum;  // XOR of all previous bytes.
+  };
+#endif
 
   const u16 input_payload_size = Common::swap16(input_span.data() + 2);
   // 4 header bytes + 1 checksum byte
@@ -173,14 +175,14 @@ void ICCardReader::Process()
   const auto validate_input_payload_size = [&](u32 expected_size) {
     if (input_payload_size < expected_size)
     {
-      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Undersized payload size {} for ICCARDCommand:{:02x}",
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Undersized payload size {} for command: {:02x}",
                     input_payload_size, card_command);
       return false;
     }
 
     if (input_payload_size > expected_size)
     {
-      WARN_LOG_FMT(SERIALINTERFACE_CARD, "Oversized payload size {} for ICCARDCommand:{:02x}",
+      WARN_LOG_FMT(SERIALINTERFACE_CARD, "Oversized payload size {} for command: {:02x}",
                    input_payload_size, card_command);
     }
 
@@ -192,15 +194,14 @@ void ICCardReader::Process()
       .command = card_command,
   };
 
-  // To avoid unnecessary dynamic storage.
   // Note: Commands expect full 8-byte responses even for small amounts of data.
-  std::array<u8, PAGE_SIZE> small_reply_payload{};
+  std::array<u8, 8> small_reply_payload{};
 
   // Will be later assigned to `small_reply_payload` or some region of the card data itself.
   std::span<const u8> reply_payload_span;
 
-  // FYI: Many of the big-endian u16 parameters are potentially just u8 values.
-  // Avalon writes just single bytes at odd addresses, so a u16 seems like the intention.
+  // FYI: Many of the big-endian u16 parameters may just be u8 values.
+  // Avalon writes single bytes, but at odd addresses, so u16 seems like the intention.
 
   switch (ICCARDCommand(card_command))
   {
@@ -209,7 +210,7 @@ void ICCardReader::Process()
     if (!validate_input_payload_size(0))
       break;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: GetStatus");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "GetStatus");
 
     // TODO: Can we just always return 0x30 ?
     // Skips "FIELD ON START" in Avalon.
@@ -223,8 +224,7 @@ void ICCardReader::Process()
     if (!validate_input_payload_size(8))
       break;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: SetBaudrate: {:02x}",
-                 fmt::join(input_payload, " "));
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "SetBaudrate: {:02x}", fmt::join(input_payload, " "));
     break;
   }
   case ICCARDCommand::FieldOn:
@@ -234,7 +234,7 @@ void ICCardReader::Process()
 
     m_is_field_on = true;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: FieldOn");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "FieldOn");
     break;
   }
   case ICCARDCommand::FieldOff:
@@ -244,7 +244,7 @@ void ICCardReader::Process()
 
     m_is_field_on = false;
 
-    INFO_LOG_FMT(SERIALINTERFACE_CARD, "ICCARDCommand: FieldOff");
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "FieldOff");
     break;
   }
   case ICCARDCommand::Unknown_16:
@@ -409,7 +409,7 @@ void ICCardReader::Process()
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
 
-    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Halt (Not implemented): session:{:04x}", card_session);
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "HaltCard (Not implemented): session:{:04x}", card_session);
 
     CheckCardSession(card_session);
 
@@ -521,7 +521,7 @@ void ICCardReader::Process()
 
 void ICCardReader::ToggleCardState()
 {
-  NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "ICCardReader::ToggleCardState");
+  INFO_LOG_FMT(SERIALINTERFACE_CARD, "ToggleCardState");
 
   // TODO:
   // m_ic_card_status ^= ICCARDStatus::NoCard;
