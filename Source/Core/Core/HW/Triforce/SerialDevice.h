@@ -34,7 +34,7 @@ public:
   // Caller should ensure buffer contains byte.size() bytes.
   void TakeOutput(std::span<u8> bytes);
 
-  // TODO: Better name.
+  // TODO: Better name ?
   virtual void Process() = 0;
 
 protected:

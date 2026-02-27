@@ -45,11 +45,11 @@ public:
   MagneticCardReader(MagneticCardReader&&) = delete;
   MagneticCardReader& operator=(MagneticCardReader&&) = delete;
 
+  void Process() override;
+
   void DoState(PointerWrap& p) override;
 
 protected:
-  void Process() override;
-
   // Status bytes:
   enum class R : u8
   {

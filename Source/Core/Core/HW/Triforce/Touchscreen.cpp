@@ -32,7 +32,7 @@ static_assert(sizeof(SmartSetDataPacket) == 10);
 namespace Triforce
 {
 
-// TODO: This needs to happen regularly on read, not triggered by a write..
+// TODO: Should this really just produce a packet every SI RunBuffer ?
 void Touchscreen::Process()
 {
   if (const auto input = GetInputSpan(); !input.empty())

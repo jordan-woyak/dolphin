@@ -27,6 +27,7 @@
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/SystemTimers.h"
+#include "Core/HW/Triforce/DeckReader.h"
 #include "Core/HW/Triforce/ICCardReader.h"
 #include "Core/HW/Triforce/Touchscreen.h"
 #include "Core/Movie.h"
@@ -145,7 +146,7 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
     break;
 
   case KeyOfAvalon:
-    m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
+    m_serial_device_a = std::make_unique<Triforce::DeckReader>();
     m_serial_device_b = std::make_unique<Triforce::Touchscreen>();
     break;
 

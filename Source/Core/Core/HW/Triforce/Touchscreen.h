@@ -11,7 +11,7 @@ namespace Triforce
 // The touchscreen input used by The Key of Avalon games.
 class Touchscreen final : public SerialDevice
 {
-protected:
+public:
   void Process() override;
 };
 

@@ -5,7 +5,6 @@
 
 #include "Common/CommonTypes.h"
 
-#include "Core/HW/Triforce/DeckReader.h"
 #include "Core/HW/Triforce/SerialDevice.h"
 
 namespace Triforce
@@ -18,25 +17,22 @@ class ICCardReader final : public SerialDevice
 public:
   ICCardReader();
 
+  void Process() override;
+
   // TODO: Hacky interface to connect card insertion to user input.
   void ToggleCardState();
 
   void DoState(PointerWrap& p) override;
 
-protected:
-  void Process() override;
-
 private:
   static constexpr std::size_t PAGE_SIZE = 8;
   static constexpr u32 PAGE_COUNT = 256;
 
-  static constexpr u32 PAGE_INDEX_MASK = 0xff;
-
   // TODO: Write this to the filesystem.
   std::array<u8, PAGE_SIZE * PAGE_COUNT> m_ic_card_data{};
 
-  // TODO: Only Avalon should have this.
-  DeckReader m_deck_reader;
+  // TODO: state:
+  bool m_is_field_on{};
 };
 
 }  // namespace Triforce
