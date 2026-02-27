@@ -31,6 +31,11 @@ void CheckCardSession(u16 card_session)
   }
 }
 
+constexpr u8 CheckSumXOR(std::span<const u8> data)
+{
+  return std::accumulate(data.data(), data.data() + data.size(), u8{}, std::bit_xor());
+}
+
 constexpr u32 READ_ONLY_PAGE_INDEX = 4;
 constexpr u32 USE_COUNT_OFFSET = 0x28;
 
@@ -38,6 +43,14 @@ constexpr u32 USE_COUNT_OFFSET = 0x28;
 
 namespace Triforce
 {
+
+struct ICCardReplyHeader
+{
+  u8 fixed;  // Games seem to usually expect 0x10.
+  u8 command;
+  u16 length;  // Big-endian, includes status and payload bytes.
+  u16 status;  // Big-endian.
+};
 
 // FYI: I'm not so sure that the `status` field is actually a universal status.
 // The tested values seem to be very command-specific.
