@@ -25,6 +25,14 @@ public:
   void DoState(PointerWrap& p) override;
 
 private:
+  void SendReply(u8 command, u16 status_code, std::span<const u8> payload);
+
+  bool LoadCardData();
+  void InitialzeDefaultCardData();
+
+  bool WriteCardData(u32 byte_offset, std::span<const u8> write_span);
+  void FlushCardData(u32 byte_offset, u32 byte_count);
+
   static constexpr std::size_t PAGE_SIZE = 8;
   static constexpr u32 PAGE_COUNT = 256;
 

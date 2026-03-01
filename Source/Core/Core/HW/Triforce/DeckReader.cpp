@@ -56,12 +56,11 @@ enum class CDReaderCommand : u8
 #pragma pack(push, 1)
 struct CardIdentifier
 {
-  // When 0x01 bit is set, Avalon indexes the table at offset 0xa0.
+  // When 0x01 bit is set, Avalon indexes a separate table.
   // Avalon requires 0x80, 0x40, and 0x20 bits are not set.
   // Maybe this is like "card type" ?
-  u8 use_second_table;
+  u8 use_alternate_table;
 
-  // Avalon requires index < 0x100.
   Common::BigEndianValue<u16> index;
 };
 #pragma pack(pop)
@@ -161,10 +160,10 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensLock");
 
+    // Avalon will ask the user to close the shutter if open.
     constexpr bool is_closed = true;
 
-    const u8 result[] = {is_closed ? 0x01 : 0x00};
-    OutputBytes(result);
+    OutputByte(is_closed ? 0x01 : 0x00);
 
     break;
   }
@@ -225,8 +224,8 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ShutterGet");
 
-    Common::BigEndianValue<u32> fake_shutter_time{SHUTTER_TIME};
-    OutputBytes(Common::AsU8Span(fake_shutter_time));
+    Common::BigEndianValue<u32> shutter_time{SHUTTER_TIME};
+    OutputBytes(Common::AsU8Span(shutter_time));
 
     break;
   }
@@ -234,8 +233,8 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ShutterAuto");
 
-    Common::BigEndianValue<u32> fake_shutter_time{SHUTTER_TIME};
-    OutputBytes(Common::AsU8Span(fake_shutter_time));
+    Common::BigEndianValue<u32> shutter_time{SHUTTER_TIME};
+    OutputBytes(Common::AsU8Span(shutter_time));
 
     break;
   }
@@ -259,11 +258,10 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensCard");
 
-    // TODO: Is this what this is ? Does Avalon use the value ?
-    constexpr bool are_cards_present = true;
+    // TODO: When does Avalon invoke this command ?
 
-    std::array<u8, 1> response = {are_cards_present ? 0x01 : 0x00};
-    OutputBytes(response);
+    // Avalon appears to not inspect this value.
+    OutputByte(0x00);
 
     break;
   }
@@ -271,12 +269,12 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadCard");
 
-    constexpr bool are_results_pending = false;
+    constexpr bool are_results_ready = false;
 
-    if (are_results_pending)
+    if (are_results_ready)
     {
       // This causes Avalon to retry the command again in a bit.
-      // I suppose it means that the device is currently scanning the cards.
+      // Maybe it means that the device is currently scanning the deck ?
       OutputBytes(std::array<u8, 2>{0xaa, 0x52});
     }
     else
@@ -287,12 +285,19 @@ void DeckReader::Process()
       // What happens with more than 30 cards ?
       constexpr u32 card_count = 30;
 
+      std::pair<u8, u16> cards[] = {
+          {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1},
+          {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1}, {1, 1},
+          {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1}, {1, 1}, {1, 1},
+      };
+      static_assert(std::size(cards) == card_count);
+
       OutputByte(u8(card_count * sizeof(CardIdentifier)));
 
-      for (u32 i = 0; i != card_count; ++i)
+      for (const auto& c : cards)
       {
-        CardIdentifier card_id{.use_second_table = 0x01};
-        card_id.index = u16(96 + i);
+        CardIdentifier card_id{.use_alternate_table = c.first};
+        card_id.index = c.second;
 
         OutputBytes(Common::AsU8Span(card_id));
       }
@@ -311,6 +316,8 @@ void DeckReader::Process()
   }
   default:
   {
+    // TODO: I think maybe we're supposed to output {0xaa, 0x55} ?
+
     // Responses seem to be variable in length and unspecified so we can't do much.
     ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown command: {:02x}", cd_reader_command);
     break;

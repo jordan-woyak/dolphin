@@ -50,6 +50,8 @@ public:
   void DoState(PointerWrap&) override;
 
 private:
+  // TODO: If we send a GCAMCommand:0x00 reply, Gekitou does something with that.
+
   enum GCAMCommand
   {
     StatusSwitches = 0x10,
