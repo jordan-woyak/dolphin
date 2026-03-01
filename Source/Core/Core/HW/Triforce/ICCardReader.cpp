@@ -26,14 +26,6 @@ namespace
 // It may have to be mutable in the future to handle mutiple cards.
 constexpr u16 IC_CARD_SESSION = 0x2300;
 
-void CheckCardSession(u16 card_session)
-{
-  if (card_session != IC_CARD_SESSION)
-  {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "Unexpected card session: {:04x}", card_session);
-  }
-}
-
 constexpr u8 CheckSumXOR(std::span<const u8> data)
 {
   return std::accumulate(data.data(), data.data() + data.size(), u8{}, std::bit_xor());
@@ -66,6 +58,39 @@ bool LoadCardData(const std::string& filename, std::span<u8> data)
 
   INFO_LOG_FMT(SERIALINTERFACE_CARD, "Loaded {} bytes from file: {}", read_size, filename);
   return true;
+}
+
+void InitialzeDefaultCardData(std::span<u8> data)
+{
+  // Card ID
+  // TODO: Needs to be unique for multiple cards ?
+  data[0x20] = 0x95;
+  data[0x21] = 0x71;
+
+  // TODO: Does Gekitou need anything ?
+
+  switch (AMMediaboard::GetGameType())
+  {
+  case AMMediaboard::KeyOfAvalon:
+    data[0x22] = 0x26;
+    data[0x23] = 0x40;
+    break;
+
+  case AMMediaboard::VirtuaStriker4:
+  case AMMediaboard::VirtuaStriker4_2006:
+    data[0x22] = 0x44;
+    data[0x23] = 0x00;
+    break;
+
+  default:
+    break;
+  }
+
+  // TODO: What belongs here ?
+  // data[6 * 8] = rand();
+
+  // The use count is a big endian count down.
+  Common::WriteSwap16(data.data() + USE_COUNT_OFFSET, 0xffff);
 }
 
 }  // namespace
@@ -119,44 +144,6 @@ ICCardReader::ICCardReader()
   ++card_id.back();
 
   m_ic_cards.emplace_back(GetCardFilename(), card_id);
-
-  if (!LoadCardData())
-  {
-    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Creating new IC Card data.");
-    InitialzeDefaultCardData();
-  }
-}
-
-void ICCardReader::InitialzeDefaultCardData()
-{
-  // Card ID
-  // TODO: Needs to be unique for multiple cards ?
-  m_ic_card_data[0x20] = 0x95;
-  m_ic_card_data[0x21] = 0x71;
-
-  // TODO: Does Gekitou need anything ?
-
-  switch (AMMediaboard::GetGameType())
-  {
-  case AMMediaboard::KeyOfAvalon:
-    m_ic_card_data[0x22] = 0x26;
-    m_ic_card_data[0x23] = 0x40;
-    break;
-
-  case AMMediaboard::VirtuaStriker4:
-  case AMMediaboard::VirtuaStriker4_2006:
-    m_ic_card_data[0x22] = 0x44;
-    m_ic_card_data[0x23] = 0x00;
-    break;
-
-  default:
-    break;
-  }
-
-  // The use count is a big endian count down.
-  Common::WriteSwap16(m_ic_card_data.data() + USE_COUNT_OFFSET, 0xffff);
-
-  FlushCardData(READ_ONLY_PAGE_INDEX * PAGE_SIZE, PAGE_SIZE * 2);
 }
 
 void ICCardReader::Process()
@@ -241,6 +228,20 @@ void ICCardReader::Process()
     return true;
   };
 
+  const auto validate_card_session = [&](u16 card_session) {
+    if (card_session != IC_CARD_SESSION)
+    {
+      WARN_LOG_FMT(SERIALINTERFACE_CARD, "Unexpected card session: {:04x}", card_session);
+      return false;
+    }
+
+    // TODO:
+    if (m_selected_card == nullptr)
+      return false;
+
+    return true;
+  };
+
   // Note: Commands expect full 8-byte responses even for small amounts of data.
   std::array<u8, 8> small_reply_payload{};
 
@@ -292,6 +293,10 @@ void ICCardReader::Process()
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "FieldOff");
 
+    m_selected_card = nullptr;
+
+    std::ranges::for_each(m_ic_cards, &ICCard::FieldOff);
+
     m_is_field_on = false;
 
     break;
@@ -340,14 +345,23 @@ void ICCardReader::Process()
 
     if (first_non_halted_card != m_ic_cards.end())
     {
-      std::ranges::copy(first_non_halted_card->GetUID(), small_reply_payload.begin());
-    }
+      small_reply_payload = first_non_halted_card->GetUID();
 
-    reply_payload_span = small_reply_payload;
+      const bool additional_cards =
+          std::ranges::count_if(m_ic_cards, std::not_fn(&ICCard::IsHalted)) > 1;
+
+      status_code = additional_cards ? 0x01 : 0x00;
+    }
+    else
+    {
+      status_code = 0x80;
+    }
 
     // TODO:
     // Avalon seems to like a value of 0x0 or 0x1. 0x1 Causes two cards to be processed.
-    status_code = 0x01;
+    // status_code = 0x01;
+
+    reply_payload_span = small_reply_payload;
 
     break;
   }
@@ -371,6 +385,8 @@ void ICCardReader::Process()
       // Session
       Common::WriteSwap16(small_reply_payload.data(), IC_CARD_SESSION);
 
+      m_selected_card = std::to_address(found_card);
+
       // TODO: I think a non-zero status means there are multiple cards ?
       status_code = 0x00;
     }
@@ -380,6 +396,8 @@ void ICCardReader::Process()
 
       // TODO:
       status_code = 0x80;
+
+      m_selected_card = nullptr;
 
       break;
     }
@@ -401,13 +419,21 @@ void ICCardReader::Process()
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPage: session:{:04x} page:{}", card_session, page);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
     const auto byte_offset = page * PAGE_SIZE;
 
-    reply_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, PAGE_SIZE);
-
-    DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "\n{}", HexDump(reply_payload_span));
+    const auto read_span = m_selected_card->ReadData(byte_offset, PAGE_SIZE);
+    if (read_span.empty())
+    {
+      // TODO: Is this correct ?
+      status_code = 0x80;
+    }
+    else
+    {
+      reply_payload_span = read_span;
+    }
 
     break;
   }
@@ -424,12 +450,13 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePage: session:{:04x} unknown:{} page:{}", card_session,
                  unknown, page);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
     const u32 byte_offset = page * PAGE_SIZE;
     const u32 byte_count = PAGE_SIZE;
 
-    if (!WriteCardData(byte_offset, input_payload.subspan(8, byte_count)))
+    if (!m_selected_card->WriteData(byte_offset, input_payload.subspan(8, byte_count)))
     {
       // TODO: Is this correct ?
       status_code = 0x80;
@@ -450,22 +477,25 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "DecreaseUseCount: session:{:04x}, page:{} amount:{}",
                  card_session, page, amount);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
-    const u32 byte_offset = page * PAGE_SIZE;
-    auto* const addr = m_ic_card_data.data() + byte_offset;
+    // TODO:
 
-    const u16 previous_use_count = Common::swap16(addr);
-    const u16 new_use_count = previous_use_count - amount;
+    // const u32 byte_offset = page * PAGE_SIZE;
+    // auto* const addr = m_ic_card_data.data() + byte_offset;
 
-    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "DecreaseUseCount: {} -> {}", previous_use_count,
-                   new_use_count);
+    // const u16 previous_use_count = Common::swap16(addr);
+    // const u16 new_use_count = previous_use_count - amount;
 
-    Common::WriteSwap16(addr, new_use_count);
+    // NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "DecreaseUseCount: {} -> {}", previous_use_count,
+    //                new_use_count);
 
-    FlushCardData(byte_offset, sizeof(u16));
+    // Common::WriteSwap16(addr, new_use_count);
 
-    std::copy_n(addr, sizeof(u16), small_reply_payload.data());
+    // FlushCardData(byte_offset, sizeof(u16));
+
+    // std::copy_n(addr, sizeof(u16), small_reply_payload.data());
 
     reply_payload_span = small_reply_payload;
 
@@ -478,12 +508,13 @@ void ICCardReader::Process()
 
     const u16 card_session = Common::swap16(input_payload.data() + 0);
 
-    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "HaltCard (Not implemented): session:{:04x}", card_session);
+    INFO_LOG_FMT(SERIALINTERFACE_CARD, "HaltCard: session:{:04x}", card_session);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
-    // TODO: I think this is supposed to make a particular card stop responding,
-    //  to remove it from responses in AntiCollision.
+    m_selected_card->Halt();
+    m_selected_card = nullptr;
 
     break;
   }
@@ -499,22 +530,21 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadPages: session:{:04x} page:{} page_count:{}",
                  card_session, page, page_count);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
     const u32 byte_offset = page * PAGE_SIZE;
     const u32 byte_count = page_count * PAGE_SIZE;
 
-    if (byte_count + byte_offset > m_ic_card_data.size())
+    const auto read_span = m_selected_card->ReadData(byte_offset, byte_count);
+    if (read_span.empty())
     {
-      WARN_LOG_FMT(SERIALINTERFACE_CARD, "ReadPages: Attempt to read beyond end of card.");
       // TODO: Is this correct ?
       status_code = 0x80;
     }
     else
     {
-      reply_payload_span = std::span{m_ic_card_data}.subspan(byte_offset, byte_count);
-
-      DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "\n{}", HexDump(reply_payload_span));
+      reply_payload_span = read_span;
     }
 
     break;
@@ -535,7 +565,8 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "WritePages: session:{:04x} page:{} page_count:{}",
                  card_session, page, page_count);
 
-    CheckCardSession(card_session);
+    if (!validate_card_session(card_session))
+      break;
 
     const u32 byte_offset = page * PAGE_SIZE;
     const u32 byte_count = page_count * PAGE_SIZE;
@@ -543,7 +574,7 @@ void ICCardReader::Process()
     if (!validate_input_payload_size(8 + byte_count))
       break;
 
-    if (!WriteCardData(byte_offset, input_payload.subspan(8, byte_count)))
+    if (!m_selected_card->WriteData(byte_offset, input_payload.subspan(8, byte_count)))
     {
       // TODO: Is this correct ?
       status_code = 0x80;
@@ -590,7 +621,22 @@ void ICCardReader::SendReply(u8 command, u16 status_code, std::span<const u8> pa
   OutputByte(checksum);
 }
 
-bool ICCardReader::WriteCardData(u32 byte_offset, std::span<const u8> write_span)
+std::span<const u8> ICCardReader::ICCard::ReadData(u32 byte_offset, u32 byte_count)
+{
+  if (byte_count + byte_offset > m_data.size())
+  {
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "ReadPages: Attempt to read beyond end of card.");
+    return {};
+  }
+
+  const auto read_span = std::span{m_data}.subspan(byte_offset, byte_count);
+
+  DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "\n{}", HexDump(read_span));
+
+  return read_span;
+}
+
+bool ICCardReader::ICCard::WriteData(u32 byte_offset, std::span<const u8> write_span)
 {
   constexpr u32 read_only_area_begin = READ_ONLY_PAGE_INDEX * PAGE_SIZE;
   constexpr u32 read_only_area_end = read_only_area_begin + PAGE_SIZE;
@@ -598,29 +644,29 @@ bool ICCardReader::WriteCardData(u32 byte_offset, std::span<const u8> write_span
   if ((byte_offset < read_only_area_end) &&
       (byte_offset + write_span.size() > read_only_area_begin))
   {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "WriteCardData: Read-only page.");
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "WriteData: Read-only page.");
     // Read-only page, must return error.
     return false;
   }
 
-  if (write_span.size() + byte_offset > m_ic_card_data.size())
+  if (write_span.size() + byte_offset > m_data.size())
   {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "WriteCardData: Attempt to write beyond end of card.");
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "WriteData: Attempt to write beyond end of card.");
     return false;
   }
 
-  std::ranges::copy(write_span, m_ic_card_data.data() + byte_offset);
+  std::ranges::copy(write_span, m_data.data() + byte_offset);
 
   DEBUG_LOG_FMT(SERIALINTERFACE_CARD, "\n{}", HexDump(write_span));
 
-  FlushCardData(byte_offset, u32(write_span.size()));
+  FlushData(byte_offset, u32(write_span.size()));
 
   return true;
 }
 
 // TODO: Maybe in the future we should write to disk after a delay.
 // Games seem to write many chunks when saving.
-void ICCardReader::FlushCardData(u32 byte_offset, u32 byte_count)
+void ICCardReader::ICCard::FlushData(u32 byte_offset, u32 byte_count)
 {
   // TODO: Enable this.
   return;
@@ -628,9 +674,9 @@ void ICCardReader::FlushCardData(u32 byte_offset, u32 byte_count)
   const auto filename = GetCardFilename();
 
   File::DirectIOFile file{filename, File::AccessMode::Write, File::OpenMode::Always};
-  if (!file.OffsetWrite(byte_offset, std::span{m_ic_card_data}.subspan(byte_offset, byte_count)))
+  if (!file.OffsetWrite(byte_offset, std::span{m_data}.subspan(byte_offset, byte_count)))
   {
-    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "FlushCardData: Failed to write to: {}", filename);
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "FlushData: Failed to write to: {}", filename);
   }
 }
 
@@ -646,7 +692,9 @@ void ICCardReader::DoState(PointerWrap& p)
 {
   // TODO: Think about what to do with the card data on the filesystem.
 
-  p.Do(m_ic_card_data);
+  // TODO: the cards..
+
+  // p.Do(m_ic_card_data);
 
   p.Do(m_is_field_on);
 }
@@ -654,6 +702,12 @@ void ICCardReader::DoState(PointerWrap& p)
 ICCardReader::ICCard::ICCard(std::string filename, const UID& uid)
     : m_filename{std::move(filename)}, m_uid{uid}
 {
+  if (!LoadCardData(m_filename, m_data))
+  {
+    NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Creating new IC Card data.");
+    InitialzeDefaultCardData(m_data);
+    FlushData(READ_ONLY_PAGE_INDEX * PAGE_SIZE, PAGE_SIZE * 2);
+  }
 }
 
 }  // namespace Triforce
