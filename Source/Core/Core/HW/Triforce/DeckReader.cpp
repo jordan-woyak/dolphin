@@ -9,8 +9,11 @@
 
 #include "Common/BitUtils.h"
 #include "Common/ChunkFile.h"
+#include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/Swap.h"
+
+#include "Core/ConfigManager.h"
 
 namespace
 {
@@ -27,6 +30,12 @@ constexpr u32 SHUTTER_TIME = 1234567890;
 // It's currently just based on RunBuffer timing.
 // FYI: This isn't even necessary functionality.
 constexpr u32 FIRMWARE_UPDATE_TIMEOUT = 240;
+
+auto GetFirmwareDumpFilename()
+{
+  return fmt::format("card_deck_reader_firmware.bin", File::GetUserPath(D_TRIUSER_IDX),
+                     SConfig::GetInstance().GetGameID());
+}
 
 }  // namespace
 
@@ -103,11 +112,21 @@ void DeckReader::Process()
         OutputBytes(fw_update_done);
 
         INFO_LOG_FMT(SERIALINTERFACE_CARD, "Fake FirmwareUpdate done.");
+
+        m_firmware_dump_file.Close();
       }
     }
     else
     {
-      // We don't actually do anything with the bytes.
+      if (m_firmware_dump_file.IsOpen())
+      {
+        if (!m_firmware_dump_file.Write(input_span))
+        {
+          ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Failed to write {} bytes to firmware.",
+                        input_span.size());
+        }
+      }
+
       ChewBytes(input_span.size());
       m_firmware_update_timeout = FIRMWARE_UPDATE_TIMEOUT;
     }
@@ -258,10 +277,9 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SensCard");
 
-    // TODO: When does Avalon invoke this command ?
-
-    // Avalon appears to not inspect this value.
-    OutputByte(0x00);
+    // TODO: What is the relevance of this value ?
+    // Avalon tests for 0x01.
+    OutputByte(0x01);
 
     break;
   }
@@ -269,12 +287,11 @@ void DeckReader::Process()
   {
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ReadCard");
 
-    constexpr bool are_results_ready = false;
+    constexpr bool is_deck_empty = false;
 
-    if (are_results_ready)
+    if (is_deck_empty)
     {
-      // This causes Avalon to retry the command again in a bit.
-      // Maybe it means that the device is currently scanning the deck ?
+      // I think this means that there are no cards.
       OutputBytes(std::array<u8, 2>{0xaa, 0x52});
     }
     else
@@ -312,6 +329,18 @@ void DeckReader::Process()
     m_firmware_update_timeout = FIRMWARE_UPDATE_TIMEOUT;
 
     // The game will now send raw bytes.
+    // We save it to a file.
+
+    const auto filename = GetFirmwareDumpFilename();
+    if (m_firmware_dump_file.Open(filename, File::AccessMode::Write))
+    {
+      NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Writing firmware to: {}", filename);
+    }
+    else
+    {
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Failed to open: {}", filename);
+    }
+
     break;
   }
   default:
@@ -323,6 +352,8 @@ void DeckReader::Process()
     break;
   }
   }
+
+  // TODO: Is this the error code maybe ?
 
   // Write footer.
   OutputByte(0x00);
@@ -336,6 +367,9 @@ void DeckReader::DoState(PointerWrap& p)
   p.Do(m_firmware_update_timeout);
 
   m_ic_card_reader.DoState(p);
+
+  if (p.IsReadMode())
+    m_firmware_dump_file.Close();
 }
 
 }  // namespace Triforce

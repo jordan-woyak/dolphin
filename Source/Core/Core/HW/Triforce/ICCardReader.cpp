@@ -22,8 +22,6 @@
 namespace
 {
 
-constexpr u8 CARD_ID[8] = {0x00, 0x00, 0x54, 0x4D, 0x50, 0x00, 0x00, 0x00};
-
 // This constant is just established to show how the value is used by the game.
 // It may have to be mutable in the future to handle mutiple cards.
 constexpr u16 IC_CARD_SESSION = 0x2300;
@@ -45,11 +43,29 @@ constexpr u32 PAGE_INDEX_MASK = 0xff;
 constexpr u32 READ_ONLY_PAGE_INDEX = 4;
 constexpr u32 USE_COUNT_OFFSET = 0x28;
 
-// TODO: Think about how to deal with multiple cards.
-auto GetCardFilename()
+bool LoadCardData(const std::string& filename, std::span<u8> data)
 {
-  return fmt::format("{}tricard_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
-                     SConfig::GetInstance().GetGameID());
+  File::DirectIOFile file{filename, File::AccessMode::Read};
+
+  if (!File::Exists(filename))
+    return false;
+
+  const auto file_size = file.GetSize();
+  if (file_size > data.size())
+  {
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "Unexpected size of {} for file: {}", file_size, filename);
+  }
+
+  const auto read_size = std::min(file_size, data.size());
+
+  if (!file.Read(std::span{data}.first(read_size)))
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Failed to read from file: {}", filename);
+    return false;
+  }
+
+  INFO_LOG_FMT(SERIALINTERFACE_CARD, "Loaded {} bytes from file: {}", read_size, filename);
+  return true;
 }
 
 }  // namespace
@@ -87,39 +103,28 @@ enum class ICCardCommand : u8
   WritePages = 0x35,
 };
 
+// TODO: Think about how to deal with multiple cards.
+auto GetCardFilename()
+{
+  return fmt::format("{}tricard_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
+                     SConfig::GetInstance().GetGameID());
+}
+
 ICCardReader::ICCardReader()
 {
+  ICCard::UID card_id = {0x00, 0x00, 0x54, 0x4D, 0x50, 0x00, 0x00, 0x00};
+
+  m_ic_cards.emplace_back(GetCardFilename(), card_id);
+
+  ++card_id.back();
+
+  m_ic_cards.emplace_back(GetCardFilename(), card_id);
+
   if (!LoadCardData())
   {
     NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Creating new IC Card data.");
     InitialzeDefaultCardData();
   }
-}
-
-bool ICCardReader::LoadCardData()
-{
-  const auto filename = GetCardFilename();
-  File::DirectIOFile file{filename, File::AccessMode::Read};
-
-  if (!File::Exists(filename))
-    return false;
-
-  const auto file_size = file.GetSize();
-  if (file_size > m_ic_card_data.size())
-  {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "Unexpected size of {} for file: {}", file_size, filename);
-  }
-
-  const auto read_size = std::min(file_size, m_ic_card_data.size());
-
-  if (!file.Read(std::span{m_ic_card_data}.first(read_size)))
-  {
-    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Failed to read from file: {}", filename);
-    return false;
-  }
-
-  INFO_LOG_FMT(SERIALINTERFACE_CARD, "Loaded {} bytes from file: {}", read_size, filename);
-  return true;
 }
 
 void ICCardReader::InitialzeDefaultCardData()
@@ -182,6 +187,12 @@ void ICCardReader::Process()
   if (input_span.size() < entire_request_size)
     return;  // Wait for more data.
 
+  // HAXX
+  static u8 counter = 0;
+  if (++counter < 10)
+    return;
+  counter = 0;
+
   const auto entire_request = input_span.first(entire_request_size);
 
   const u8 read_checksum = entire_request.back();
@@ -207,11 +218,17 @@ void ICCardReader::Process()
 
   const u8 card_command = entire_request[1];
 
+  u16 status_code = 0x00;
+
   const auto validate_input_payload_size = [&](u32 expected_size) {
     if (input_payload_size < expected_size)
     {
       ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Undersized payload size {} for command: {:02x}",
                     input_payload_size, card_command);
+
+      // TODO: Does this make sense ?
+      status_code = 0x80;
+
       return false;
     }
 
@@ -223,8 +240,6 @@ void ICCardReader::Process()
 
     return true;
   };
-
-  u16 status_code = 0x00;
 
   // Note: Commands expect full 8-byte responses even for small amounts of data.
   std::array<u8, 8> small_reply_payload{};
@@ -244,6 +259,7 @@ void ICCardReader::Process()
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "GetStatus");
 
+    // Avalon's tests expect one of these specific values.
     status_code = m_is_field_on ? 0x30 : 0x20;
 
     break;
@@ -264,6 +280,8 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "FieldOn");
 
     m_is_field_on = true;
+
+    // Avalon's tests expects status code here to be 0x0000.
 
     break;
   }
@@ -292,13 +310,17 @@ void ICCardReader::Process()
       break;
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
+    // Maybe it's 1==one_time 0==continuous ?
+    // Where "continuous" can return a change later ?
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "InsertCheck: {}", unknown_parameter);
 
-    // TODO: I think status is whether or not a card is present.
-    // Avalon does another InsertCheck when it's non-zero.
-    status_code = 0x00;
+    // TODO: Not sure about this.
+    constexpr bool has_card = true;
+
+    // Avalon seems to test specifically for zero.
+    status_code = has_card ? 0x00 : 0x01;
 
     break;
   }
@@ -314,8 +336,14 @@ void ICCardReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "AntiCollision: {:04x} {:02x}", unknown_param0,
                  fmt::join(unknown_param1, " "));
 
-    // Card ID
-    reply_payload_span = CARD_ID;
+    const auto first_non_halted_card = std::ranges::find_if_not(m_ic_cards, &ICCard::IsHalted);
+
+    if (first_non_halted_card != m_ic_cards.end())
+    {
+      std::ranges::copy(first_non_halted_card->GetUID(), small_reply_payload.begin());
+    }
+
+    reply_payload_span = small_reply_payload;
 
     // TODO:
     // Avalon seems to like a value of 0x0 or 0x1. 0x1 Causes two cards to be processed.
@@ -328,21 +356,33 @@ void ICCardReader::Process()
     if (!validate_input_payload_size(8))
       break;
 
-    const auto card_id = input_payload.first(8);
+    // FYI: The request includes the Card ID that we produced in `AntiCollision`.
+
+    // TODO: avoid copying.
+    ICCard::UID card_id{};
+    std::ranges::copy(input_payload.first(8), card_id.begin());
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: {:02x}", fmt::join(card_id, " "));
 
-    // FYI: The request includes the Card ID that we produced in `AntiCollision`.
-    if (!std::ranges::equal(card_id, CARD_ID))
+    const auto found_card = std::ranges::find(m_ic_cards, card_id, &ICCard::GetUID);
+
+    if (found_card != m_ic_cards.end())
+    {
+      // Session
+      Common::WriteSwap16(small_reply_payload.data(), IC_CARD_SESSION);
+
+      // TODO: I think a non-zero status means there are multiple cards ?
+      status_code = 0x00;
+    }
+    else
     {
       WARN_LOG_FMT(SERIALINTERFACE_CARD, "SelectCard: Unexpected Card ID.");
+
+      // TODO:
+      status_code = 0x80;
+
+      break;
     }
-
-    // TODO: I think a non-zero status means there are multiple cards ?
-    status_code = 0x00;
-
-    // Session
-    Common::WriteSwap16(small_reply_payload.data(), IC_CARD_SESSION);
 
     reply_payload_span = small_reply_payload;
 
@@ -518,6 +558,8 @@ void ICCardReader::Process()
   }
   }
 
+  // status_code |= m_is_field_on ? 0x10u : 0x00u;
+
   SendReply(card_command, status_code, reply_payload_span);
 }
 
@@ -525,7 +567,7 @@ void ICCardReader::SendReply(u8 command, u16 status_code, std::span<const u8> pa
 {
   struct ICCardReplyHeader
   {
-    u8 fixed;  // Games seem to usually expect 0x10.
+    u8 fixed;  // Games seem to expect 0x10.
     u8 command;
     Common::BigEndianValue<u16> length;  // Includes status and payload bytes.
     Common::BigEndianValue<u16> status;
@@ -580,6 +622,9 @@ bool ICCardReader::WriteCardData(u32 byte_offset, std::span<const u8> write_span
 // Games seem to write many chunks when saving.
 void ICCardReader::FlushCardData(u32 byte_offset, u32 byte_count)
 {
+  // TODO: Enable this.
+  return;
+
   const auto filename = GetCardFilename();
 
   File::DirectIOFile file{filename, File::AccessMode::Write, File::OpenMode::Always};
@@ -602,6 +647,13 @@ void ICCardReader::DoState(PointerWrap& p)
   // TODO: Think about what to do with the card data on the filesystem.
 
   p.Do(m_ic_card_data);
+
+  p.Do(m_is_field_on);
+}
+
+ICCardReader::ICCard::ICCard(std::string filename, const UID& uid)
+    : m_filename{std::move(filename)}, m_uid{uid}
+{
 }
 
 }  // namespace Triforce

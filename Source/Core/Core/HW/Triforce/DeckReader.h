@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "Common/DirectIOFile.h"
+
 #include "Core/HW/Triforce/ICCardReader.h"
 #include "Core/HW/Triforce/SerialDevice.h"
 
@@ -28,6 +30,8 @@ private:
   ICCardReader m_ic_card_reader;
 
   u8 m_firmware_update_timeout = 0;
+
+  File::DirectIOFile m_firmware_dump_file;
 };
 
 }  // namespace Triforce

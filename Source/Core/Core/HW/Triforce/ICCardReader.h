@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <list>
+
 #include "Common/CommonTypes.h"
 
 #include "Core/HW/Triforce/SerialDevice.h"
@@ -38,6 +40,33 @@ private:
 
   // TODO: Write this to the filesystem.
   std::array<u8, PAGE_SIZE * PAGE_COUNT> m_ic_card_data{};
+
+  class ICCard
+  {
+  public:
+    using UID = std::array<u8, PAGE_SIZE>;
+
+    ICCard(std::string filename, const UID& uid);
+
+    bool ReadData(u32 byte_offset, std::span<u8> write_span);
+    bool WriteData(u32 byte_offset, std::span<const u8> write_span);
+
+    const auto& GetUID() const { return m_uid; }
+    bool IsHalted() const { return m_is_halted; }
+
+  private:
+    std::array<u8, PAGE_SIZE * PAGE_COUNT> m_data{};
+
+    const std::string m_filename;
+
+    const UID m_uid;
+
+    bool m_is_halted = false;
+  };
+
+  std::list<ICCard> m_ic_cards;
+
+  ICCard* m_selected_card = nullptr;
 
   // TODO: state:
   bool m_is_field_on{};
