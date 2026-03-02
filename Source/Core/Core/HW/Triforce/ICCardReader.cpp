@@ -220,12 +220,6 @@ void ICCardReader::Process()
   if (input_span.size() < entire_request_size)
     return;  // Wait for more data.
 
-  // TODO: Removing this timing HAXX
-  static u8 counter = 0;
-  if (++counter < 15)
-    return;
-  counter = 0;
-
   const auto entire_request = input_span.first(entire_request_size);
 
   const u8 read_checksum = entire_request.back();
@@ -296,6 +290,43 @@ void ICCardReader::Process()
 
   // FYI: Many of the big-endian u16 parameters may just be u8 values.
   // Avalon writes single bytes, but at odd addresses, so u16 seems like the intention.
+
+  // TODO: Removing this timing HAXX
+  static u8 counter = 0;
+  switch (ICCardCommand(card_command))
+  {
+  case ICCardCommand::ReadPage:
+    if (++counter < 120)
+    {
+      chew_request.Dismiss();
+      return;
+    }
+    break;
+  case ICCardCommand::ReadPages:
+    if (++counter < 120)
+    {
+      chew_request.Dismiss();
+      return;
+    }
+    break;
+  case ICCardCommand::WritePage:
+    if (++counter < 120)
+    {
+      chew_request.Dismiss();
+      return;
+    }
+    break;
+  case ICCardCommand::WritePages:
+    if (++counter < 120)
+    {
+      chew_request.Dismiss();
+      return;
+    }
+    break;
+  default:
+    break;
+  }
+  counter = 0;
 
   switch (ICCardCommand(card_command))
   {
