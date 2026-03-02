@@ -40,7 +40,8 @@ private:
   public:
     using UID = std::array<u8, PAGE_SIZE>;
 
-    ICCard(std::string filename, const UID& uid);
+    // TODO: Bad interface with use_count only for new cards..
+    ICCard(std::string filename, const UID& uid, u32 use_count);
 
     std::span<const u8> ReadData(u32 byte_offset, u32 byte_count);
     bool WriteData(u32 byte_offset, std::span<const u8> write_span);

@@ -4,6 +4,7 @@
 #include "Core/HW/Triforce/ICCardReader.h"
 
 #include <numeric>
+#include <random>
 
 #include <fmt/ranges.h>
 
@@ -60,37 +61,80 @@ bool LoadCardData(const std::string& filename, std::span<u8> data)
   return true;
 }
 
-void InitialzeDefaultCardData(std::span<u8> data)
+void SanitizeSerialNumber(std::span<u8> data)
 {
-  // Card ID
-  // TODO: Needs to be unique for multiple cards ?
-  data[0x20] = 0x95;
-  data[0x21] = 0x71;
+  DEBUG_ASSERT(data.size() == 8);
 
-  // TODO: Does Gekitou need anything ?
+  // This seems to be treated as a 16-digit BCD value.
+
+  // Avalon: 9571 264_ XXXX XXXX
+  // Where _ is mod 10 of the sum of all the X digits.
+
+  // VirtuaStriker4: 9571 440_ XXXX XXXX
+  // TODO: Checksum ?
+
+  // Gekitou: 9571 765_ XXXX XXXX
+  // TODO: Checksum ?
+
+  data[0] = 0x95;
+  data[1] = 0x71;
 
   switch (AMMediaboard::GetGameType())
   {
   case AMMediaboard::KeyOfAvalon:
-    data[0x22] = 0x26;
-    data[0x23] = 0x40;
-    break;
+  {
+    u32 checksum = 0;
+    for (auto bcd_pair : data.subspan(4))
+      checksum += (bcd_pair & 0x0f) + (bcd_pair >> 4);
 
+    data[2] = 0x26;
+    data[3] = 0x40 | (checksum % 10);
+
+    break;
+  }
   case AMMediaboard::VirtuaStriker4:
   case AMMediaboard::VirtuaStriker4_2006:
-    data[0x22] = 0x44;
-    data[0x23] = 0x00;
+  {
+    data[2] = 0x44;
+    data[3] = 0x00;
     break;
-
+  }
+  case AMMediaboard::GekitouProYakyuu:
+  {
+    data[2] = 0x76;
+    data[3] = 0x50;
+    break;
+  }
   default:
     break;
   }
+}
 
-  // TODO: What belongs here ?
-  // data[6 * 8] = rand();
+void InitialzeDefaultCardData(std::span<u8> data, u32 use_count)
+{
+  std::default_random_engine rng{std::random_device{}()};
+  std::uniform_int_distribution<u32> bcd_pair_dist{0, 99};
+
+  const auto generate_random_bcd_pair = [&] {
+    const u32 decimal_value = bcd_pair_dist(rng);
+    return ((decimal_value / 10) << 4) | (decimal_value % 10);
+  };
+
+  // TODO: Remove all these hacks !
+  // std::ranges::generate(data.subspan(0x20, 8), generate_random_bcd_pair);
+
+  // TODO: Avalon reads 3 BE u16 from offset 0x30.
+  // If any are non-zero it says it's an "inherited" card ?
+  // The first value is used as a CRC
+
+  // std::uniform_int_distribution<u8> u8_dist{0, 0xff};
+  // std::ranges::generate(data.subspan(USE_COUNT_OFFSET + 2, 6), [&] { return u8_dist(rng); });
+  // std::ranges::generate(data.subspan(6 * 8, 8), [&] { return u8_dist(rng); });
+
+  SanitizeSerialNumber(data.subspan(READ_ONLY_PAGE_INDEX * 8, 8));
 
   // The use count is a big endian count down.
-  Common::WriteSwap16(data.data() + USE_COUNT_OFFSET, 0xffff);
+  Common::WriteSwap16(data.data() + USE_COUNT_OFFSET, 0xffff - use_count);
 }
 
 }  // namespace
@@ -137,13 +181,28 @@ auto GetCardFilename()
 
 ICCardReader::ICCardReader()
 {
+  // TODO: Is this supposed to match the serial number at the read only page ?
   ICCard::UID card_id = {0x00, 0x00, 0x54, 0x4D, 0x50, 0x00, 0x00, 0x00};
 
-  m_ic_cards.emplace_back(GetCardFilename(), card_id);
+  m_ic_cards.emplace_back(GetCardFilename(), card_id, 75);
 
-  ++card_id.back();
+  // TODO: 2nd card hax
+  //++card_id.back();
+  // m_ic_cards.emplace_back(GetCardFilename(), card_id, 25);
 
-  m_ic_cards.emplace_back(GetCardFilename(), card_id);
+  struct OwabiData
+  {
+    Common::BigEndianValue<u16> crc;
+    Common::BigEndianValue<u16> game_version;
+    Common::BigEndianValue<u16> data_version;
+  };
+
+  OwabiData owabi_data{};
+  owabi_data.crc = 0x00;
+  owabi_data.game_version = 0x50;   // 0x50 - 0xff
+  owabi_data.data_version = 0x100;  // Must be 0x100
+
+  m_ic_cards.back().WriteData(0x30, Common::AsU8Span(owabi_data));
 }
 
 void ICCardReader::Process()
@@ -315,13 +374,10 @@ void ICCardReader::Process()
       break;
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
-    // Maybe it's 1==one_time 0==continuous ?
-    // Where "continuous" can return a change later ?
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "InsertCheck: {}", unknown_parameter);
 
-    // TODO: Not sure about this.
     constexpr bool has_card = true;
 
     // Avalon seems to test specifically for zero.
@@ -337,6 +393,8 @@ void ICCardReader::Process()
     // Avalon's logic optionally sets param0=0x20 and 8 memcpy'd bytes but never seems to do it.
     const u16 unknown_param0 = Common::swap16(input_payload.data() + 0);
     const auto unknown_param1 = input_payload.subspan(2, 8);
+
+    // TODO: Return nothing when field is off ?
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "AntiCollision: {:04x} {:02x}", unknown_param0,
                  fmt::join(unknown_param1, " "));
@@ -386,6 +444,9 @@ void ICCardReader::Process()
       Common::WriteSwap16(small_reply_payload.data(), IC_CARD_SESSION);
 
       m_selected_card = std::to_address(found_card);
+
+      // TODO: Correct ?
+      // m_selected_card->Halt();
 
       // TODO: I think a non-zero status means there are multiple cards ?
       status_code = 0x00;
@@ -699,13 +760,13 @@ void ICCardReader::DoState(PointerWrap& p)
   p.Do(m_is_field_on);
 }
 
-ICCardReader::ICCard::ICCard(std::string filename, const UID& uid)
+ICCardReader::ICCard::ICCard(std::string filename, const UID& uid, u32 use_count)
     : m_filename{std::move(filename)}, m_uid{uid}
 {
   if (!LoadCardData(m_filename, m_data))
   {
     NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "Creating new IC Card data.");
-    InitialzeDefaultCardData(m_data);
+    InitialzeDefaultCardData(m_data, use_count);
     FlushData(READ_ONLY_PAGE_INDEX * PAGE_SIZE, PAGE_SIZE * 2);
   }
 }
