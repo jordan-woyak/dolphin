@@ -83,12 +83,13 @@ void SanitizeSerialNumber(std::span<u8> data)
   {
   case AMMediaboard::KeyOfAvalon:
   {
+    data[2] = 0x26;
+    data[3] = 0x40;
+
     u32 checksum = 0;
     for (auto bcd_pair : data.subspan(4))
       checksum += (bcd_pair & 0x0f) + (bcd_pair >> 4);
-
-    data[2] = 0x26;
-    data[3] = 0x40 | (checksum % 10);
+    data[3] |= (checksum % 10);
 
     break;
   }
@@ -184,25 +185,11 @@ ICCardReader::ICCardReader()
   // TODO: Is this supposed to match the serial number at the read only page ?
   ICCard::UID card_id = {0x00, 0x00, 0x54, 0x4D, 0x50, 0x00, 0x00, 0x00};
 
-  m_ic_cards.emplace_back(GetCardFilename(), card_id, 75);
+  m_ic_cards.emplace_back(GetCardFilename(), card_id, 0);
 
   // TODO: 2nd card hax
   //++card_id.back();
   // m_ic_cards.emplace_back(GetCardFilename(), card_id, 25);
-
-  struct OwabiData
-  {
-    Common::BigEndianValue<u16> crc;
-    Common::BigEndianValue<u16> game_version;
-    Common::BigEndianValue<u16> data_version;
-  };
-
-  OwabiData owabi_data{};
-  owabi_data.crc = 0x00;
-  owabi_data.game_version = 0x50;   // 0x50 - 0xff
-  owabi_data.data_version = 0x100;  // Must be 0x100
-
-  m_ic_cards.back().WriteData(0x30, Common::AsU8Span(owabi_data));
 }
 
 void ICCardReader::Process()
@@ -233,9 +220,9 @@ void ICCardReader::Process()
   if (input_span.size() < entire_request_size)
     return;  // Wait for more data.
 
-  // HAXX
+  // TODO: Removing this timing HAXX
   static u8 counter = 0;
-  if (++counter < 10)
+  if (++counter < 15)
     return;
   counter = 0;
 
@@ -374,6 +361,7 @@ void ICCardReader::Process()
       break;
 
     // Avalon sends 0 or 1 here, not sure what the meaning is.
+    // TODO: This is maybe the TSN (Time Slot Number)? 0=1-slot, 1=2-slots, etc.
     const u16 unknown_parameter = Common::swap16(input_payload.data() + 0);
 
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "InsertCheck: {}", unknown_parameter);
