@@ -642,15 +642,23 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
           break;
         const u32 in_length = *data_in++;
 
-        if (!validate_data_in_out(in_length, 0, "SerialB"))
-          break;
-
-        if (m_serial_device_b != nullptr)
+        if (in_length != 0)
         {
-          m_serial_device_b->WriteBytes({data_in, in_length});
-        }
+          if (!validate_data_in_out(in_length, 0, "SerialB"))
+            break;
 
-        data_in += in_length;
+          if (m_serial_device_b != nullptr)
+          {
+            m_serial_device_b->WriteBytes({data_in, in_length});
+          }
+          else
+          {
+            WARN_LOG_FMT(AMMEDIABOARD, "SerialB: Write of {} bytes with no device attached.",
+                         in_length);
+          }
+
+          data_in += in_length;
+        }
 
         break;
       }

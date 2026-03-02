@@ -124,10 +124,6 @@ void InitialzeDefaultCardData(std::span<u8> data, u32 use_count)
   // TODO: Remove all these hacks !
   // std::ranges::generate(data.subspan(0x20, 8), generate_random_bcd_pair);
 
-  // TODO: Avalon reads 3 BE u16 from offset 0x30.
-  // If any are non-zero it says it's an "inherited" card ?
-  // The first value is used as a CRC
-
   // std::uniform_int_distribution<u8> u8_dist{0, 0xff};
   // std::ranges::generate(data.subspan(USE_COUNT_OFFSET + 2, 6), [&] { return u8_dist(rng); });
   // std::ranges::generate(data.subspan(6 * 8, 8), [&] { return u8_dist(rng); });
@@ -290,43 +286,6 @@ void ICCardReader::Process()
 
   // FYI: Many of the big-endian u16 parameters may just be u8 values.
   // Avalon writes single bytes, but at odd addresses, so u16 seems like the intention.
-
-  // TODO: Removing this timing HAXX
-  static u8 counter = 0;
-  switch (ICCardCommand(card_command))
-  {
-  case ICCardCommand::ReadPage:
-    if (++counter < 120)
-    {
-      chew_request.Dismiss();
-      return;
-    }
-    break;
-  case ICCardCommand::ReadPages:
-    if (++counter < 120)
-    {
-      chew_request.Dismiss();
-      return;
-    }
-    break;
-  case ICCardCommand::WritePage:
-    if (++counter < 120)
-    {
-      chew_request.Dismiss();
-      return;
-    }
-    break;
-  case ICCardCommand::WritePages:
-    if (++counter < 120)
-    {
-      chew_request.Dismiss();
-      return;
-    }
-    break;
-  default:
-    break;
-  }
-  counter = 0;
 
   switch (ICCardCommand(card_command))
   {
