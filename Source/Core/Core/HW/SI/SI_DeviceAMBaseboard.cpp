@@ -1070,15 +1070,13 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // Tactics (D)
                 if (pad_status.button & PAD_BUTTON_RIGHT)
                   player_data[0] |= 0x04;
-
-                if (i == 0)
-                {
-                  player_data[0] |= 0x10;  // IC-Card Switch ON
-
-                  // IC-Card Lock
-                  if (pad_status.button & PAD_BUTTON_DOWN)
-                    player_data[1] |= 0x20;
-                }
+                // IC-Card Switch ON
+                // I think this is a "card is physically present" sensor.
+                player_data[0] |= 0x10;
+                // IC-Card Lock
+                // This seems to pause IC card writes.
+                if (pad_status.button & PAD_BUTTON_DOWN)
+                  player_data[1] |= 0x20;
               }
               break;
               // Controller configuration for Gekitou Pro Yakyuu

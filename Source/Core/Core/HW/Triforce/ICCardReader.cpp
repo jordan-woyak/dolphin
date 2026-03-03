@@ -272,7 +272,7 @@ void ICCardReader::Process()
     return nullptr;
   };
 
-  // Note: Commands expect full 8-byte responses even for small amounts of data.
+  // Note: Command and response sizes are multiples of 8-bytes.
   std::array<u8, 8> small_reply_payload{};
 
   // Will be later assigned to `small_reply_payload` or some region of the card data itself.
