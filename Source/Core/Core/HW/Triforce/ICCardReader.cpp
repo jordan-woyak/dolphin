@@ -468,7 +468,7 @@ void ICCardReader::Process()
     if (!ic_card)
       break;
 
-    if (!ic_card->WriteData(page, input_payload.subspan(8, PAGE_SIZE)))
+    if (!ic_card->WriteData(page, input_payload.subspan(6, PAGE_SIZE)))
     {
       status_code = HardwareUntestedErrorCode;
     }
@@ -570,7 +570,7 @@ void ICCardReader::Process()
     if (!validate_input_payload_size(8 + byte_count))
       break;
 
-    if (!ic_card->WriteData(page, input_payload.subspan(8, byte_count)))
+    if (!ic_card->WriteData(page, input_payload.subspan(6, byte_count)))
     {
       status_code = HardwareUntestedErrorCode;
     }
