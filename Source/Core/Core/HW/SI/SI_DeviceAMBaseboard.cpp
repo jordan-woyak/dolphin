@@ -1073,7 +1073,8 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
 
                 // IC-Card Switch ON
                 // This might be a "card is physically present" sensor.
-                player_data[0] |= 0x10;
+                if (pad_status.button & PAD_TRIGGER_L)
+                  player_data[0] |= 0x10;
 
                 // IC-Card Lock
                 // This seems to pause IC card writes so it can't be always pressed.
