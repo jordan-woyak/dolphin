@@ -1070,11 +1070,13 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // Tactics (D)
                 if (pad_status.button & PAD_BUTTON_RIGHT)
                   player_data[0] |= 0x04;
+
                 // IC-Card Switch ON
-                // I think this is a "card is physically present" sensor.
+                // This might be a "card is physically present" sensor.
                 player_data[0] |= 0x10;
+
                 // IC-Card Lock
-                // This seems to pause IC card writes.
+                // This seems to pause IC card writes so it can't be always pressed.
                 if (pad_status.button & PAD_BUTTON_DOWN)
                   player_data[1] |= 0x20;
               }
@@ -1106,6 +1108,11 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // Down
                 if (pad_status.button & PAD_BUTTON_DOWN)
                   player_data[0] |= 0x10;
+
+                // IC-Card Lock
+                // Note: The game seems to want to control the lock with JVS output.
+                player_data[1] |= 0x40;
+
                 break;
               // Controller configuration for Mario Kart and other games
               default:
