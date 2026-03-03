@@ -13,8 +13,6 @@
 #include "Common/Logging/Log.h"
 #include "Common/Swap.h"
 
-#include "Core/ConfigManager.h"
-
 namespace
 {
 
@@ -33,8 +31,7 @@ constexpr u32 FIRMWARE_UPDATE_TIMEOUT = 240;
 
 auto GetFirmwareDumpFilename()
 {
-  return fmt::format("card_deck_reader_firmware.bin", File::GetUserPath(D_TRIUSER_IDX),
-                     SConfig::GetInstance().GetGameID());
+  return fmt::format("{}card_deck_reader_firmware.bin", File::GetUserPath(D_TRIUSER_IDX));
 }
 
 }  // namespace
@@ -213,7 +210,7 @@ void DeckReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "ProgramChecksum");
 
     // Avalon seems to not care about the actual value.
-    Common::BigEndianValue<u32> fake_checksum{0xd01fc001};
+    Common::BigEndianValue<u32> fake_checksum{0x89abcdef};
     OutputBytes(Common::AsU8Span(fake_checksum));
 
     break;
@@ -223,7 +220,7 @@ void DeckReader::Process()
     INFO_LOG_FMT(SERIALINTERFACE_CARD, "BootChecksum");
 
     // Avalon seems to not care about the actual value.
-    Common::BigEndianValue<u32> fake_checksum{0xfeedd01f};
+    Common::BigEndianValue<u32> fake_checksum{0x01234567};
     OutputBytes(Common::AsU8Span(fake_checksum));
 
     break;
@@ -302,6 +299,7 @@ void DeckReader::Process()
       // What happens with more than 30 cards ?
       constexpr u32 card_count = 30;
 
+      // TODO: Allow this to be loaded from a .json file or something.
       std::pair<u8, u16> cards[] = {
           {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1},
           {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1}, {1, 1},
@@ -358,15 +356,15 @@ void DeckReader::Process()
   // Write footer.
   OutputByte(0x00);
 
-  // Every known command is just one byte (except FirmwareUpdate).
+  // Every known command is just one byte.
   ChewBytes(1);
 }
 
 void DeckReader::DoState(PointerWrap& p)
 {
-  p.Do(m_firmware_update_timeout);
-
   m_ic_card_reader.DoState(p);
+
+  p.Do(m_firmware_update_timeout);
 
   if (p.IsReadMode())
     m_firmware_dump_file.Close();

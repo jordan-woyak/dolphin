@@ -141,8 +141,12 @@ CSIDevice_AMBaseboard::CSIDevice_AMBaseboard(Core::System& system, SIDevices dev
 
   case VirtuaStriker4:
   case VirtuaStriker4_2006:
+    m_serial_device_a = std::make_unique<Triforce::ICCardReader>(0);
+    m_serial_device_b = std::make_unique<Triforce::ICCardReader>(1);
+    break;
+
   case GekitouProYakyuu:
-    m_serial_device_a = std::make_unique<Triforce::ICCardReader>();
+    m_serial_device_a = std::make_unique<Triforce::ICCardReader>(0);
     break;
 
   case KeyOfAvalon:
@@ -1135,12 +1139,6 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 // Switch 2
                 if (pad_status.button & PAD_BUTTON_B)
                   player_data[0] |= 0x08;
-                // Toggle inserted card
-                if (pad_status.button & PAD_TRIGGER_L)
-                {
-                  // TODO: ..
-                  // m_ic_card_status ^= ICCARDStatus::NoCard;
-                }
               }
               break;
               }

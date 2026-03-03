@@ -14,7 +14,7 @@ namespace Triforce
 {
 
 // Serial deck reader used by The Key of Avalon.
-class DeckReader : public SerialDevice
+class DeckReader final : public SerialDevice
 {
 public:
   void Process() override;
@@ -27,7 +27,7 @@ private:
   // The Deck Reader feeds the appropriate commands to the IC Card Reader.
   // It can't be the other way around because Deck Reader commands are unmarked variable lengths.
   // Unless there's some chip select going on ?
-  ICCardReader m_ic_card_reader;
+  ICCardReader m_ic_card_reader{0};
 
   u8 m_firmware_update_timeout = 0;
 
