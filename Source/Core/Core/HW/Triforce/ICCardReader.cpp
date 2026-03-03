@@ -159,6 +159,7 @@ enum class ICCardCommand : u8
 ICCardReader::ICCardReader(u8 card_slot) : m_card_slot{card_slot}
 {
   CreateCards(1);
+  std::ranges::for_each(m_ic_cards, &ICCard::Initialize);
 }
 
 void ICCardReader::CreateCards(u8 card_count)
@@ -715,6 +716,10 @@ void ICCardReader::ICCard::DoState(PointerWrap& p)
 
 ICCardReader::ICCard::ICCard(std::string filename, const UID& uid)
     : m_filename{std::move(filename)}, m_uid{uid}
+{
+}
+
+void ICCardReader::ICCard::Initialize()
 {
   if (!LoadCardData(m_filename, m_data))
   {

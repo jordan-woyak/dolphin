@@ -39,6 +39,9 @@ private:
 
     ICCard(std::string filename, const UID& uid);
 
+    // Load from file if it exists, else create fresh card data.
+    void Initialize();
+
     const auto& GetUID() const { return m_uid; }
     bool IsHalted() const { return m_current_state == State::Halted; }
 
