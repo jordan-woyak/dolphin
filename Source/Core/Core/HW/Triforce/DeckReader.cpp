@@ -7,11 +7,15 @@
 
 #include <fmt/ranges.h>
 
+#include <picojson.h>
+
 #include "Common/BitUtils.h"
 #include "Common/ChunkFile.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/Swap.h"
+
+#include "Core/ConfigManager.h"
 
 namespace
 {
@@ -65,11 +69,63 @@ struct CardIdentifier
   // When 0x01 bit is set, Avalon indexes a separate table.
   // Avalon requires 0x80, 0x40, and 0x20 bits are not set.
   // Maybe this is like "card type" ?
-  u8 use_alternate_table;
+  u8 table_index;
 
-  Common::BigEndianValue<u16> index;
+  Common::BigEndianValue<u16> card_index;
 };
 #pragma pack(pop)
+
+static std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile()
+{
+  // TODO: Add some error logging.
+
+  const std::string filename =
+      fmt::format("{}tricard_{}_deck.json", File::GetUserPath(D_TRIUSER_IDX),
+                  SConfig::GetInstance().GetGameID());
+
+  std::string file_contents;
+  File::ReadFileToString(filename, file_contents);
+
+  picojson::value json_root;
+  std::string err;
+  picojson::parse(json_root, file_contents.begin(), file_contents.end(), &err);
+
+  if (!err.empty())
+    return std::nullopt;
+
+  if (!json_root.is<picojson::object>())
+    return std::nullopt;
+
+  const auto cards_obj = json_root.get("cards");
+  if (!cards_obj.is<picojson::array>())
+    return std::nullopt;
+
+  std::optional<std::vector<CardIdentifier>> result;
+  result.emplace();
+
+  for (const auto& item : cards_obj.get<picojson::array>())
+  {
+    CardIdentifier card_id{};
+
+    const auto table_index_obj = item.get("table");
+    if (table_index_obj.is<double>())
+      card_id.table_index = MathUtil::SaturatingCast<u8>(table_index_obj.get<double>());
+
+    const auto card_index_obj = item.get("index");
+    if (card_index_obj.is<double>())
+      card_id.card_index = MathUtil::SaturatingCast<u16>(card_index_obj.get<double>());
+
+    u8 qty = 1;
+
+    const auto qty_obj = item.get("quantity");
+    if (qty_obj.is<double>())
+      qty = MathUtil::SaturatingCast<u8>(qty_obj.get<double>());
+
+    result->resize(result->size() + qty, card_id);
+  }
+
+  return result;
+}
 
 void DeckReader::Process()
 {
@@ -288,7 +344,7 @@ void DeckReader::Process()
 
     if (is_deck_empty)
     {
-      // I think this means that there are no cards.
+      // I think this means that there are no cards or maybe "not ready".
       OutputBytes(std::array<u8, 2>{0xaa, 0x52});
     }
     else
@@ -296,25 +352,17 @@ void DeckReader::Process()
       // We've had one, yes, but what about second header ?
       OutputBytes(std::array<u8, 2>{0xaa, u8(CDReaderCommand::ReadCard)});
 
-      // What happens with more than 30 cards ?
-      constexpr u32 card_count = 30;
-
-      // TODO: Allow this to be loaded from a .json file or something.
-      std::pair<u8, u16> cards[] = {
-          {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1},
-          {1, 1}, {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1}, {1, 1},
-          {1, 1}, {1, 2}, {1, 2}, {1, 2}, {1, 3}, {1, 3}, {1, 3}, {1, 1}, {1, 1}, {1, 1},
-      };
-      static_assert(std::size(cards) == card_count);
-
-      OutputByte(u8(card_count * sizeof(CardIdentifier)));
-
-      for (const auto& c : cards)
+      if (const auto deck = LoadCardDeckFromFile())
       {
-        CardIdentifier card_id{.use_alternate_table = c.first};
-        card_id.index = c.second;
+        // What happens with more than 30 cards ?
+        OutputByte(u8(deck->size() * sizeof(CardIdentifier)));
 
-        OutputBytes(Common::AsU8Span(card_id));
+        OutputBytes(Common::AsU8Span(*deck));
+      }
+      else
+      {
+        constexpr u8 deck_size = 0;
+        OutputByte(deck_size);
       }
     }
 
