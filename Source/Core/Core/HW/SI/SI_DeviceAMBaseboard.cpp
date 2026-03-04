@@ -819,10 +819,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
             case VirtuaStriker4:
             case VirtuaStriker4_2006:
               // 2 Player (13bit), 1 Coin slot, 4 Analog-in, 1 CARD
+              // 22 Driver-out
               message.AddData("\x01\x02\x0D\x00", 4);
               message.AddData("\x02\x01\x00\x00", 4);
               message.AddData("\x03\x04\x00\x00", 4);
               message.AddData("\x10\x01\x00\x00", 4);
+              message.AddData("\x12\x16\x00\x00", 4);
               message.AddData("\x00\x00\x00\x00", 4);
               break;
             case KeyOfAvalon:
@@ -1071,15 +1073,26 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 if (pad_status.button & PAD_BUTTON_RIGHT)
                   player_data[0] |= 0x04;
 
-                // IC-Card Switch ON
-                // This might be a "card is physically present" sensor.
-                if (pad_status.button & PAD_TRIGGER_L)
-                  player_data[0] |= 0x10;
+                // TODO: VS42006 does not accept cards with both are inserted at the same time! >:|
+                if (i < m_ic_slot_eject_timer.size())
+                {
+                  const auto timer_val = m_ic_slot_eject_timer[i];
 
-                // IC-Card Lock
-                // This seems to pause IC card writes so it can't be always pressed.
-                if (pad_status.button & PAD_BUTTON_DOWN)
-                  player_data[1] |= 0x20;
+                  // IC-Card Switch ON
+                  // This might be a "card is physically present" sensor.
+                  if ((timer_val > 250) != !!(pad_status.button & PAD_TRIGGER_L))
+                    // if (!is_eject_active)
+                    player_data[0] |= 0x10;
+
+                  // IC-Card Lock
+                  // This seems to pause IC card writes so it can't be always pressed.
+                  // Note: The game seems to want to control the lock with JVS output.
+                  // if ((timer_val > 200 && timer_val < 250) !=
+                  //     !!(pad_status.button & PAD_BUTTON_DOWN))                  if ((timer_val >
+                  //     200 && timer_val < 250) !=
+                  if (pad_status.button & PAD_BUTTON_DOWN)
+                    player_data[1] |= 0x20;
+                }
               }
               break;
               // Controller configuration for Gekitou Pro Yakyuu
@@ -1332,70 +1345,91 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
               break;
             const u32 bytes = *jvs_io++;
 
+            if (!validate_jvs_io(bytes, "GeneralDriverOutput"))
+              break;
+
+            message.AddData(StatusOkay);
+
             if (bytes)
             {
-              message.AddData(StatusOkay);
+              const u8 status = *jvs_io;
 
               // The lamps are controlled via this
-              if (AMMediaboard::GetGameType() == MarioKartGP)
+              if (AMMediaboard::GetGameType() == MarioKartGP ||
+                  AMMediaboard::GetGameType() == MarioKartGP2)
               {
-                if (!validate_jvs_io(1, "GeneralDriverOutput (MarioKartGP)"))
+                if (u8(status ^ m_jvs_general_output) & 0x04)
+                {
+                  INFO_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Item Button: {}",
+                               (status & 0x04) ? "ON" : "OFF");
+                }
+
+                if (u8(status ^ m_jvs_general_output) & 0x08)
+                {
+                  INFO_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Cancel Button: {}",
+                               (status & 0x08) ? "ON" : "OFF");
+                }
+              }
+
+              if (AMMediaboard::GetGameType() == VirtuaStriker4 ||
+                  AMMediaboard::GetGameType() == VirtuaStriker4_2006)
+              {
+                if ((status & 0x80) && !(m_jvs_general_output & 0x80))
+                {
+                  NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Slot 1: Eject");
+                  m_ic_slot_eject_timer[0] = 0;
+                }
+
+                if ((status & 0x20) && !(m_jvs_general_output & 0x20))
+                {
+                  NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Slot 2: Eject");
+                  m_ic_slot_eject_timer[1] = 0;
+                }
+
+                if (u8(status ^ m_jvs_general_output) & 0x40)
+                {
+                  NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Slot 1: {}",
+                                 (status & 0x40) ? "Lock" : "Unlock");
+                }
+                if (u8(status ^ m_jvs_general_output) & 0x10)
+                {
+                  NOTICE_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Slot 2: {}",
+                                 (status & 0x10) ? "Lock" : "Unlock");
+                }
+              }
+
+              m_jvs_general_output = status;
+
+              DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO,
+                            "JVS-IO: GPO: delay=0x{:02x}, rx_reply=0x{:02x},"
+                            " bytes={}, buffer:\n{}",
+                            m_delay, m_rx_reply, bytes, HexDump(jvs_io, bytes));
+
+              if ((AMMediaboard::GetGameType() == FZeroAX) && bytes >= 3)
+              {
+                // Handling of the motion seat used in F-Zero AXs DX version
+                const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
+
+                switch (seat_state)
+                {
+                case 0x70:
+                  m_delay++;
+                  if ((m_delay % 10) == 0)
+                  {
+                    m_rx_reply = 0xFB;
+                  }
                   break;
-                const u32 status = *jvs_io++;
-                if (status & 4)
-                {
-                  DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button ON");
+                case 0xF0:
+                  m_rx_reply = 0xF0;
+                  break;
+                default:
+                case 0xA0:
+                case 0x60:
+                  break;
                 }
-                else
-                {
-                  DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Item Button OFF");
-                }
-                if (status & 8)
-                {
-                  DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button ON");
-                }
-                else
-                {
-                  DEBUG_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: Command 32, Cancel Button OFF");
-                }
-                break;
               }
 
-              if (!validate_jvs_io(bytes, "GeneralDriverOutput"))
-                break;
-
-              INFO_LOG_FMT(SERIALINTERFACE_JVSIO,
-                           "JVS-IO: Command 0x32, GPO: delay=0x{:02x}, rx_reply=0x{:02x},"
-                           " bytes={}, buffer:\n{}",
-                           m_delay, m_rx_reply, bytes, HexDump(jvs_io, bytes));
-
-              if (bytes < 3)
-              {
-                jvs_io += bytes;
-                break;
-              }
-
-              // Handling of the motion seat used in F-Zero AXs DX version
-              const u16 seat_state = Common::swap16(jvs_io + 1) >> 2;
               jvs_io += bytes;
-
-              switch (seat_state)
-              {
-              case 0x70:
-                m_delay++;
-                if ((m_delay % 10) == 0)
-                {
-                  m_rx_reply = 0xFB;
-                }
-                break;
-              case 0xF0:
-                m_rx_reply = 0xF0;
-                break;
-              default:
-              case 0xA0:
-              case 0x60:
-                break;
-              }
             }
             break;
           }
@@ -1508,6 +1542,12 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                       gcam_command, data_in[0], data_in[1], data_in[2], data_in[3], data_in[4]);
         break;
       }
+    }
+
+    for (auto& counter : m_ic_slot_eject_timer)
+    {
+      if (counter < std::numeric_limits<decltype(m_ic_slot_eject_timer)::value_type>::max())
+        ++counter;
     }
 
     if (m_serial_device_a != nullptr)
@@ -1655,6 +1695,9 @@ void CSIDevice_AMBaseboard::DoState(PointerWrap& p)
   p.Do(m_dip_switch_0);
 
   p.Do(m_delay);
+
+  // TODO: JVS output
+  // TODO: m_ic_slot_eject_timer
 }
 
 }  // namespace SerialInterface

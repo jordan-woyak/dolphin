@@ -168,6 +168,10 @@ private:
   u32 m_dip_switch_0 = 0xFF;
 
   int m_delay = 0;
+
+  u8 m_jvs_general_output = 0x00;
+
+  std::array<u8, 2> m_ic_slot_eject_timer{};
 };
 
 }  // namespace SerialInterface
