@@ -16,7 +16,6 @@
 #include "Common/Swap.h"
 
 #include "Core/ConfigManager.h"
-
 #include "Core/HW/DVD/AMMediaboard.h"
 
 namespace
@@ -143,7 +142,7 @@ enum class ICCardCommand : u8
   SetBaudrate = 0x11,
   FieldOn = 0x14,
   FieldOff = 0x15,
-  Unknown_16 = 0x16,  // Gekitou sends this on boot.
+  EjectCard = 0x16,
   InsertCheck = 0x20,
   AntiCollision = 0x21,
   SelectCard = 0x22,
@@ -332,12 +331,13 @@ void ICCardReader::Process()
 
     break;
   }
-  case ICCardCommand::Unknown_16:
+  case ICCardCommand::EjectCard:
   {
     if (!validate_input_payload_size(0))
       break;
 
-    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "Unknown_16: Not implemented.");
+    // TODO:
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "EjectCard: Not implemented.");
     break;
   }
   case ICCardCommand::InsertCheck:
