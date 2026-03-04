@@ -1073,14 +1073,15 @@ int CSIDevice_AMBaseboard::RunBuffer(u8* buffer, int request_length)
                 if (pad_status.button & PAD_BUTTON_RIGHT)
                   player_data[0] |= 0x04;
 
-                // TODO: VS42006 does not accept cards with both are inserted at the same time! >:|
+                // TODO: VS4 + VS4_2006 won't load cards when both are inserted at the same time!
                 if (i < m_ic_slot_eject_timer.size())
                 {
                   const auto timer_val = m_ic_slot_eject_timer[i];
 
                   // IC-Card Switch ON
                   // This might be a "card is physically present" sensor.
-                  if ((timer_val > 250) != !!(pad_status.button & PAD_TRIGGER_L))
+                  // if ((timer_val > 250) != !!(pad_status.button & PAD_TRIGGER_L))
+                  if (pad_status.button & PAD_TRIGGER_L)
                     // if (!is_eject_active)
                     player_data[0] |= 0x10;
 
