@@ -5,17 +5,17 @@
 
 #include <array>
 #include <memory>
+#include <span>
 
 #include "Common/Assert.h"
 #include "Common/CommonTypes.h"
-
-#include "Core/HW/Triforce/ICCardReader.h"
 
 class PointerWrap;
 
 namespace Triforce
 {
 
+class ICCardReader;
 class IOAdapter;
 
 // Triforce GPIO peripherals connect to JVS-IO and eachother in game specific ways.
@@ -91,7 +91,7 @@ private:
   IOPorts* m_io_ports{};
 };
 
-// Used for both GP1 and GP2.
+// Used for both MarioKartGP and MarioKartGP2.
 class MarioKartGPCommon_IOAdapter final : public IOAdapter
 {
 protected:

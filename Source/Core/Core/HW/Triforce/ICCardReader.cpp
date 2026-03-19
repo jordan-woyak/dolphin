@@ -171,13 +171,13 @@ void ICCardReader::CreateCards(u8 card_count)
 
   for (u8 i = 0; i != card_count; ++i)
   {
-    std::string slot_name = fmt::format("slot_{}", m_slot_index + 1);
+    std::string slot_name = fmt::format("slot{}", m_slot_index + 1);
 
-    // Files for additional tags get naming like "slot_1b.bin"
+    // Files for additional tags get naming like "slot1b.bin"
     if (i > 0)
       slot_name += char('a' + i);
 
-    const auto filename = fmt::format("{}tricard_{}_ic_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
+    const auto filename = fmt::format("{}tricard_{}_{}.bin", File::GetUserPath(D_TRIUSER_IDX),
                                       SConfig::GetInstance().GetGameID(), slot_name);
 
     card_id.back() = i;
@@ -614,7 +614,7 @@ std::span<const u8> ICCardReader::ICCard::ReadData(u16 page, u16 page_count)
 
   if (byte_count + byte_offset > m_data.size())
   {
-    WARN_LOG_FMT(SERIALINTERFACE_CARD, "ReadPages: Attempt to read beyond end of card.");
+    WARN_LOG_FMT(SERIALINTERFACE_CARD, "ReadData: Attempt to read beyond end of card.");
     return {};
   }
 
@@ -661,7 +661,10 @@ u16 ICCardReader::ICCard::DecreaseUseCount(u16 page, u16 amount)
   auto* const addr = m_data.data() + byte_offset;
 
   const u16 previous_use_count = Common::swap16(addr);
-  const u16 new_use_count = previous_use_count - amount;
+
+  // We're not sure how the real hardware functions when decreasing below 0.
+  // We'll clamp it to 0 for now.
+  const u16 new_use_count = MathUtil::SaturatingCast<u16>(s32(previous_use_count) - amount);
 
   NOTICE_LOG_FMT(SERIALINTERFACE_CARD, "DecreaseUseCount: {} -> {}", previous_use_count,
                  new_use_count);

@@ -10,6 +10,8 @@
 #include "Common/BitUtils.h"
 #include "Common/ChunkFile.h"
 
+#include "Core/HW/Triforce/ICCardReader.h"
+
 namespace Triforce
 {
 
@@ -37,6 +39,12 @@ void IOPorts::SetGenericOutputs(std::span<const u8> bytes)
 {
   const auto bytes_to_copy = std::min(bytes.size(), GENERIC_OUTPUT_BYTE_COUNT);
 
+  if (bytes.size() > m_generic_output_data.size())
+  {
+    WARN_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: GenericOutputs: Unexpected byte count: {}",
+                 bytes.size());
+  }
+
   decltype(m_generic_output_data) bits_set{};
   decltype(m_generic_output_data) bits_cleared{};
 
@@ -48,16 +56,23 @@ void IOPorts::SetGenericOutputs(std::span<const u8> bytes)
     m_generic_output_data[i] = bytes[i];
   }
 
+  bool bits_changed = false;
+
   if (std::ranges::any_of(bits_set, std::bind_front(std::not_equal_to{}, 0x00)))
   {
+    bits_changed = true;
     INFO_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: GenericOutputs: bits_set: {:02x}",
                  fmt::join(bits_set, " "));
   }
   if (std::ranges::any_of(bits_cleared, std::bind_front(std::not_equal_to{}, 0x00)))
   {
+    bits_changed = true;
     INFO_LOG_FMT(SERIALINTERFACE_JVSIO, "JVS-IO: GenericOutputs: bits_cleared: {:02x}",
                  fmt::join(bits_cleared, " "));
   }
+
+  if (!bits_changed)
+    return;
 
   for (auto& adapter : m_io_adapters)
   {
