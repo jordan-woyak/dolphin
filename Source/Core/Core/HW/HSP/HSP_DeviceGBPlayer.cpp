@@ -253,16 +253,23 @@ void CGBPlayer_mGBA::ReadScanlines(std::span<u32, AV_REGION_SIZE> scanlines)
     m_generate_video_irq = true;
 }
 
-// Takes 3 bits from a 16-bit PCM sample and converts them into PWM.
+// Takes 5 bits from a 16-bit PCM sample and converts them into PWM.
 //
-// The 13 bits that don't get converted are fed into the remainder, which should be used as an
+// The 11 bits that don't get converted are fed into the remainder, which should be used as an
 // input to the next invocation of this function to average out quantization errors over time.
 static constexpr u8 SampleToBits(u16 value, u16* remainder)
 {
   const u16 x = value + *remainder;
-  const u16 y = x >> 13;
-  *remainder = x - (y << 13);
-  return u8(0xff00u >> y);
+  const u16 y = x >> 11;
+  *remainder = x - (y << 11);
+  return y;
+}
+
+static constexpr u8 SampleToPWM(u8* value)
+{
+  const auto x = std::min<u32>(*value, 8);
+  *value -= x;
+  return u8(0xff00u >> x);
 }
 
 void CGBPlayer_mGBA::ReadAudio(std::span<u8, AV_REGION_SIZE> audio)
@@ -276,13 +283,19 @@ void CGBPlayer_mGBA::ReadAudio(std::span<u8, AV_REGION_SIZE> audio)
   auto out_it = audio.begin();
   for (auto [l, r] : std::span{buffer}.first(read_count))
   {
-    u16 l_unsigned = l + 0x8000;
-    u16 r_unsigned = r + 0x8000;
+    const u16 l_unsigned = l + 0x8000;
+    const u16 r_unsigned = r + 0x8000;
 
-    for (u32 i = 0; i != out_bytes_per_sample; ++i)
+    for (u32 i = 0; i != out_bytes_per_sample / 4; ++i)
     {
-      *(out_it++) = SampleToBits(l_unsigned, &m_audio_l_remainder);
-      *(out_it++) = SampleToBits(r_unsigned, &m_audio_r_remainder);
+      u8 l_sample = SampleToBits(l_unsigned, &m_audio_l_remainder);
+      u8 r_sample = SampleToBits(r_unsigned, &m_audio_r_remainder);
+
+      for (u32 b = 0; b != 4; ++b)
+      {
+        *(out_it++) = SampleToPWM(&l_sample);
+        *(out_it++) = SampleToPWM(&r_sample);
+      }
     }
   }
 }
