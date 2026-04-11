@@ -32,6 +32,7 @@ namespace PowerPC
 {
 class PowerPCManager;
 struct PowerPCState;
+enum class TLBLookupResult;
 
 enum class RequestedAddressSpace
 {
@@ -328,7 +329,11 @@ private:
   TranslateAddressResult TranslateAddress(u32 address);
 
   template <const XCheckTLBFlag flag>
-  TranslateAddressResult TranslatePageAddress(const EffectiveAddress address, bool* wi);
+  TranslateAddressResult TranslatePageAddress(EffectiveAddress address, bool* wi);
+
+  template <const XCheckTLBFlag flag>
+  TranslateAddressResult TranslateUncachedPageAddress(EffectiveAddress address, bool* wi,
+                                                      TLBLookupResult lookup_result);
 
   void GenerateDSIException(u32 effective_address, bool write);
   void GenerateISIException(u32 effective_address);

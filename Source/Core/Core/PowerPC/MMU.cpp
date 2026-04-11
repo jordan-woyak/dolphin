@@ -1786,6 +1786,17 @@ MMU::TranslateAddressResult MMU::TranslatePageAddress(const EffectiveAddress add
                                   translated_address};
   }
 
+  return TranslateUncachedPageAddress<flag>(address, wi, res);
+}
+
+template <const XCheckTLBFlag flag>
+MMU::TranslateAddressResult MMU::TranslateUncachedPageAddress(const EffectiveAddress address,
+                                                              bool* wi,
+                                                              TLBLookupResult lookup_result)
+{
+  const auto sr = UReg_SR{m_ppc_state.sr[address.SR]};
+  const u32 VSID = sr.VSID;  // 24 bit
+
   if (sr.T != 0)
     return TranslateAddressResult{TranslateAddressResultEnum::DIRECT_STORE_SEGMENT, 0};
 
@@ -1875,7 +1886,7 @@ MMU::TranslateAddressResult MMU::TranslatePageAddress(const EffectiveAddress add
         }
 
         // We already updated the TLB entry if this was caused by a C bit.
-        if (res != TLBLookupResult::UpdateC)
+        if (lookup_result != TLBLookupResult::UpdateC)
           UpdateTLBEntry(m_ppc_state, flag, pte2, address.Hex, VSID);
 
         *wi = (pte2.WIMG & 0b1100) != 0;
