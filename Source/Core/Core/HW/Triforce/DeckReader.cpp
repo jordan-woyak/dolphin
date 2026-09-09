@@ -250,6 +250,31 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   return result;
 }
 
+bool SaveCardDeckToFile(std::span<DeckEntry> deck, const CardDatabase& card_database)
+{
+  picojson::array cards;
+
+  for (const auto& entry : deck)
+  {
+    picojson::object card_obj;
+    card_obj["number"] = picojson::value(entry.number);
+    if (entry.quantity != 1)
+      card_obj["quantity"] = picojson::value(double(entry.quantity));
+
+    cards.emplace_back(card_obj);
+  }
+
+  picojson::object obj;
+  obj["cards"] = picojson::value(std::move(cards));
+
+  std::string json = picojson::value(obj).serialize(true);
+
+  // TODO: redundant.
+  const std::string filename = fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
+
+  return File::WriteStringToFile(filename, json);
+}
+
 void DeckReader::Update()
 {
   Common::ScopeGuard update_ic_card_reader{[this] {

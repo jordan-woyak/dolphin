@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <map>
+#include <span>
 
 #include "Common/BitUtils.h"
 #include "Common/DirectIOFile.h"
@@ -53,6 +54,15 @@ CardDatabase LoadCardDatabaseFromFile();
 
 // TODO: It's a bit odd to use CardIdentifier here when cards may be specified by "number".
 std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase&);
+
+struct DeckEntry
+{
+  std::string number;  // The printed card number.
+  int quantity;
+};
+
+// We only support saving with card "number".
+bool SaveCardDeckToFile(std::span<DeckEntry> deck, const CardDatabase& card_database);
 
 // Serial deck reader used by The Key of Avalon games.
 class DeckReader final : public SerialDevice

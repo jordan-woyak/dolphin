@@ -126,6 +126,20 @@ public:
     endResetModel();
   }
 
+  void SaveDeck()
+  {
+    std::vector<Triforce::DeckEntry> deck;
+
+    for (auto& card : m_data)
+    {
+      if (card.quantity != 0)
+        deck.emplace_back(card.number.toStdString(), card.quantity);
+    }
+
+    const auto card_database = Triforce::LoadCardDatabaseFromFile();
+    Triforce::SaveCardDeckToFile(deck, card_database);
+  }
+
   int GetTotalQuantity() const
   {
     int total = 0;
@@ -302,6 +316,8 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   connect(button_box, &QDialogButtonBox::accepted, this, &AvalonDeckManager::accept);
   connect(button_box, &QDialogButtonBox::rejected, this, &AvalonDeckManager::reject);
+
+  connect(this, &AvalonDeckManager::accepted, model, &DeckModel::SaveDeck);
 
   auto* const deck_size_label = new QLabel;
 
