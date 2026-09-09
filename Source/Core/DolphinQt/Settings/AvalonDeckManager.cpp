@@ -121,8 +121,6 @@ public:
         line.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
     }
 
-    // TODO: Load deck.
-
     endResetModel();
   }
 
@@ -265,7 +263,7 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   auto* const model = new DeckModel{this};
 
-  auto* const proxy = new NaturalSortFilterProxy(this);
+  auto* const proxy = new NaturalSortFilterProxy{this};
   proxy->setSourceModel(model);
 
   auto* const table_view = new QTableView;
@@ -296,10 +294,9 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   auto* const show_all_cards = new QCheckBox{tr("Show All Available Cards")};
   cards_layout->addWidget(show_all_cards);
 
-  connect(show_all_cards, &QCheckBox::checkStateChanged, proxy,
-          &NaturalSortFilterProxy::SetShowAllCards);
+  connect(show_all_cards, &QCheckBox::toggled, proxy, &NaturalSortFilterProxy::SetShowAllCards);
 
-  auto* const search_textbox = new QLineEdit{this};
+  auto* const search_textbox = new QLineEdit;
   search_textbox->setPlaceholderText(tr("Search cards..."));
 
   connect(search_textbox, &QLineEdit::textChanged, proxy, &NaturalSortFilterProxy::SetFilterText);
@@ -338,8 +335,7 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   update_label_text();
 
-  if (model->GetTotalQuantity() == 0)
-    show_all_cards->setChecked(true);
+  show_all_cards->setChecked(model->GetTotalQuantity() == 0);
 
   QtUtils::AdjustSizeWithinScreen(this);
 }

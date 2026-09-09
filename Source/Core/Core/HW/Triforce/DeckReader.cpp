@@ -261,13 +261,13 @@ bool SaveCardDeckToFile(std::span<DeckEntry> deck, const CardDatabase& card_data
     if (entry.quantity != 1)
       card_obj["quantity"] = picojson::value(double(entry.quantity));
 
-    cards.emplace_back(card_obj);
+    cards.emplace_back(std::move(card_obj));
   }
 
   picojson::object obj;
   obj["cards"] = picojson::value(std::move(cards));
 
-  std::string json = picojson::value(obj).serialize(true);
+  std::string json = picojson::value(std::move(obj)).serialize(true);
 
   // TODO: redundant.
   const std::string filename = fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
