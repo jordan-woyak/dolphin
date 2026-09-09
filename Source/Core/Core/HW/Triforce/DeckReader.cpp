@@ -58,30 +58,10 @@ enum class CDReaderCommand : u8
   ProgramVersion = 0x76,
 };
 
-#pragma pack(push, 1)
-struct CardIdentifier
+}  // namespace
+
+namespace Triforce
 {
-  // When the 0x01 bit is set, Avalon indexes a separate smaller table.
-  // Avalon specifically requires 0x80, 0x40, and 0x20 bits are not set.
-  // We don't know the relevance of this second table.
-  // There are even some duplicates between the two tables.
-  u8 table_index;
-
-  Common::BigEndianValue<u16> card_index;
-};
-#pragma pack(pop)
-
-struct CardDatabaseEntry
-{
-  std::string name_eng;
-  std::string name_jpn;
-
-  // We just load the first {table,index} pair.
-  CardIdentifier card_id;
-};
-
-// The map key is the card number, e.g. "N27" or "Ex11".
-using CardDatabase = std::map<std::string, CardDatabaseEntry>;
 
 CardDatabase LoadCardDatabaseFromFile()
 {
@@ -273,11 +253,6 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile()
 
   return result;
 }
-
-}  // namespace
-
-namespace Triforce
-{
 
 void DeckReader::Update()
 {

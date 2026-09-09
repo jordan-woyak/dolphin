@@ -85,7 +85,7 @@ TriforcePane::TriforcePane()
 
   auto* const avalon_deck_manager_layout = new QVBoxLayout{avalon_deck_manager_group};
 
-  auto* const avalon_deck_manager_button = new NonDefaultQPushButton{tr("Card Deck Manager")};
+  auto* const avalon_deck_manager_button = new NonDefaultQPushButton{tr("Deck Manager")};
   avalon_deck_manager_layout->addWidget(avalon_deck_manager_button);
 
   connect(avalon_deck_manager_button, &QPushButton::clicked, this, [this] {

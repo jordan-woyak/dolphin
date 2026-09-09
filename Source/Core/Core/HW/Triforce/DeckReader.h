@@ -3,7 +3,10 @@
 
 #pragma once
 
+#include <map>
+
 #include "Common/DirectIOFile.h"
+#include "Common/Swap.h"
 
 #include "Core/HW/Triforce/ICCardReader.h"
 #include "Core/HW/Triforce/SerialDevice.h"
@@ -12,6 +15,36 @@ class PointerWrap;
 
 namespace Triforce
 {
+
+#pragma pack(push, 1)
+struct CardIdentifier
+{
+  // When the 0x01 bit is set, Avalon indexes a separate smaller table.
+  // Avalon specifically requires 0x80, 0x40, and 0x20 bits are not set.
+  // We don't know the relevance of this second table.
+  // There are even some duplicates between the two tables.
+  u8 table_index;
+
+  Common::BigEndianValue<u16> card_index;
+};
+#pragma pack(pop)
+
+struct CardDatabaseEntry
+{
+  std::string name_eng;
+  std::string name_jpn;
+
+  // We just load the first {table,index} pair.
+  CardIdentifier card_id;
+};
+
+// The map key is the card number, e.g. "N27" or "Ex11".
+using CardDatabase = std::map<std::string, CardDatabaseEntry>;
+
+CardDatabase LoadCardDatabaseFromFile();
+
+// TODO: Make this not use the table,index pairs..
+std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile();
 
 // Serial deck reader used by The Key of Avalon games.
 class DeckReader final : public SerialDevice

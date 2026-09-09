@@ -7,8 +7,6 @@
 
 class AvalonDeckManager final : public QDialog
 {
-  Q_OBJECT
-
 public:
-  AvalonDeckManager(QWidget* parent);
+  explicit AvalonDeckManager(QWidget* parent);
 };
