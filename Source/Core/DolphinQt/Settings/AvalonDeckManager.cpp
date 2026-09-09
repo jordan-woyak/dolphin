@@ -13,6 +13,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSortFilterProxyModel>
+#include <QSpinBox>
+#include <QStyledItemDelegate>
 #include <QTableView>
 #include <QVBoxLayout>
 
@@ -167,7 +169,7 @@ public:
 
   QVariant data(const QModelIndex& index, int role) const override
   {
-    if (!index.isValid() || role != Qt::DisplayRole)
+    if (!index.isValid() || (role != Qt::DisplayRole && role != Qt::EditRole))
       return {};
 
     const auto& card = m_data[index.row()];
@@ -230,11 +232,6 @@ public:
     if (!index.isValid() || index.column() != COLUMN_CARD_QUANTITY || role != Qt::EditRole)
       return false;
 
-    const auto new_value = value.toInt();
-
-    if (new_value < 0 || new_value > MAXIMUM_DECK_SIZE)
-      return false;
-
     m_data[index.row()].quantity = value.toInt();
 
     emit dataChanged(index, index, {Qt::DisplayRole});
@@ -251,6 +248,26 @@ private:
   };
 
   std::vector<CardData> m_data;
+};
+
+class CardQuantityEditor : public QStyledItemDelegate
+{
+public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option,
+                        const QModelIndex& index) const override
+  {
+    auto* const editor = QStyledItemDelegate::createEditor(parent, option, index);
+
+    if (auto* const spin_box = qobject_cast<QSpinBox*>(editor))
+    {
+      spin_box->setMinimum(0);
+      spin_box->setMaximum(MAXIMUM_DECK_SIZE);
+    }
+
+    return editor;
+  }
 };
 
 }  // namespace
@@ -285,6 +302,8 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   // table_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
   table_view->sortByColumn(COLUMN_CARD_NUMBER, Qt::SortOrder::AscendingOrder);
+
+  table_view->setItemDelegateForColumn(COLUMN_CARD_QUANTITY, new CardQuantityEditor(table_view));
 
   auto* const cards_group = new QGroupBox(tr("Cards"));
   auto* const cards_layout = new QVBoxLayout{cards_group};
