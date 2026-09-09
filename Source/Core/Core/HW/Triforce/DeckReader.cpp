@@ -174,10 +174,7 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   //   ]
   // }
 
-  // TODO: using the game ID isn't good for the deck manager..
-  const std::string filename =
-      fmt::format("{}tricard_{}_deck.json", File::GetUserPath(D_TRIUSER_IDX),
-                  SConfig::GetInstance().GetGameID());
+  const std::string filename = fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
 
   std::string file_contents;
   File::ReadFileToString(filename, file_contents);
