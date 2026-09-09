@@ -71,8 +71,112 @@ struct CardIdentifier
 };
 #pragma pack(pop)
 
+struct CardDatabaseEntry
+{
+  std::string name_eng;
+  std::string name_jpn;
+
+  // We just load the first {table,index} pair.
+  CardIdentifier card_id;
+};
+
+// The map key is the card number, e.g. "N27" or "Ex11".
+using CardDatabase = std::map<std::string, CardDatabaseEntry>;
+
+CardDatabase LoadCardDatabaseFromFile()
+{
+  CardDatabase result;
+
+  // TODO: good name?
+  const std::string card_db_filename =
+      fmt::format("{}avalon-card-database.json", File::GetSysDirectory());
+
+  std::string file_contents;
+  File::ReadFileToString(card_db_filename, file_contents);
+
+  picojson::value json_root;
+  const auto err = picojson::parse(json_root, file_contents);
+
+  if (!err.empty())
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: {}", err);
+
+    return result;
+  }
+
+  if (!json_root.is<picojson::object>())
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Invalid JSON root object.");
+    return result;
+  }
+
+  const auto cards_obj = json_root.get("cards");
+  if (!cards_obj.is<picojson::array>())
+  {
+    ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Invalid \"cards\" array.");
+    return result;
+  }
+
+  for (const auto& item : cards_obj.get<picojson::array>())
+  {
+    if (!item.is<picojson::object>())
+      continue;
+
+    const auto& item_obj = item.get<picojson::object>();
+
+    auto card_number = ReadStringFromJson(item_obj, "number");
+    if (!card_number)
+    {
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Invalid card number.");
+      continue;
+    }
+
+    CardDatabaseEntry card_db_entry;
+
+    card_db_entry.name_eng = ReadStringFromJson(item_obj, "name_eng").value_or("");
+    card_db_entry.name_jpn = ReadStringFromJson(item_obj, "name_jpn").value_or("");
+
+    // TODO: better name than "entries".
+    const auto table_indices = item.get("entries");
+    if (!table_indices.is<picojson::array>())
+    {
+      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Invalid \"entries\" array.");
+      continue;
+    }
+
+    for (const auto& table_index : table_indices.get<picojson::array>())
+    {
+      if (!table_index.is<picojson::object>())
+        continue;
+
+      const auto& table_index_obj = table_index.get<picojson::object>();
+
+      const auto card_index = ReadNumericFromJson<u16>(table_index_obj, "index");
+      if (!card_index)
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Invalid \"index\" field.");
+        continue;
+      }
+
+      card_db_entry.card_id.card_index = *card_index;
+      card_db_entry.card_id.table_index =
+          ReadNumericFromJson<u8>(table_index_obj, "table").value_or(0);
+
+      // We currently just use the first valid {table,index} pair.
+      result.emplace(*card_number, std::move(card_db_entry));
+      break;
+    }
+  }
+
+  INFO_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDatabaseFromFile: Loaded {} cards.", result.size());
+
+  return result;
+}
+
 std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile()
 {
+  const auto card_database = LoadCardDatabaseFromFile();
+
   // Example json format:
   // table defaults to 0. quantity defaults to 1.
   //
@@ -131,16 +235,37 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile()
 
     const auto& item_obj = item.get<picojson::object>();
 
-    const auto card_index = ReadNumericFromJson<u16>(item_obj, "index");
-    if (!card_index)
-    {
-      ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDeckFromFile: Invalid \"index\" field.");
-      continue;
-    }
-
     CardIdentifier card_id{};
-    card_id.card_index = *card_index;
-    card_id.table_index = ReadNumericFromJson<u8>(item_obj, "table").value_or(0);
+
+    const auto card_number = ReadStringFromJson(item_obj, "number");
+    if (card_number)
+    {
+      auto card_db_entry = card_database.find(*card_number);
+      if (card_db_entry != card_database.end())
+      {
+        card_id = card_db_entry->second.card_id;
+      }
+      else
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_CARD,
+                      "LoadCardDeckFromFile: Card number \"{}\" not found in database.",
+                      *card_number);
+      }
+    }
+    else
+    {
+      // Fall back to "table" and "index" if "number" isn't specified.
+
+      const auto card_index = ReadNumericFromJson<u16>(item_obj, "index");
+      if (!card_index)
+      {
+        ERROR_LOG_FMT(SERIALINTERFACE_CARD, "LoadCardDeckFromFile: Invalid \"index\" field.");
+        continue;
+      }
+
+      card_id.card_index = *card_index;
+      card_id.table_index = ReadNumericFromJson<u8>(item_obj, "table").value_or(0);
+    }
 
     const auto quantity = ReadNumericFromJson<u8>(item_obj, "quantity").value_or(1);
     result->resize(result->size() + quantity, card_id);
