@@ -16,6 +16,7 @@ class PointerWrap;
 namespace Triforce
 {
 
+// This structure mirrors the 3 bytes per card the deck reader hardware produces.
 #pragma pack(push, 1)
 struct CardIdentifier
 {
@@ -34,17 +35,17 @@ struct CardDatabaseEntry
   std::string name_eng;
   std::string name_jpn;
 
-  // We just load the first {table,index} pair.
+  // TODO: We just load the first {table,index} pair.
   CardIdentifier card_id;
 };
 
-// The map key is the card number, e.g. "N27" or "Ex11".
+// The map key is the printed card number, e.g. "N27" or "Ex11".
 using CardDatabase = std::map<std::string, CardDatabaseEntry>;
 
 CardDatabase LoadCardDatabaseFromFile();
 
-// TODO: Make this not use the table,index pairs..
-std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile();
+// TODO: It's a bit odd to use CardIdentifier here when cards may be specified by "number".
+std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase&);
 
 // Serial deck reader used by The Key of Avalon games.
 class DeckReader final : public SerialDevice

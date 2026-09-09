@@ -23,10 +23,10 @@
 namespace
 {
 
-constexpr int COLUMN_NUMBER = 0;
-constexpr int COLUMN_NAME_ENG = 1;
-constexpr int COLUMN_NAME_JPN = 2;
-constexpr int COLUMN_QUANTITY = 3;
+constexpr int COLUMN_CARD_NUMBER = 0;
+constexpr int COLUMN_CARD_NAME_ENG = 1;
+constexpr int COLUMN_CARD_NAME_JPN = 2;
+constexpr int COLUMN_CARD_QUANTITY = 3;
 constexpr int COLUMN_COUNT = 4;
 
 constexpr int MAXIMUM_DECK_SIZE = 30;
@@ -59,13 +59,14 @@ protected:
   {
     const auto* model = sourceModel();
 
-    if (!m_show_all_cards && model->data(model->index(row, COLUMN_QUANTITY, parent)).toInt() == 0)
+    if (!m_show_all_cards &&
+        model->data(model->index(row, COLUMN_CARD_QUANTITY, parent)).toInt() == 0)
       return false;
 
     if (m_search_text.isEmpty())
       return true;
 
-    for (int column = 0; column != COLUMN_QUANTITY; ++column)
+    for (int column = 0; column != COLUMN_CARD_QUANTITY; ++column)
     {
       const QModelIndex index = model->index(row, column, parent);
 
@@ -96,16 +97,29 @@ private:
 class DeckModel : public QAbstractTableModel
 {
 public:
-  explicit DeckModel(QObject* parent = nullptr) : QAbstractTableModel(parent)
+  explicit DeckModel(QObject* parent = nullptr) : QAbstractTableModel(parent) {}
+
+  void LoadData()
   {
-    for (auto& [card_number, card_details] : Triforce::LoadCardDatabaseFromFile())
+    const auto card_database = Triforce::LoadCardDatabaseFromFile();
+
+    beginResetModel();
+
+    m_data.resize(card_database.size());
+    std::size_t line_number = 0;
+
+    for (const auto& [card_number, card_details] : card_database)
     {
-      auto& line = m_data.emplace_back();
+      auto& line = m_data[line_number++];
 
       line.number = QString::fromUtf8(card_number);
       line.name_eng = QString::fromUtf8(card_details.name_eng);
       line.name_jpn = QString::fromUtf8(card_details.name_jpn);
     }
+
+    // TODO: Load deck.
+
+    endResetModel();
   }
 
   int GetTotalQuantity() const
@@ -123,7 +137,7 @@ public:
     {
       if (std::exchange(card.quantity, 0) != 0)
       {
-        emit dataChanged(index(row, COLUMN_QUANTITY), index(row, COLUMN_QUANTITY),
+        emit dataChanged(index(row, COLUMN_CARD_QUANTITY), index(row, COLUMN_CARD_QUANTITY),
                          {Qt::DisplayRole});
       }
 
@@ -144,13 +158,13 @@ public:
 
     switch (index.column())
     {
-    case COLUMN_NUMBER:
+    case COLUMN_CARD_NUMBER:
       return card.number;
-    case COLUMN_NAME_ENG:
+    case COLUMN_CARD_NAME_ENG:
       return card.name_eng;
-    case COLUMN_NAME_JPN:
+    case COLUMN_CARD_NAME_JPN:
       return card.name_jpn;
-    case COLUMN_QUANTITY:
+    case COLUMN_CARD_QUANTITY:
       return card.quantity;
     default:
       return {};
@@ -166,13 +180,13 @@ public:
     {
       switch (section)
       {
-      case COLUMN_NUMBER:
+      case COLUMN_CARD_NUMBER:
         return tr("Number");
-      case COLUMN_NAME_ENG:
+      case COLUMN_CARD_NAME_ENG:
         return tr("English Name");
-      case COLUMN_NAME_JPN:
+      case COLUMN_CARD_NAME_JPN:
         return tr("Japanese Name");
-      case COLUMN_QUANTITY:
+      case COLUMN_CARD_QUANTITY:
         return tr("Quantity");
       default:
         return {};
@@ -189,7 +203,7 @@ public:
 
     auto flags = QAbstractTableModel::flags(index);
 
-    if (index.column() == COLUMN_QUANTITY)
+    if (index.column() == COLUMN_CARD_QUANTITY)
       flags |= Qt::ItemIsEditable;
 
     return flags;
@@ -197,7 +211,7 @@ public:
 
   bool setData(const QModelIndex& index, const QVariant& value, int role) override
   {
-    if (!index.isValid() || index.column() != COLUMN_QUANTITY || role != Qt::EditRole)
+    if (!index.isValid() || index.column() != COLUMN_CARD_QUANTITY || role != Qt::EditRole)
       return false;
 
     const auto new_value = value.toInt();
@@ -243,9 +257,18 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   table_view->setSelectionBehavior(QAbstractItemView::SelectItems);
   table_view->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  table_view->resizeColumnsToContents();
+  // table_view->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+  // table_view->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
 
-  table_view->sortByColumn(COLUMN_NUMBER, Qt::SortOrder::AscendingOrder);
+  auto* const header = table_view->horizontalHeader();
+  header->setSectionResizeMode(COLUMN_CARD_NUMBER, QHeaderView::ResizeToContents);
+  header->setSectionResizeMode(COLUMN_CARD_NAME_ENG, QHeaderView::Stretch);
+  header->setSectionResizeMode(COLUMN_CARD_NAME_JPN, QHeaderView::Stretch);
+  header->setSectionResizeMode(COLUMN_CARD_QUANTITY, QHeaderView::ResizeToContents);
+
+  // table_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+
+  table_view->sortByColumn(COLUMN_CARD_NUMBER, Qt::SortOrder::AscendingOrder);
 
   auto* const cards_group = new QGroupBox(tr("Cards"));
   auto* const cards_layout = new QVBoxLayout{cards_group};
@@ -257,9 +280,6 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   connect(show_all_cards, &QCheckBox::checkStateChanged, proxy,
           &NaturalSortFilterProxy::SetShowAllCards);
-
-  if (model->GetTotalQuantity() == 0)
-    show_all_cards->setChecked(true);
 
   auto* const search_textbox = new QLineEdit{this};
   search_textbox->setPlaceholderText(tr("Search cards..."));
@@ -285,13 +305,21 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
     deck_size_label->setText(
         tr("Deck Size: %1 / %2").arg(model->GetTotalQuantity()).arg(MAXIMUM_DECK_SIZE));
   };
-  update_label_text();
 
   connect(model, &QAbstractItemModel::dataChanged, this, update_label_text);
 
   main_layout->addWidget(deck_size_label);
 
   main_layout->addWidget(button_box);
+
+  model->LoadData();
+
+  // table_view->resizeColumnsToContents();
+
+  update_label_text();
+
+  if (model->GetTotalQuantity() == 0)
+    show_all_cards->setChecked(true);
 
   QtUtils::AdjustSizeWithinScreen(this);
 }

@@ -153,10 +153,8 @@ CardDatabase LoadCardDatabaseFromFile()
   return result;
 }
 
-std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile()
+std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase& card_database)
 {
-  const auto card_database = LoadCardDatabaseFromFile();
-
   // Example json format:
   // table defaults to 0. quantity defaults to 1.
   //
@@ -445,7 +443,9 @@ void DeckReader::Update()
       // We've had one, yes, but what about second header ?
       WriteTxBytes(std::array<u8, 2>{0xaa, u8(CDReaderCommand::ReadCard)});
 
-      if (const auto deck = LoadCardDeckFromFile())
+      const auto card_database = LoadCardDatabaseFromFile();
+
+      if (const auto deck = LoadCardDeckFromFile(card_database))
       {
         // What happens with more than 30 cards ?
         WriteTxByte(u8(deck->size() * sizeof(CardIdentifier)));
