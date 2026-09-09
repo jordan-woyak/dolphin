@@ -102,6 +102,7 @@ public:
   void LoadData()
   {
     const auto card_database = Triforce::LoadCardDatabaseFromFile();
+    const auto card_deck = Triforce::LoadCardDeckFromFile(card_database);
 
     beginResetModel();
 
@@ -115,6 +116,9 @@ public:
       line.number = QString::fromUtf8(card_number);
       line.name_eng = QString::fromUtf8(card_details.name_eng);
       line.name_jpn = QString::fromUtf8(card_details.name_jpn);
+
+      if (card_deck)
+        line.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
     }
 
     // TODO: Load deck.

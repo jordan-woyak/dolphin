@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <map>
 
+#include "Common/BitUtils.h"
 #include "Common/DirectIOFile.h"
 #include "Common/Swap.h"
 
@@ -27,6 +29,11 @@ struct CardIdentifier
   u8 table_index;
 
   Common::BigEndianValue<u16> card_index;
+
+  bool operator==(const CardIdentifier& other) const
+  {
+    return std::ranges::equal(Common::AsU8Span(*this), Common::AsU8Span(other));
+  }
 };
 #pragma pack(pop)
 
