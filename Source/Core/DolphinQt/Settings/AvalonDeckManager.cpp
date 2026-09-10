@@ -3,6 +3,8 @@
 
 #include "DolphinQt/Settings/AvalonDeckManager.h"
 
+#include <ranges>
+
 #include <QAbstractTableModel>
 #include <QCheckBox>
 #include <QCollator>
@@ -86,15 +88,52 @@ protected:
 
   bool lessThan(const QModelIndex& left, const QModelIndex& right) const override
   {
+    const auto left_str = sourceModel()->data(left, sortRole()).toString();
+    const auto right_str = sourceModel()->data(right, sortRole()).toString();
+
+    if (left.column() == COLUMN_CARD_MOVEMENT)
+      return CompareMovements(left_str, right_str);
+
     static QCollator collator;
     collator.setNumericMode(true);
     collator.setCaseSensitivity(Qt::CaseInsensitive);
 
-    return collator.compare(sourceModel()->data(left, sortRole()).toString(),
-                            sourceModel()->data(right, sortRole()).toString()) < 0;
+    return collator.compare(left_str, right_str) < 0;
   }
 
 private:
+  static bool CompareMovements(const QString& left, const QString& right)
+  {
+    for (const auto [a, b] : std::views::zip(left, right))
+    {
+      if (a != b)
+        return RankMovementColor(a) < RankMovementColor(b);
+    }
+
+    return left.size() < right.size();
+  }
+
+  // Sort the movement strings in YBRGW order.
+  static int RankMovementColor(QChar c)
+  {
+    // TODO: character conversion is gross
+    switch (c.toUpper().toLatin1())
+    {
+    case 'Y':
+      return 0;
+    case 'B':
+      return 1;
+    case 'R':
+      return 2;
+    case 'G':
+      return 3;
+    case 'W':
+      return 4;
+    default:
+      return 100;
+    }
+  }
+
   QString m_search_text;
   bool m_show_all_cards{};
 };
