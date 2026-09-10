@@ -322,7 +322,8 @@ public:
                       1.f - colorless.lightnessF());
 
     static const QHash<char, QColor> colors = {
-        {'y', Qt::yellow}, {'b', Qt::blue}, {'r', Qt::red}, {'g', Qt::green}, {'w', colorless},
+        {'y', QColor(200, 200, 0)}, {'b', QColor(0, 0, 200)}, {'r', QColor(200, 0, 0)},
+        {'g', QColor(0, 200, 0)},   {'w', colorless},
     };
 
     const QString text = index.data(Qt::DisplayRole).toString();
