@@ -138,9 +138,9 @@ public:
         {'b', tr("Blue")},
         {'r', tr("Red")},
         {'g', tr("Green")},
-        // "The Key of Avalon" card attribute name. Original Japanese: マップ上魔法
+        // i18n: "The Key of Avalon" card attribute name. Original Japanese: マップ上魔法
         {'m', tr("Magic")},
-        // "The Key of Avalon" card attribute name. Original Japanese: 戦闘支援
+        // i18n: "The Key of Avalon" card attribute name. Original Japanese: 戦闘支援
         {'s', tr("Support")},
     };
 
