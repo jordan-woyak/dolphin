@@ -145,6 +145,17 @@ public:
 
   void LoadData()
   {
+    static const QHash<char, QString> attribute_names = {
+        {'y', tr("Yellow")},
+        {'b', tr("Blue")},
+        {'r', tr("Red")},
+        {'g', tr("Green")},
+        // "The Key of Avalon" card attribute name, original Japanese: マップ上魔法
+        {'m', tr("Magic")},
+        // "The Key of Avalon" card attribute name, original Japanese: 戦闘支援
+        {'s', tr("Support")},
+    };
+
     const auto card_database = Triforce::LoadCardDatabaseFromFile();
     const auto card_deck = Triforce::LoadCardDeckFromFile(card_database);
 
@@ -160,7 +171,13 @@ public:
       line.number = QString::fromUtf8(card_number);
       line.name_eng = QString::fromUtf8(card_details.name_eng);
       line.name_jpn = QString::fromUtf8(card_details.name_jpn);
-      line.attribute = QString::fromUtf8(card_details.attribute);
+
+      if (!card_details.attribute.empty())
+      {
+        line.attribute = attribute_names.value(card_details.attribute.front(),
+                                               QString::fromUtf8(card_details.attribute));
+      }
+
       line.movement = QString::fromUtf8(card_details.movement);
 
       if (card_deck)
