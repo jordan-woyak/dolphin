@@ -113,25 +113,13 @@ private:
     return left.size() < right.size();
   }
 
-  // Sort the movement strings in YBRGW order.
   static int RankMovementColor(QChar c)
   {
+    // Sort the movement strings in YBRGW order.
+    constexpr std::string_view rank_str = "ybrgw";
+
     // TODO: character conversion is gross
-    switch (c.toUpper().toLatin1())
-    {
-    case 'Y':
-      return 0;
-    case 'B':
-      return 1;
-    case 'R':
-      return 2;
-    case 'G':
-      return 3;
-    case 'W':
-      return 4;
-    default:
-      return 100;
-    }
+    return int(rank_str.find(c.toLatin1()));
   }
 
   QString m_search_text;
@@ -150,9 +138,9 @@ public:
         {'b', tr("Blue")},
         {'r', tr("Red")},
         {'g', tr("Green")},
-        // "The Key of Avalon" card attribute name, original Japanese: マップ上魔法
+        // "The Key of Avalon" card attribute name. Original Japanese: マップ上魔法
         {'m', tr("Magic")},
-        // "The Key of Avalon" card attribute name, original Japanese: 戦闘支援
+        // "The Key of Avalon" card attribute name. Original Japanese: 戦闘支援
         {'s', tr("Support")},
     };
 
