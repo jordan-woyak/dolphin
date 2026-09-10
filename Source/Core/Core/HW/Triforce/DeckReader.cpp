@@ -115,6 +115,8 @@ CardDatabase LoadCardDatabaseFromFile()
 
     card_db_entry.name_eng = ReadStringFromJson(item_obj, "name_eng").value_or("");
     card_db_entry.name_jpn = ReadStringFromJson(item_obj, "name_jpn").value_or("");
+    card_db_entry.attribute = ReadStringFromJson(item_obj, "attribute").value_or("");
+    card_db_entry.movement = ReadStringFromJson(item_obj, "movement").value_or("");
 
     // TODO: better name than "entries".
     const auto table_indices = item.get("entries");

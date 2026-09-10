@@ -11,6 +11,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
 #include <QPushButton>
 #include <QSortFilterProxyModel>
 #include <QSpinBox>
@@ -28,8 +29,10 @@ namespace
 constexpr int COLUMN_CARD_NUMBER = 0;
 constexpr int COLUMN_CARD_NAME_ENG = 1;
 constexpr int COLUMN_CARD_NAME_JPN = 2;
-constexpr int COLUMN_CARD_QUANTITY = 3;
-constexpr int COLUMN_COUNT = 4;
+constexpr int COLUMN_CARD_ATTRIBUTE = 3;
+constexpr int COLUMN_CARD_MOVEMENT = 4;
+constexpr int COLUMN_CARD_QUANTITY = 5;
+constexpr int COLUMN_COUNT = 6;
 
 constexpr int MAXIMUM_DECK_SIZE = 30;
 
@@ -118,6 +121,8 @@ public:
       line.number = QString::fromUtf8(card_number);
       line.name_eng = QString::fromUtf8(card_details.name_eng);
       line.name_jpn = QString::fromUtf8(card_details.name_jpn);
+      line.attribute = QString::fromUtf8(card_details.attribute);
+      line.movement = QString::fromUtf8(card_details.movement);
 
       if (card_deck)
         line.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
@@ -182,6 +187,10 @@ public:
       return card.name_eng;
     case COLUMN_CARD_NAME_JPN:
       return card.name_jpn;
+    case COLUMN_CARD_ATTRIBUTE:
+      return card.attribute;
+    case COLUMN_CARD_MOVEMENT:
+      return card.movement;
     case COLUMN_CARD_QUANTITY:
       return card.quantity;
     default:
@@ -204,6 +213,10 @@ public:
         return tr("English Name");
       case COLUMN_CARD_NAME_JPN:
         return tr("Japanese Name");
+      case COLUMN_CARD_ATTRIBUTE:
+        return tr("Attribute");
+      case COLUMN_CARD_MOVEMENT:
+        return tr("Movement");
       case COLUMN_CARD_QUANTITY:
         return tr("Quantity");
       default:
@@ -241,13 +254,63 @@ public:
 private:
   struct CardData
   {
+    QString number;
     QString name_eng;
     QString name_jpn;
-    QString number;
+    QString attribute;
+    QString movement;
     int quantity{};
   };
 
   std::vector<CardData> m_data;
+};
+
+class MovementPips : public QStyledItemDelegate
+{
+public:
+  using QStyledItemDelegate::QStyledItemDelegate;
+
+  void paint(QPainter* painter, const QStyleOptionViewItem& option,
+             const QModelIndex& index) const override
+  {
+    QColor colorless = option.palette.color(QPalette::Base);
+    colorless.setHslF(colorless.hslHueF(), colorless.hslSaturationF(),
+                      1.f - colorless.lightnessF());
+
+    static const QHash<char, QColor> colors = {
+        {'y', Qt::yellow}, {'b', Qt::blue}, {'r', Qt::red}, {'g', Qt::green}, {'w', colorless},
+    };
+
+    const QString text = index.data(Qt::DisplayRole).toString();
+
+    painter->save();
+
+    painter->setRenderHint(QPainter::Antialiasing, true);
+
+    const QFontMetrics font_metrics(option.font);
+
+    const int diameter = font_metrics.height() * 3 / 4;
+    const int radius = diameter / 2;
+    const int margin = (option.rect.height() - diameter) / 2;
+    const int spacing = margin / 2;
+
+    int x = option.rect.x() + margin + radius;
+    const int y = option.rect.center().y();
+
+    painter->setPen(Qt::NoPen);
+
+    for (const QChar ch : text)
+    {
+      // TODO: character conversion is gross..
+      painter->setBrush(colors.value(ch.toLatin1(), Qt::gray));
+
+      painter->drawEllipse(QPoint(x, y), radius, radius);
+
+      x += diameter + spacing;
+    }
+
+    painter->restore();
+  }
 };
 
 class CardQuantityEditor : public QStyledItemDelegate
@@ -297,12 +360,15 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   header->setSectionResizeMode(COLUMN_CARD_NUMBER, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_NAME_ENG, QHeaderView::Stretch);
   header->setSectionResizeMode(COLUMN_CARD_NAME_JPN, QHeaderView::Stretch);
+  header->setSectionResizeMode(COLUMN_CARD_ATTRIBUTE, QHeaderView::ResizeToContents);
+  header->setSectionResizeMode(COLUMN_CARD_MOVEMENT, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_QUANTITY, QHeaderView::ResizeToContents);
 
   // table_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
   table_view->sortByColumn(COLUMN_CARD_NUMBER, Qt::SortOrder::AscendingOrder);
 
+  table_view->setItemDelegateForColumn(COLUMN_CARD_MOVEMENT, new MovementPips(table_view));
   table_view->setItemDelegateForColumn(COLUMN_CARD_QUANTITY, new CardQuantityEditor(table_view));
 
   auto* const cards_group = new QGroupBox(tr("Cards"));

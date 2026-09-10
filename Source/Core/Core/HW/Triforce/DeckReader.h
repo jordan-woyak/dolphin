@@ -42,6 +42,8 @@ struct CardDatabaseEntry
 {
   std::string name_eng;
   std::string name_jpn;
+  std::string attribute;
+  std::string movement;
 
   // TODO: We just load the first {table,index} pair.
   CardIdentifier card_id;
