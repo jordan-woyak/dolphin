@@ -38,6 +38,7 @@ constexpr int COLUMN_COUNT = 6;
 
 constexpr int MAXIMUM_DECK_SIZE = 30;
 
+// Natural number/color sorting and filtering by text string.
 class NaturalSortFilterProxy : public QSortFilterProxyModel
 {
   using QSortFilterProxyModel::QSortFilterProxyModel;
@@ -147,6 +148,7 @@ public:
 
     beginResetModel();
 
+    m_data.clear();
     m_data.resize(card_database.size());
     std::size_t line_number = 0;
 
@@ -309,6 +311,7 @@ private:
   std::vector<CardData> m_data;
 };
 
+// Custom drawing for movement colors.
 class MovementPips : public QStyledItemDelegate
 {
 public:
@@ -383,18 +386,15 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 {
   setWindowTitle(tr("The Key of Avalon - Deck Manager"));
 
-  auto* const main_layout = new QVBoxLayout{this};
-
-  auto* const model = new DeckModel{this};
+  auto* const deck_model = new DeckModel{this};
 
   auto* const proxy = new NaturalSortFilterProxy{this};
-  proxy->setSourceModel(model);
+  proxy->setSourceModel(deck_model);
 
   auto* const table_view = new QTableView;
   table_view->setModel(proxy);
-  table_view->setSortingEnabled(true);
+
   table_view->verticalHeader()->hide();
-  table_view->setSelectionBehavior(QAbstractItemView::SelectItems);
   table_view->setSelectionMode(QAbstractItemView::SingleSelection);
 
   auto* const header = table_view->horizontalHeader();
@@ -405,6 +405,7 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   header->setSectionResizeMode(COLUMN_CARD_MOVEMENT, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_QUANTITY, QHeaderView::ResizeToContents);
 
+  table_view->setSortingEnabled(true);
   table_view->sortByColumn(COLUMN_CARD_NUMBER, Qt::SortOrder::AscendingOrder);
 
   table_view->setItemDelegateForColumn(COLUMN_CARD_MOVEMENT, new MovementPips(table_view));
@@ -413,6 +414,7 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   auto* const cards_group = new QGroupBox(tr("Cards"));
   auto* const cards_layout = new QVBoxLayout{cards_group};
 
+  auto* const main_layout = new QVBoxLayout{this};
   main_layout->addWidget(cards_group);
 
   auto* const show_all_cards = new QCheckBox{tr("Show All Available Cards")};
@@ -431,14 +433,14 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   auto* const button_box = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel};
 
   auto* const clear_button = new QPushButton(tr("Clear"));
-  connect(clear_button, &QPushButton::clicked, model, &DeckModel::ClearDeck);
+  connect(clear_button, &QPushButton::clicked, deck_model, &DeckModel::ClearDeck);
 
   button_box->addButton(clear_button, QDialogButtonBox::ActionRole);
 
   connect(button_box, &QDialogButtonBox::accepted, this, &AvalonDeckManager::accept);
   connect(button_box, &QDialogButtonBox::rejected, this, &AvalonDeckManager::reject);
 
-  connect(this, &AvalonDeckManager::accepted, model, &DeckModel::SaveDeck);
+  connect(this, &AvalonDeckManager::accepted, deck_model, &DeckModel::SaveDeck);
 
   auto* const deck_size_label = new QLabel;
   main_layout->addWidget(deck_size_label);
@@ -451,16 +453,16 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   QtUtils::AdjustSizeWithinScreen(this);
   table_view->setMinimumHeight(0);
 
-  model->LoadData();
+  deck_model->LoadData();
 
   // If the deck contains any cards, only show those cards by default.
-  show_all_cards->setChecked(model->GetDeckSize() == 0);
+  show_all_cards->setChecked(deck_model->GetDeckSize() == 0);
 
   const auto update_label_text = [=]() {
     deck_size_label->setText(
         // i18n: Label for current count and limit of a deck of cards.
-        tr("Deck Size: %1 / %2").arg(model->GetDeckSize()).arg(MAXIMUM_DECK_SIZE));
+        tr("Deck Size: %1 / %2").arg(deck_model->GetDeckSize()).arg(MAXIMUM_DECK_SIZE));
   };
-  connect(model, &QAbstractItemModel::dataChanged, this, update_label_text);
+  connect(deck_model, &QAbstractItemModel::dataChanged, this, update_label_text);
   update_label_text();
 }
