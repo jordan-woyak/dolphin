@@ -39,7 +39,7 @@ constexpr int COLUMN_COUNT = 6;
 constexpr int MAXIMUM_DECK_SIZE = 30;
 
 // Natural number/color sorting and filtering by text string.
-class NaturalSortFilterProxy : public QSortFilterProxyModel
+class NaturalSortFilterProxy final : public QSortFilterProxyModel
 {
   using QSortFilterProxyModel::QSortFilterProxyModel;
 
@@ -124,7 +124,7 @@ private:
   bool m_show_all_cards{};
 };
 
-class DeckModel : public QAbstractTableModel
+class DeckModel final : public QAbstractTableModel
 {
 public:
   explicit DeckModel(QObject* parent = nullptr) : QAbstractTableModel(parent) {}
@@ -312,7 +312,7 @@ private:
 };
 
 // Custom drawing for movement colors.
-class MovementPips : public QStyledItemDelegate
+class MovementPips final : public QStyledItemDelegate
 {
 public:
   using QStyledItemDelegate::QStyledItemDelegate;
@@ -360,7 +360,7 @@ public:
   }
 };
 
-class CardQuantityEditor : public QStyledItemDelegate
+class CardQuantityEditor final : public QStyledItemDelegate
 {
 public:
   using QStyledItemDelegate::QStyledItemDelegate;
