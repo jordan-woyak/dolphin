@@ -20,6 +20,9 @@ namespace Triforce
 {
 
 // This structure mirrors the 3 bytes per card the deck reader hardware produces.
+// It seems to be some sort of not-yet-understood transformation of the scanned barcode.
+// Multiple "identifiers" may ultimately map to the same card "number" in game.
+// i.e. It seems some physical cards were re-released with different barcodes.
 #pragma pack(push, 1)
 struct CardIdentifier
 {
@@ -38,14 +41,21 @@ struct CardIdentifier
 };
 #pragma pack(pop)
 
+// Used for UX purposes, to map a printed card name/number to the game's internal "identifier".
 struct CardDatabaseEntry
 {
   std::string name_eng;
   std::string name_jpn;
+
+  // Card category: yellow, blue, red, green, magic, or support.
+  // Just the first letter, in lowercase.
   std::string attribute;
+
+  // String of lowercase movement color letters, 'w' for wild/colorless.
   std::string movement;
 
-  // TODO: We just load the first {table,index} pair.
+  // FYI: We just load the first identifier (the transformed barcode) for each card.
+  // The game seems to treat them all identically.
   CardIdentifier card_id;
 };
 
@@ -54,7 +64,7 @@ using CardDatabase = std::map<std::string, CardDatabaseEntry>;
 
 CardDatabase LoadCardDatabaseFromFile();
 
-// TODO: It's a bit odd to use CardIdentifier here when cards may be specified by "number".
+// It's semi-odd to use CardIdentifier here when cards may be specified by "number".
 std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase&);
 
 struct DeckEntry
@@ -63,8 +73,7 @@ struct DeckEntry
   int quantity;
 };
 
-// We only support saving with card "number".
-bool SaveCardDeckToFile(std::span<DeckEntry> deck, const CardDatabase& card_database);
+bool SaveCardDeckToFile(std::span<DeckEntry> deck);
 
 // Serial deck reader used by The Key of Avalon games.
 class DeckReader final : public SerialDevice

@@ -144,7 +144,7 @@ CardDatabase LoadCardDatabaseFromFile()
       card_db_entry.card_id.table_index =
           ReadNumericFromJson<u8>(table_index_obj, "table").value_or(0);
 
-      // We currently just use the first valid {table,index} pair.
+      // We currently just use the first valid identifier.
       result.emplace(*card_number, std::move(card_db_entry));
       break;
     }
@@ -252,7 +252,7 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   return result;
 }
 
-bool SaveCardDeckToFile(std::span<DeckEntry> deck, const CardDatabase& card_database)
+bool SaveCardDeckToFile(std::span<DeckEntry> deck)
 {
   picojson::array cards;
 

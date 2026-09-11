@@ -92,7 +92,7 @@ protected:
     const auto right_str = sourceModel()->data(right, sortRole()).toString();
 
     if (left.column() == COLUMN_CARD_MOVEMENT)
-      return CompareMovements(left_str, right_str);
+      return CompareMovementStrings(left_str, right_str);
 
     static QCollator collator;
     collator.setNumericMode(true);
@@ -102,7 +102,7 @@ protected:
   }
 
 private:
-  static bool CompareMovements(const QString& left, const QString& right)
+  static bool CompareMovementStrings(const QString& left, const QString& right)
   {
     for (const auto [a, b] : std::views::zip(left, right))
     {
@@ -115,11 +115,8 @@ private:
 
   static int RankMovementColor(QChar c)
   {
-    // Sort the movement strings in YBRGW order.
-    constexpr std::string_view rank_str = "ybrgw";
-
-    // TODO: character conversion is gross
-    return int(rank_str.find(c.toLatin1()));
+    // Sort the movement colors in Avalon's de-facto order.
+    return int(std::string_view{"ybrgw"}.find(c.toLatin1()));
   }
 
   QString m_search_text;
@@ -131,6 +128,7 @@ class DeckModel : public QAbstractTableModel
 public:
   explicit DeckModel(QObject* parent = nullptr) : QAbstractTableModel(parent) {}
 
+  // Loads the card database and the deck.
   void LoadData()
   {
     static const QHash<char, QString> attribute_names = {
@@ -185,11 +183,10 @@ public:
         deck.emplace_back(card.number.toStdString(), card.quantity);
     }
 
-    const auto card_database = Triforce::LoadCardDatabaseFromFile();
-    Triforce::SaveCardDeckToFile(deck, card_database);
+    Triforce::SaveCardDeckToFile(deck);
   }
 
-  int GetTotalQuantity() const
+  int GetDeckSize() const
   {
     int total = 0;
     for (const auto& card : m_data)
@@ -252,14 +249,17 @@ public:
       switch (section)
       {
       case COLUMN_CARD_NUMBER:
+        // i18n: Column header for The Key of Avalon printed card number.
         return tr("Number");
       case COLUMN_CARD_NAME_ENG:
         return tr("English Name");
       case COLUMN_CARD_NAME_JPN:
         return tr("Japanese Name");
       case COLUMN_CARD_ATTRIBUTE:
+        // i18n: Column header for The Key of Avalon card category. Japanese: 属性
         return tr("Attribute");
       case COLUMN_CARD_MOVEMENT:
+        // i18n: Column header for The Key of Avalon card movement colors. Japanese: 移動色
         return tr("Movement");
       case COLUMN_CARD_QUANTITY:
         return tr("Quantity");
@@ -346,7 +346,6 @@ public:
 
     for (const QChar ch : text)
     {
-      // TODO: character conversion is gross..
       painter->setBrush(pip_color_map.value(ch.toLatin1(), Qt::gray));
 
       painter->drawEllipse(QPoint(x, y), radius, radius);
@@ -455,11 +454,12 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   model->LoadData();
 
   // If the deck contains any cards, only show those cards by default.
-  show_all_cards->setChecked(model->GetTotalQuantity() == 0);
+  show_all_cards->setChecked(model->GetDeckSize() == 0);
 
   const auto update_label_text = [=]() {
     deck_size_label->setText(
-        tr("Deck Size: %1 / %2").arg(model->GetTotalQuantity()).arg(MAXIMUM_DECK_SIZE));
+        // i18n: Label for current count and limit of a deck of cards.
+        tr("Deck Size: %1 / %2").arg(model->GetDeckSize()).arg(MAXIMUM_DECK_SIZE));
   };
   connect(model, &QAbstractItemModel::dataChanged, this, update_label_text);
   update_label_text();
