@@ -317,13 +317,13 @@ public:
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
              const QModelIndex& index) const override
   {
-    QColor colorless = option.palette.color(QPalette::Base);
-    colorless.setHslF(colorless.hslHueF(), colorless.hslSaturationF(),
-                      1.f - colorless.lightnessF());
+    QColor colorless_pip_color = option.palette.color(QPalette::Base);
+    colorless_pip_color.setHslF(colorless_pip_color.hslHueF(), colorless_pip_color.hslSaturationF(),
+                                1.f - colorless_pip_color.lightnessF());
 
-    static const QHash<char, QColor> colors = {
-        {'y', QColor(200, 200, 0)}, {'b', QColor(0, 0, 200)}, {'r', QColor(200, 0, 0)},
-        {'g', QColor(0, 200, 0)},   {'w', colorless},
+    const QHash<char, QColor> pip_color_map = {
+        {'y', QColor(200, 200, 0)}, {'b', QColor(0, 0, 200)},   {'r', QColor(200, 0, 0)},
+        {'g', QColor(0, 200, 0)},   {'w', colorless_pip_color},
     };
 
     const QString text = index.data(Qt::DisplayRole).toString();
@@ -347,7 +347,7 @@ public:
     for (const QChar ch : text)
     {
       // TODO: character conversion is gross..
-      painter->setBrush(colors.value(ch.toLatin1(), Qt::gray));
+      painter->setBrush(pip_color_map.value(ch.toLatin1(), Qt::gray));
 
       painter->drawEllipse(QPoint(x, y), radius, radius);
 
@@ -398,9 +398,6 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   table_view->setSelectionBehavior(QAbstractItemView::SelectItems);
   table_view->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  // table_view->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-  // table_view->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
   auto* const header = table_view->horizontalHeader();
   header->setSectionResizeMode(COLUMN_CARD_NUMBER, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_NAME_ENG, QHeaderView::Stretch);
@@ -408,8 +405,6 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   header->setSectionResizeMode(COLUMN_CARD_ATTRIBUTE, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_MOVEMENT, QHeaderView::ResizeToContents);
   header->setSectionResizeMode(COLUMN_CARD_QUANTITY, QHeaderView::ResizeToContents);
-
-  // table_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
   table_view->sortByColumn(COLUMN_CARD_NUMBER, Qt::SortOrder::AscendingOrder);
 
@@ -447,25 +442,25 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   connect(this, &AvalonDeckManager::accepted, model, &DeckModel::SaveDeck);
 
   auto* const deck_size_label = new QLabel;
+  main_layout->addWidget(deck_size_label);
+
+  main_layout->addWidget(button_box);
+
+  // Adjust the window size, accounting for the column widths, before loading the data.
+  table_view->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+  table_view->setMinimumHeight(QFontMetrics{font()}.height() * 30);
+  QtUtils::AdjustSizeWithinScreen(this);
+  table_view->setMinimumHeight(0);
+
+  model->LoadData();
+
+  // If the deck contains any cards, only show those cards by default.
+  show_all_cards->setChecked(model->GetTotalQuantity() == 0);
 
   const auto update_label_text = [=]() {
     deck_size_label->setText(
         tr("Deck Size: %1 / %2").arg(model->GetTotalQuantity()).arg(MAXIMUM_DECK_SIZE));
   };
-
   connect(model, &QAbstractItemModel::dataChanged, this, update_label_text);
-
-  main_layout->addWidget(deck_size_label);
-
-  main_layout->addWidget(button_box);
-
-  model->LoadData();
-
-  // table_view->resizeColumnsToContents();
-
   update_label_text();
-
-  show_all_cards->setChecked(model->GetTotalQuantity() == 0);
-
-  QtUtils::AdjustSizeWithinScreen(this);
 }
