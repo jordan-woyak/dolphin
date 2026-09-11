@@ -38,13 +38,13 @@ auto GetFirmwareDumpFilename()
 
 auto GetCardDatabaseFilename()
 {
-  // TODO: Good?
+  // TODO: Change to underscores and have a better name ?
   return fmt::format("{}avalon-card-database.json", File::GetSysDirectory());
 }
 
 auto GetCardDeckFilename()
 {
-  // TODO: Good?
+  // TODO: Good ?
   return fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
 }
 
