@@ -17,8 +17,6 @@
 #include "Common/ScopeGuard.h"
 #include "Common/Swap.h"
 
-#include "Core/ConfigManager.h"
-
 namespace
 {
 
@@ -36,6 +34,18 @@ constexpr u32 FIRMWARE_UPDATE_TIMEOUT = 240;
 auto GetFirmwareDumpFilename()
 {
   return fmt::format("{}card_deck_reader_firmware.bin", File::GetUserPath(D_TRIUSER_IDX));
+}
+
+auto GetCardDatabaseFilename()
+{
+  // TODO: Good?
+  return fmt::format("{}avalon-card-database.json", File::GetSysDirectory());
+}
+
+auto GetCardDeckFilename()
+{
+  // TODO: Good?
+  return fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
 }
 
 enum class CDReaderCommand : u8
@@ -67,12 +77,8 @@ CardDatabase LoadCardDatabaseFromFile()
 {
   CardDatabase result;
 
-  // TODO: good name?
-  const std::string card_db_filename =
-      fmt::format("{}avalon-card-database.json", File::GetSysDirectory());
-
   std::string file_contents;
-  File::ReadFileToString(card_db_filename, file_contents);
+  File::ReadFileToString(GetCardDatabaseFilename(), file_contents);
 
   picojson::value json_root;
   const auto err = picojson::parse(json_root, file_contents);
@@ -176,10 +182,8 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   //   ]
   // }
 
-  const std::string filename = fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
-
   std::string file_contents;
-  File::ReadFileToString(filename, file_contents);
+  File::ReadFileToString(GetCardDeckFilename(), file_contents);
 
   picojson::value json_root;
   const auto err = picojson::parse(json_root, file_contents);
@@ -269,12 +273,9 @@ bool SaveCardDeckToFile(std::span<DeckEntry> deck)
   picojson::object obj;
   obj["cards"] = picojson::value(std::move(cards));
 
-  std::string json = picojson::value(std::move(obj)).serialize(true);
+  const std::string json = picojson::value(std::move(obj)).serialize(true);
 
-  // TODO: redundant.
-  const std::string filename = fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
-
-  return File::WriteStringToFile(filename, json);
+  return File::WriteStringToFile(GetCardDeckFilename(), json);
 }
 
 void DeckReader::Update()
