@@ -150,26 +150,26 @@ public:
 
     m_data.clear();
     m_data.resize(card_database.size());
-    std::size_t line_number = 0;
+    std::size_t row = 0;
 
     for (const auto& [card_number, card_details] : card_database)
     {
-      auto& line = m_data[line_number++];
+      auto& card = m_data[row++];
 
-      line.number = QString::fromUtf8(card_number);
-      line.name_eng = QString::fromUtf8(card_details.name_eng);
-      line.name_jpn = QString::fromUtf8(card_details.name_jpn);
+      card.number = QString::fromUtf8(card_number);
+      card.name_eng = QString::fromUtf8(card_details.name_eng);
+      card.name_jpn = QString::fromUtf8(card_details.name_jpn);
 
       if (!card_details.attribute.empty())
       {
-        line.attribute = attribute_names.value(card_details.attribute.front(),
+        card.attribute = attribute_names.value(card_details.attribute.front(),
                                                QString::fromUtf8(card_details.attribute));
       }
 
-      line.movement = QString::fromUtf8(card_details.movement);
+      card.movement = QString::fromUtf8(card_details.movement);
 
       if (card_deck)
-        line.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
+        card.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
     }
 
     endResetModel();
