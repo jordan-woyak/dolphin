@@ -62,10 +62,13 @@ struct CardDatabaseEntry
 // The map key is the printed card number, e.g. "N27" or "Ex11".
 using CardDatabase = std::map<std::string, CardDatabaseEntry>;
 
-CardDatabase LoadCardDatabaseFromFile();
+CardDatabase LoadCardDatabase();
 
 // It's semi-odd to use CardIdentifier here when cards may be specified by "number".
-std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase&);
+using CardDeck = std::vector<CardIdentifier>;
+
+std::optional<CardDeck> LoadCardDeck(const CardDatabase&);
+std::optional<CardDeck> LoadDefaultCardDeck(const CardDatabase&);
 
 struct DeckEntry
 {
@@ -73,7 +76,7 @@ struct DeckEntry
   int quantity;
 };
 
-bool SaveCardDeckToFile(std::span<DeckEntry> deck);
+bool SaveCardDeck(std::span<DeckEntry> deck);
 
 // Serial deck reader used by The Key of Avalon games.
 class DeckReader final : public SerialDevice

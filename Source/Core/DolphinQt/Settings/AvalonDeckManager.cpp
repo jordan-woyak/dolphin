@@ -129,50 +129,16 @@ class DeckModel final : public QAbstractTableModel
 public:
   explicit DeckModel(QObject* parent = nullptr) : QAbstractTableModel(parent) {}
 
-  // Loads the card database and the deck.
-  void LoadData()
+  void LoadDeck()
   {
-    static const QHash<char, QString> attribute_names = {
-        {'y', tr("Yellow")},
-        {'b', tr("Blue")},
-        {'r', tr("Red")},
-        {'g', tr("Green")},
-        // i18n: "The Key of Avalon" card attribute name. Original Japanese: マップ上魔法
-        {'m', tr("Magic")},
-        // i18n: "The Key of Avalon" card attribute name. Original Japanese: 戦闘支援
-        {'s', tr("Support")},
-    };
+    const auto card_database = Triforce::LoadCardDatabase();
+    ResetModel(card_database, Triforce::LoadCardDeck(card_database));
+  }
 
-    const auto card_database = Triforce::LoadCardDatabaseFromFile();
-    const auto card_deck = Triforce::LoadCardDeckFromFile(card_database);
-
-    beginResetModel();
-
-    m_data.clear();
-    m_data.resize(card_database.size());
-    std::size_t row = 0;
-
-    for (const auto& [card_number, card_details] : card_database)
-    {
-      auto& card = m_data[row++];
-
-      card.number = QString::fromUtf8(card_number);
-      card.name_eng = QString::fromUtf8(card_details.name_eng);
-      card.name_jpn = QString::fromUtf8(card_details.name_jpn);
-
-      if (!card_details.attribute.empty())
-      {
-        card.attribute = attribute_names.value(card_details.attribute.front(),
-                                               QString::fromUtf8(card_details.attribute));
-      }
-
-      card.movement = QString::fromUtf8(card_details.movement);
-
-      if (card_deck)
-        card.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
-    }
-
-    endResetModel();
+  void LoadDefaultDeck()
+  {
+    const auto card_database = Triforce::LoadCardDatabase();
+    ResetModel(card_database, Triforce::LoadDefaultCardDeck(card_database));
   }
 
   void SaveDeck()
@@ -185,7 +151,7 @@ public:
         deck.emplace_back(card.number.toStdString(), card.quantity);
     }
 
-    Triforce::SaveCardDeckToFile(deck);
+    Triforce::SaveCardDeck(deck);
   }
 
   int GetDeckSize() const
@@ -298,6 +264,49 @@ public:
   }
 
 private:
+  void ResetModel(const Triforce::CardDatabase& card_database,
+                  const std::optional<Triforce::CardDeck>& card_deck)
+  {
+    static const QHash<char, QString> attribute_names = {
+        {'y', tr("Yellow")},
+        {'b', tr("Blue")},
+        {'r', tr("Red")},
+        {'g', tr("Green")},
+        // i18n: "The Key of Avalon" card attribute name. Original Japanese: マップ上魔法
+        {'m', tr("Magic")},
+        // i18n: "The Key of Avalon" card attribute name. Original Japanese: 戦闘支援
+        {'s', tr("Support")},
+    };
+
+    beginResetModel();
+
+    m_data.clear();
+    m_data.resize(card_database.size());
+    std::size_t row = 0;
+
+    for (const auto& [card_number, card_details] : card_database)
+    {
+      auto& card = m_data[row++];
+
+      card.number = QString::fromUtf8(card_number);
+      card.name_eng = QString::fromUtf8(card_details.name_eng);
+      card.name_jpn = QString::fromUtf8(card_details.name_jpn);
+
+      if (!card_details.attribute.empty())
+      {
+        card.attribute = attribute_names.value(card_details.attribute.front(),
+                                               QString::fromUtf8(card_details.attribute));
+      }
+
+      card.movement = QString::fromUtf8(card_details.movement);
+
+      if (card_deck)
+        card.quantity = int(std::ranges::count(*card_deck, card_details.card_id));
+    }
+
+    endResetModel();
+  }
+
   struct CardData
   {
     QString number;
@@ -433,9 +442,13 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   auto* const button_box = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel};
 
+  auto* const load_default_button = new QPushButton(tr("Default"));
+  connect(load_default_button, &QPushButton::clicked, deck_model, &DeckModel::LoadDefaultDeck);
+
   auto* const clear_button = new QPushButton(tr("Clear"));
   connect(clear_button, &QPushButton::clicked, deck_model, &DeckModel::ClearDeck);
 
+  button_box->addButton(load_default_button, QDialogButtonBox::ActionRole);
   button_box->addButton(clear_button, QDialogButtonBox::ActionRole);
 
   connect(button_box, &QDialogButtonBox::accepted, this, &AvalonDeckManager::accept);
@@ -446,6 +459,14 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   auto* const deck_size_label = new QLabel;
   top_row->addWidget(deck_size_label);
 
+  const auto update_label_text = [=]() {
+    deck_size_label->setText(
+        // i18n: Label for current count and limit of a deck of cards.
+        tr("Deck Size: %1 / %2").arg(deck_model->GetDeckSize()).arg(MAXIMUM_DECK_SIZE));
+  };
+  connect(deck_model, &QAbstractItemModel::dataChanged, this, update_label_text);
+  connect(deck_model, &QAbstractItemModel::modelReset, this, update_label_text);
+
   main_layout->addWidget(button_box);
 
   // Adjust the window size, accounting for the column widths, before loading the data.
@@ -454,16 +475,8 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   QtUtils::AdjustSizeWithinScreen(this);
   table_view->setMinimumHeight(0);
 
-  deck_model->LoadData();
+  deck_model->LoadDeck();
 
   // If the deck contains any cards, only show those cards by default.
   show_all_cards->setChecked(deck_model->GetDeckSize() == 0);
-
-  const auto update_label_text = [=]() {
-    deck_size_label->setText(
-        // i18n: Label for current count and limit of a deck of cards.
-        tr("Deck Size: %1 / %2").arg(deck_model->GetDeckSize()).arg(MAXIMUM_DECK_SIZE));
-  };
-  connect(deck_model, &QAbstractItemModel::dataChanged, this, update_label_text);
-  update_label_text();
 }

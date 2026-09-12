@@ -48,7 +48,6 @@ auto GetCardDeckFilename()
   return fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
 }
 
-// TODO: Use this !
 auto GetDefaultCardDeckFilename()
 {
   // TODO: Change to underscores and have a better name ?
@@ -80,7 +79,7 @@ enum class CDReaderCommand : u8
 namespace Triforce
 {
 
-CardDatabase LoadCardDatabaseFromFile()
+CardDatabase LoadCardDatabase()
 {
   CardDatabase result;
 
@@ -168,13 +167,19 @@ CardDatabase LoadCardDatabaseFromFile()
   return result;
 }
 
-std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDatabase& card_database)
+static std::optional<CardDeck> LoadCardDeckFromFile(const CardDatabase& card_database,
+                                                    const std::string& filename)
 {
   // Example json format:
+  // index/table are used if number is unspecified.
   // table defaults to 0. quantity defaults to 1.
   //
   // {
   //   "cards": [
+  //     {
+  //       "number": "C23",
+  //       "quantity": 2
+  //     },
   //     {
   //       "index": 12
   //     },
@@ -190,10 +195,7 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   // }
 
   std::string file_contents;
-  if (!File::ReadFileToString(GetCardDeckFilename(), file_contents))
-  {
-    File::ReadFileToString(GetDefaultCardDeckFilename(), file_contents);
-  }
+  File::ReadFileToString(filename, file_contents);
 
   picojson::value json_root;
   const auto err = picojson::parse(json_root, file_contents);
@@ -266,7 +268,23 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   return result;
 }
 
-bool SaveCardDeckToFile(std::span<DeckEntry> deck)
+std::optional<CardDeck> LoadCardDeck(const CardDatabase& card_database)
+{
+  auto result = LoadCardDeckFromFile(card_database, GetCardDeckFilename());
+
+  // Fall back to default deck.
+  if (!result)
+    result = LoadDefaultCardDeck(card_database);
+
+  return result;
+}
+
+std::optional<CardDeck> LoadDefaultCardDeck(const CardDatabase& card_database)
+{
+  return LoadCardDeckFromFile(card_database, GetDefaultCardDeckFilename());
+}
+
+bool SaveCardDeck(std::span<DeckEntry> deck)
 {
   picojson::array cards;
 
@@ -479,9 +497,9 @@ void DeckReader::Update()
       // We've had one, yes, but what about second header ?
       WriteTxBytes(std::array<u8, 2>{0xaa, u8(CDReaderCommand::ReadCard)});
 
-      const auto card_database = LoadCardDatabaseFromFile();
+      const auto card_database = LoadCardDatabase();
 
-      if (const auto deck = LoadCardDeckFromFile(card_database))
+      if (const auto deck = LoadCardDeck(card_database))
       {
         // What happens with more than 30 cards ?
         WriteTxByte(u8(deck->size() * sizeof(CardIdentifier)));
