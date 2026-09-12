@@ -48,6 +48,13 @@ auto GetCardDeckFilename()
   return fmt::format("{}tricard_deck.json", File::GetUserPath(D_TRIUSER_IDX));
 }
 
+// TODO: Use this !
+auto GetDefaultCardDeckFilename()
+{
+  // TODO: Change to underscores and have a better name ?
+  return fmt::format("{}avalon-default-deck.json", File::GetSysDirectory());
+}
+
 enum class CDReaderCommand : u8
 {
   ShutterAuto = 0x61,
@@ -183,7 +190,10 @@ std::optional<std::vector<CardIdentifier>> LoadCardDeckFromFile(const CardDataba
   // }
 
   std::string file_contents;
-  File::ReadFileToString(GetCardDeckFilename(), file_contents);
+  if (!File::ReadFileToString(GetCardDeckFilename(), file_contents))
+  {
+    File::ReadFileToString(GetDefaultCardDeckFilename(), file_contents);
+  }
 
   picojson::value json_root;
   const auto err = picojson::parse(json_root, file_contents);

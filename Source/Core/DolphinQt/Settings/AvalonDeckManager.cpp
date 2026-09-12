@@ -9,7 +9,7 @@
 #include <QCheckBox>
 #include <QCollator>
 #include <QDialogButtonBox>
-#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
@@ -320,6 +320,7 @@ public:
   void paint(QPainter* painter, const QStyleOptionViewItem& option,
              const QModelIndex& index) const override
   {
+    // Opposite lightness of the background color.
     QColor colorless_pip_color = option.palette.color(QPalette::Base);
     colorless_pip_color.setHslF(colorless_pip_color.hslHueF(), colorless_pip_color.hslSaturationF(),
                                 1.f - colorless_pip_color.lightnessF());
@@ -411,14 +412,14 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   table_view->setItemDelegateForColumn(COLUMN_CARD_MOVEMENT, new MovementPips(table_view));
   table_view->setItemDelegateForColumn(COLUMN_CARD_QUANTITY, new CardQuantityEditor(table_view));
 
-  auto* const cards_group = new QGroupBox(tr("Cards"));
-  auto* const cards_layout = new QVBoxLayout{cards_group};
-
   auto* const main_layout = new QVBoxLayout{this};
-  main_layout->addWidget(cards_group);
 
-  auto* const show_all_cards = new QCheckBox{tr("Show All Available Cards")};
-  cards_layout->addWidget(show_all_cards);
+  auto* const top_row = new QHBoxLayout;
+  main_layout->addLayout(top_row);
+
+  auto* const show_all_cards = new QCheckBox{tr("Show All Cards")};
+  top_row->addWidget(show_all_cards);
+  top_row->addStretch(1);
 
   connect(show_all_cards, &QCheckBox::toggled, proxy, &NaturalSortFilterProxy::SetShowAllCards);
 
@@ -427,8 +428,8 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
 
   connect(search_textbox, &QLineEdit::textChanged, proxy, &NaturalSortFilterProxy::SetFilterText);
 
-  cards_layout->addWidget(search_textbox);
-  cards_layout->addWidget(table_view);
+  main_layout->addWidget(search_textbox);
+  main_layout->addWidget(table_view);
 
   auto* const button_box = new QDialogButtonBox{QDialogButtonBox::Ok | QDialogButtonBox::Cancel};
 
@@ -443,7 +444,7 @@ AvalonDeckManager::AvalonDeckManager(QWidget* parent) : QDialog{parent}
   connect(this, &AvalonDeckManager::accepted, deck_model, &DeckModel::SaveDeck);
 
   auto* const deck_size_label = new QLabel;
-  main_layout->addWidget(deck_size_label);
+  top_row->addWidget(deck_size_label);
 
   main_layout->addWidget(button_box);
 
