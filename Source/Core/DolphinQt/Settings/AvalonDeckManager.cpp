@@ -335,8 +335,8 @@ public:
                                 1.f - colorless_pip_color.lightnessF());
 
     const QHash<char, QColor> pip_color_map = {
-        {'y', QColor(200, 200, 0)}, {'b', QColor(0, 0, 200)},   {'r', QColor(200, 0, 0)},
-        {'g', QColor(0, 200, 0)},   {'w', colorless_pip_color},
+        {'y', QColor(220, 220, 0)}, {'b', QColor(0, 0, 220)},   {'r', QColor(200, 0, 0)},
+        {'g', QColor(0, 180, 0)},   {'w', colorless_pip_color},
     };
 
     const QString text = index.data(Qt::DisplayRole).toString();
