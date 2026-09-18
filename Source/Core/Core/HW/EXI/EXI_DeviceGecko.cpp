@@ -99,7 +99,6 @@ bool GeckoSockServer::GetAvailableSock()
 
   if (!waiting_socks.empty())
   {
-    client = std::move(waiting_socks.front());
     if (clientThread.joinable())
     {
       client_running.Clear();
@@ -108,6 +107,9 @@ bool GeckoSockServer::GetAvailableSock()
       recv_fifo = std::deque<u8>();
       send_fifo = std::deque<u8>();
     }
+    client = std::move(waiting_socks.front());
+    client_running.Set();
+    client_connected.Set();
     clientThread = std::thread(&GeckoSockServer::ClientThread, this);
     client_count++;
     waiting_socks.pop();
@@ -119,8 +121,6 @@ bool GeckoSockServer::GetAvailableSock()
 
 void GeckoSockServer::ClientThread()
 {
-  client_running.Set();
-
   Common::SetCurrentThreadName("Gecko Client");
 
   client->setBlocking(false);
@@ -163,6 +163,7 @@ void GeckoSockServer::ClientThread()
   }
 
   client->disconnect();
+  client_connected.Clear();
 }
 
 CEXIGecko::CEXIGecko(Core::System& system) : IEXIDevice(system)
@@ -174,7 +175,7 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   // We don't really care about _uSize
   (void)_uSize;
 
-  if (!client || client->getLocalPort() == 0)
+  if (!client_connected.IsSet())
     GetAvailableSock();
 
   switch (_uData >> 28)
@@ -195,11 +196,15 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   // |= 0x08000000 if successful
   case CMD_RECV:
   {
-    std::lock_guard lk(transfer_lock);
-    if (!recv_fifo.empty())
+    if (m_recv_buffer.empty())
     {
-      _uData = 0x08000000 | (recv_fifo.front() << 16);
-      recv_fifo.pop_front();
+      std::lock_guard lk(transfer_lock);
+      m_recv_buffer.swap(recv_fifo);
+    }
+    if (!m_recv_buffer.empty())
+    {
+      _uData = 0x08000000 | (m_recv_buffer.front() << 16);
+      m_recv_buffer.pop_front();
     }
     break;
   }
@@ -225,7 +230,7 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   case CMD_CHK_RX:
   {
     std::lock_guard lk(transfer_lock);
-    _uData = recv_fifo.empty() ? 0 : 0x04000000;
+    _uData = m_recv_buffer.empty() && recv_fifo.empty() ? 0 : 0x04000000;
     break;
   }
 
