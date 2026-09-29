@@ -23,6 +23,8 @@ enum class GBAPadGroup
 class GBAPad : public ControllerEmu::EmulatedController
 {
 public:
+  static constexpr u16 PAD_STATUS_RESET_SIGNAL = 0x0400;
+
   explicit GBAPad(unsigned int index);
   GCPadStatus GetInput();
   void SetReset(bool reset);
