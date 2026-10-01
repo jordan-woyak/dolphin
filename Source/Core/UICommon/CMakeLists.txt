@@ -19,6 +19,28 @@ add_library(uicommon
   ResourcePack/ResourcePack.h
   UICommon.cpp
   UICommon.h
+  WebUI/AVStream.cpp
+  WebUI/AVStream.h
+  WebUI/AVEncoder.cpp
+  WebUI/AVEncoder.h
+  WebUI/WebServer.cpp
+  WebUI/WebServer.h
+)
+
+# The cpp-httplib and libdatachannel APIs require some use of exceptions.
+if(NOT MSVC)
+  set_source_files_properties(
+    WebUI/AVStream.cpp
+    WebUI/WebServer.cpp
+    PROPERTIES COMPILE_OPTIONS "-fexceptions"
+  )
+endif()
+
+target_link_libraries(uicommon PRIVATE datachannel)
+
+target_include_directories(uicommon
+PRIVATE
+  ${CMAKE_SOURCE_DIR}/Externals/cpp-httplib
 )
 
 target_link_libraries(uicommon

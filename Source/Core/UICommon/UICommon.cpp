@@ -44,6 +44,7 @@
 #include "InputCommon/GCAdapter.h"
 
 #include "UICommon/DiscordPresence.h"
+#include "UICommon/WebUI/WebServer.h"
 
 #include "VideoCommon/Statistics.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -121,6 +122,7 @@ static void RefreshConfig()
 {
   Common::SetEnableAlert(Config::Get(Config::MAIN_USE_PANIC_HANDLERS));
   Common::SetAbortOnPanicAlert(Config::Get(Config::MAIN_ABORT_ON_PANIC_ALERT));
+  WebUI::RefreshConfig();
 }
 
 void Init()

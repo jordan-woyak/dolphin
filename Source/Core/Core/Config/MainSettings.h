@@ -252,6 +252,10 @@ extern const Info<int> MAIN_OSD_FONT_SIZE;
 extern const Info<bool> MAIN_SKIP_NKIT_WARNING;
 extern const Info<bool> MAIN_CONFIRM_ON_STOP;
 
+extern const Info<bool> MAIN_ENABLE_WEB_INTERFACE;
+extern const Info<std::string> MAIN_WEB_INTERFACE_SERVER_PORT;
+extern const Info<std::string> MAIN_WEB_INTERFACE_ICE_SERVERS;
+
 enum class ShowCursor
 {
   Never,

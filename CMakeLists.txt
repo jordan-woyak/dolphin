@@ -767,6 +767,18 @@ if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME S
   add_definitions(-DHAVE_CPPIPC)
 endif()
 
+set(NO_MEDIA OFF CACHE BOOL "" FORCE)
+set(NO_WEBSOCKET OFF CACHE BOOL "" FORCE)
+set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
+set(NO_TESTS ON CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(PREFER_SYSTEM_LIB ON CACHE BOOL "" FORCE)
+add_subdirectory(Externals/libdatachannel)
+
+if(NOT MSVC)
+  target_compile_options(datachannel PRIVATE -fexceptions)
+endif()
+
 ########################################
 # Pre-build events: Define configuration variables and write SCM info header
 #
