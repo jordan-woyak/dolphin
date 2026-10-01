@@ -5,6 +5,7 @@
 
 #include "Common/Common.h"
 
+#include "Common/HookableEvent.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 
 struct GCPadStatus;
@@ -53,4 +54,7 @@ private:
   bool m_reset_pending;
 
   const unsigned int m_index;
+
+  std::atomic<u16> m_webui_buttons{};
+  Common::EventHookHolder m_event_hooks;
 };

@@ -5,10 +5,14 @@
 
 #include <fmt/format.h>
 
+#include "Common/JsonUtil.h"
+
 #include "Core/HW/GBAPad.h"
 
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/GCPadStatus.h"
+
+#include "UICommon/WebUI/WebServer.h"
 
 static constexpr u16 dpad_bitmasks[] = {0x0040, 0x0080, 0x0020, 0x0010};
 
@@ -35,6 +39,19 @@ GBAPad::GBAPad(const unsigned int index) : m_reset_pending(false), m_index(index
   {
     m_dpad->AddInput(Translatability::Translate, named_direction);
   }
+
+  // Hook into WebUI for button input.
+  auto& gba_events = WebUI::GetServerEvents().gba_events[m_index];
+
+  m_event_hooks << gba_events.peer_disconnected.Register([this]() {
+    // Prevent stuck buttons on peer disconnect.
+    m_webui_buttons.store(0, std::memory_order_relaxed);
+  });
+  m_event_hooks << gba_events.message_received.Register([this](const picojson::object& message) {
+    const auto keys = ReadNumericFromJson<u16>(message, "keys");
+    if (keys)
+      m_webui_buttons.store(*keys, std::memory_order_relaxed);
+  });
 }
 
 std::string GBAPad::GetName() const
@@ -74,6 +91,8 @@ GCPadStatus GBAPad::GetInput()
   if (m_reset_pending)
     pad.button |= PAD_STATUS_RESET_SIGNAL;
   m_reset_pending = false;
+
+  pad.button |= m_webui_buttons.load(std::memory_order_relaxed);
 
   return pad;
 }
