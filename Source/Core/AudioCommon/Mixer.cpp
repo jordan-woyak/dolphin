@@ -17,6 +17,8 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/System.h"
+#include "UICommon/WebUI/AVStream.h"
+#include "UICommon/WebUI/WebServer.h"
 
 static u32 DPL2QualityToFrameBlockSize(AudioCommon::DPL2Quality quality)
 {
@@ -199,8 +201,23 @@ std::size_t Mixer::Mix(s16* samples, std::size_t num_samples)
       m_wiimote_speaker_mixers[i].Mix(samples, num_samples);
   }
   m_skylander_portal_mixer.Mix(samples, num_samples);
-  for (auto& mixer : m_gba_mixers)
-    mixer.Mix(samples, num_samples);
+
+  // Integrated GBAs.
+  for (std::size_t gba_index = 0; gba_index != m_gba_mixers.size(); ++gba_index)
+  {
+    auto& mixer = m_gba_mixers[gba_index];
+
+    // Try to send to the WebUI.
+    if (const auto av_stream = WebUI::GetGBAStream(gba_index).lock())
+    {
+      av_stream->TakeAudioSamples(num_samples,
+                                  std::bind_front(&MixerFifo::FillFloatBuffer, &mixer));
+    }
+    else  // Mix normally.
+    {
+      mixer.Mix(samples, num_samples);
+    }
+  }
 
   return num_samples;
 }
