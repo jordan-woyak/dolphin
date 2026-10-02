@@ -32,6 +32,7 @@ include(CheckSymbolExists)
 include(DolphinCompileDefinitions)
 include(DolphinDisableWarningsMSVC)
 include(DolphinLibraryTools)
+include(FetchContent)
 include(GNUInstallDirs)
 include(RemoveCompileFlag)
 
@@ -119,6 +120,7 @@ option(USE_MGBA "Enables GBA controllers emulation using libmgba" ON)
 option(ENABLE_AUTOUPDATE "Enables support for automatic updates" ON)
 option(USE_RETRO_ACHIEVEMENTS "Enables integration with retroachievements.org" ON)
 option(ENABLE_CCACHE "Enables CCache compiler cache" OFF)
+option(ENABLE_WEB_INTERFACE "Enables Web Interface" ON)
 
 # Maintainers: if you consider blanket disabling this for your users, please
 # consider the following points:
@@ -767,16 +769,36 @@ if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME S
   add_definitions(-DHAVE_CPPIPC)
 endif()
 
-set(NO_MEDIA OFF CACHE BOOL "" FORCE)
-set(NO_WEBSOCKET OFF CACHE BOOL "" FORCE)
-set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
-set(NO_TESTS ON CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(PREFER_SYSTEM_LIB ON CACHE BOOL "" FORCE)
-add_subdirectory(Externals/libdatachannel)
+if(ENABLE_WEB_INTERFACE)
+  # libdatachannel
+  set(NO_MEDIA OFF CACHE BOOL "" FORCE)
+  set(NO_WEBSOCKET OFF CACHE BOOL "" FORCE)
+  set(NO_EXAMPLES ON CACHE BOOL "" FORCE)
+  set(NO_TESTS ON CACHE BOOL "" FORCE)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+  set(PREFER_SYSTEM_LIB ON CACHE BOOL "" FORCE)
 
-if(NOT MSVC)
-  target_compile_options(datachannel PRIVATE -fexceptions)
+  FetchContent_Declare(
+    libdatachannel
+    GIT_REPOSITORY https://github.com/paullouisageneau/libdatachannel.git
+    GIT_TAG 6b1e2e620f1e37f0eafeee702eaea0043cb305fd
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(libdatachannel)
+
+  if(NOT MSVC)
+    target_compile_options(datachannel PRIVATE -fexceptions)
+  endif()
+
+  FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG 4f3f9ef19be83ae97a5d9a059432dc00e445b7ab
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(httplib)
+
+  add_definitions(-DHAVE_WEB_INTERFACE)
 endif()
 
 ########################################

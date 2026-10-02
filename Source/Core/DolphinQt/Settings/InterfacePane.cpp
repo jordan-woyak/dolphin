@@ -243,6 +243,7 @@ void InterfacePane::CreateInGame()
 
 void InterfacePane::CreateWebUI()
 {
+#if defined(HAVE_WEB_INTERFACE)
   auto* const web_ui_groupbox = new QGroupBox(tr("Web Interface"));
   m_main_layout->addWidget(web_ui_groupbox);
 
@@ -291,6 +292,7 @@ void InterfacePane::CreateWebUI()
   connect(enable_checkbox, &ConfigBool::checkStateChanged, enabling_layout,
           update_widget_disabling);
   update_widget_disabling();
+#endif
 }
 
 void InterfacePane::ConnectLayout()

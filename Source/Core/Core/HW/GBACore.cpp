@@ -36,8 +36,10 @@
 #include "Core/NetPlayProto.h"
 #include "Core/System.h"
 
+#if defined(HAVE_WEB_INTERFACE)
 #include "UICommon/WebUI/AVStream.h"
 #include "UICommon/WebUI/WebServer.h"
+#endif
 
 #ifdef ANDROID
 #include "jni/AndroidCommon/AndroidCommon.h"
@@ -299,8 +301,10 @@ void Core::Stop()
   m_rom_hash = {};
   m_game_title = {};
 
+#if defined(HAVE_WEB_INTERFACE)
   if (const auto av_stream = WebUI::GetGBAStream(m_device_number).lock())
     av_stream->FlushVideo();
+#endif
 }
 
 void Core::Reset()
@@ -469,6 +473,7 @@ void Core::AddCallbacks()
   if (m_device_number == Config::GBPLAYER_GBA_INDEX)
     return;
 
+#if defined(HAVE_WEB_INTERFACE)
   mCoreCallbacks webui_callbacks{};
   webui_callbacks.context = this;
   webui_callbacks.videoFrameEnded = [](void* context) {
@@ -488,6 +493,7 @@ void Core::AddCallbacks()
     }
   };
   m_core->addCoreCallbacks(m_core, &webui_callbacks);
+#endif
 }
 
 static void ReadAudioBufferIntoMixer(mAudioBuffer* audio_buffer, Mixer* mixer,

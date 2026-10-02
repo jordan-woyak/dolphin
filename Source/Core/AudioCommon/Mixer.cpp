@@ -17,8 +17,11 @@
 #include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/System.h"
+
+#if defined(HAVE_WEB_INTERFACE)
 #include "UICommon/WebUI/AVStream.h"
 #include "UICommon/WebUI/WebServer.h"
+#endif
 
 static u32 DPL2QualityToFrameBlockSize(AudioCommon::DPL2Quality quality)
 {
@@ -207,14 +210,17 @@ std::size_t Mixer::Mix(s16* samples, std::size_t num_samples)
   {
     auto& mixer = m_gba_mixers[gba_index];
 
+#if defined(HAVE_WEB_INTERFACE)
     // Try to send to the WebUI.
     if (const auto av_stream = WebUI::GetGBAStream(gba_index).lock())
     {
       av_stream->TakeAudioSamples(num_samples,
                                   std::bind_front(&MixerFifo::FillFloatBuffer, &mixer));
     }
-    else  // Mix normally.
+    else
+#endif
     {
+      // Mix normally.
       mixer.Mix(samples, num_samples);
     }
   }

@@ -33,12 +33,13 @@
 
 #include "DolphinQt/QtUtils/DolphinFileDialog.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
-#include "DolphinQt/QtUtils/RunOnObject.h"
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 #include "DolphinQt/Settings/GameCubePane.h"
 
+#if defined(HAVE_WEB_INTERFACE)
 #include "UICommon/WebUI/WebServer.h"
+#endif
 
 static void RestartCore(const std::weak_ptr<HW::GBA::Core>& core, std::string_view rom_path = {})
 {
@@ -93,6 +94,7 @@ GBAWidget::GBAWidget(std::weak_ptr<HW::GBA::Core> core, const HW::GBA::CoreInfo&
 
   if (visible)
   {
+#if defined(HAVE_WEB_INTERFACE)
     const auto update_visibility = [this] {
       // FYI: The event is triggered from WebSocket threads.
       QMetaObject::invokeMethod(this, [this] {
@@ -107,6 +109,7 @@ GBAWidget::GBAWidget(std::weak_ptr<HW::GBA::Core> core, const HW::GBA::CoreInfo&
     m_event_hooks << gba_events.peer_disconnected.Register(update_visibility);
 
     update_visibility();
+#endif
   }
   else
   {

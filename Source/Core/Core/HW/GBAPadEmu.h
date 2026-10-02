@@ -55,6 +55,8 @@ private:
 
   const unsigned int m_index;
 
+#if defined(HAVE_WEB_INTERFACE)
   std::atomic<u16> m_webui_buttons{};
   Common::EventHookHolder m_event_hooks;
+#endif
 };

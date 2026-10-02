@@ -5,14 +5,15 @@
 
 #include <fmt/format.h>
 
-#include "Common/JsonUtil.h"
-
 #include "Core/HW/GBAPad.h"
 
 #include "InputCommon/ControllerEmu/ControlGroup/Buttons.h"
 #include "InputCommon/GCPadStatus.h"
 
+#if defined(HAVE_WEB_INTERFACE)
+#include "Common/JsonUtil.h"
 #include "UICommon/WebUI/WebServer.h"
+#endif
 
 static constexpr u16 dpad_bitmasks[] = {0x0040, 0x0080, 0x0020, 0x0010};
 
@@ -40,6 +41,7 @@ GBAPad::GBAPad(const unsigned int index) : m_reset_pending(false), m_index(index
     m_dpad->AddInput(Translatability::Translate, named_direction);
   }
 
+#if defined(HAVE_WEB_INTERFACE)
   // Hook into WebUI for button input.
   auto& gba_events = WebUI::GetServerEvents().gba_events[m_index];
 
@@ -52,6 +54,7 @@ GBAPad::GBAPad(const unsigned int index) : m_reset_pending(false), m_index(index
     if (keys)
       m_webui_buttons.store(*keys, std::memory_order_relaxed);
   });
+#endif
 }
 
 std::string GBAPad::GetName() const
@@ -92,7 +95,9 @@ GCPadStatus GBAPad::GetInput()
     pad.button |= PAD_STATUS_RESET_SIGNAL;
   m_reset_pending = false;
 
+#if defined(HAVE_WEB_INTERFACE)
   pad.button |= m_webui_buttons.load(std::memory_order_relaxed);
+#endif
 
   return pad;
 }
