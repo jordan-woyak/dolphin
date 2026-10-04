@@ -36,6 +36,9 @@ include(FetchContent)
 include(GNUInstallDirs)
 include(RemoveCompileFlag)
 
+# Give dependencies a consistent location that doesn't change with the build type.
+set(FETCHCONTENT_BASE_DIR "${CMAKE_SOURCE_DIR}/build/_deps")
+
 # When using the Visual Studio generator, only show our targets and not the ones from Externals.
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT dolphin-emu)
 
@@ -770,6 +773,8 @@ if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME S
 endif()
 
 if(ENABLE_WEB_INTERFACE)
+  set(USE_SYSTEM_LIBDATACHANNEL OFF)
+
   dolphin_find_optional_system_library(LibDataChannel Externals/LibDataChannel)
   dolphin_find_optional_system_library(httplib Externals/httplib)
 
