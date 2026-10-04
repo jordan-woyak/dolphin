@@ -773,7 +773,7 @@ if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME S
 endif()
 
 if(ENABLE_WEB_INTERFACE)
-  set(USE_SYSTEM_LIBDATACHANNEL OFF)
+  #set(USE_SYSTEM_LIBDATACHANNEL OFF)
 
   dolphin_find_optional_system_library(LibDataChannel Externals/LibDataChannel)
   dolphin_find_optional_system_library(httplib Externals/httplib)
