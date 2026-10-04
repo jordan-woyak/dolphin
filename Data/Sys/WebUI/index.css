@@ -14,10 +14,10 @@ body {
     align-items: center;
 }
 
-video {
+#video {
     width: 100vw;
     height: 100vh;
-    object-fit: contain;
+    /* object-fit: contain; */
     display: block;
     background: #000;
     image-rendering: pixelated;

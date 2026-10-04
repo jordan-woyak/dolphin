@@ -108,18 +108,28 @@ public:
 
     {
       // FYI: The AVStreamPeer controls the life of the AVStream.
-      WebUI::AVStreamPeer peer{av_stream.GetOrCreate()};
+      const auto stream = av_stream.GetOrCreate();
+      // WebUI::AVStreamPeer peer{};
 
       gba_events.peer_connected.Trigger();
 
-      peer.SetSendMessageCallback([&](const std::string& msg) { m_web_socket.send(msg); });
+      // peer.SetSendMessageCallback([&](const std::string& msg) { m_web_socket.send(msg); });
 
-      // Connect received text messages to the global event for this GBA slot.
-      peer.SetControlMessageCallback(
-          [&](const picojson::object& message) { gba_events.message_received.Trigger(message); });
+      // // Connect received text messages to the global event for this GBA slot.
+      // peer.SetControlMessageCallback(
+      //     [&](const picojson::object& message) { gba_events.message_received.Trigger(message);
+      //     });
 
-      while (m_web_socket.is_open() && ReadMessage(peer))
+      const auto receiver =
+          std::make_shared<WebUI::AVStream::PacketReceiver>([this](std::span<const u8> data) {
+            m_web_socket.send(reinterpret_cast<const char*>(data.data()), data.size());
+          });
+      stream->AddPacketReceiver(receiver);
+
+      while (m_web_socket.is_open())
       {
+        std::string message;
+        m_web_socket.read(message);
       }
     }
 

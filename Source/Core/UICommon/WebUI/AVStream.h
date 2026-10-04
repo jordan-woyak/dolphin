@@ -61,6 +61,10 @@ public:
 
   void FlushVideo();
 
+  using PacketReceiver = Common::MoveOnlyFunction<void(std::span<const u8>)>;
+
+  void AddPacketReceiver(std::weak_ptr<PacketReceiver>);
+
 private:
   struct Impl;
   std::shared_ptr<Impl> m_impl;

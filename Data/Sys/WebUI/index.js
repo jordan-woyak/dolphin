@@ -5,6 +5,8 @@ const fullscreenButton = document.getElementById('fullscreen');
 
 let dataChannel;
 
+let ws;
+
 fullscreenButton.onclick = async () => {
   if (document.fullscreenElement) return;
   await document.documentElement.requestFullscreen();
@@ -102,6 +104,113 @@ function create_peer_connection(ws, iceServers) {
   return pc;
 }
 
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+let decoder;
+let configured = false;
+
+function makeDecoder() {
+  console.log('makeDecoder');
+
+  decoder = new VideoDecoder({
+    output: (frame) => {
+      const cw = canvas.width, ch = canvas.height;
+      const scale = Math.min(cw / frame.displayWidth, ch / frame.displayHeight);
+      const w = frame.displayWidth * scale;
+      const h = frame.displayHeight * scale;
+
+      ctx.fillStyle = '#F0F';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(frame, (cw - w) / 2, (ch - h) / 2, w, h);
+      frame.close();
+    },
+    error: (e) => console.error('decoder error', e),
+  });
+}
+
+// Build codec string (avc1.PPCCLL) from the SPS in an Annex B keyframe
+function codecFromAnnexB(data) {
+  for (let i = 0; i + 4 < data.length; i++) {
+    const sc3 = data[i] === 0 && data[i + 1] === 0 && data[i + 2] === 1;
+    const sc4 = i + 4 < data.length && data[i] === 0 && data[i + 1] === 0 &&
+        data[i + 2] === 0 && data[i + 3] === 1;
+    if (!sc3 && !sc4) continue;
+    const nal = i + (sc4 ? 4 : 3);
+    if ((data[nal] & 0x1f) === 7) {  // SPS
+      const hex = (b) => b.toString(16).padStart(2, '0');
+      return 'avc1.' + hex(data[nal + 1]) + hex(data[nal + 2]) +
+          hex(data[nal + 3]);
+    }
+  }
+  return null;
+}
+
+function attach_ws_to_video(ws, video) {
+  console.log('attach_ws_to_video');
+
+  ws.onmessage = (ev) => {
+    const view = new DataView(ev.data);
+    // console.log('onmessage: ', view.getUint8(0));
+
+    const isKey = true;  // view.getUint8(0) === 1;
+    const pts = 0;       // Number(view.getBigUint64(1));  // microseconds
+    const data = new Uint8Array(ev.data, 0);
+
+    if (!configured) {
+      // if (!isKey) return;  // must start on a keyframe
+
+      console.log('got key');
+
+      const codec = codecFromAnnexB(data);
+      if (!codec) return;  // no SPS found yet
+      makeDecoder();
+      decoder.configure({
+        codec,  // e.g. "avc1.64001f"
+        optimizeForLatency: true,
+        hardwareAcceleration: 'prefer-hardware',
+      });
+      configured = true;
+    }
+
+
+
+    decoder.decode(new EncodedVideoChunk({
+      type: isKey ? 'key' : 'delta',
+      timestamp: pts,
+      data,
+    }));
+  };
+
+  // (async () => {
+  //   const mediaSource = new MediaSource();
+  //   video.src = URL.createObjectURL(mediaSource);
+  //   mediaSource.addEventListener('sourceopen', () => {
+  //     const sourceBuffer =
+  //         mediaSource.addSourceBuffer('video/mp4; codecs="avc1.4d401f"');
+
+  //     const queue = [];
+
+  //     const append = () => {
+  //       if (sourceBuffer.updating || queue.length === 0) return;
+
+  //       sourceBuffer.appendBuffer(queue.shift());
+  //     };
+
+  //     sourceBuffer.addEventListener('updateend', append);
+
+  //     ws.onmessage = (event) => {
+  //       if (typeof event.data !== 'string') {
+  //         // console.warn('got binary data');
+  //         queue.push(event.data);
+  //         append();
+  //       }
+  //     };
+  //   });
+  // })();
+}
+
 function load_gba(index) {
   notyf.success(`Connecting to GBA${index + 1}`);
 
@@ -113,10 +222,10 @@ function load_gba(index) {
   fullscreenButton.hidden = false;
 
   const video = document.getElementById('video');
-  video.srcObject = new MediaStream();
-  video.play();
+  // video.play();
 
-  const ws = new WebSocket(`ws://${location.host}/gba${index + 1}`);
+  ws = new WebSocket(`ws://${location.host}/gba${index + 1}`);
+  ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
     notyf.success('Signaling connected');
@@ -125,7 +234,16 @@ function load_gba(index) {
 
   let pc;
 
+  // TODO: don't do if using RTC
+  attach_ws_to_video(ws, video);
+
+  return;
+
   ws.onmessage = async e => {
+    if (typeof e.data != 'string') {
+      return;
+    }
+
     const m = JSON.parse(e.data);
 
     if (m.type === 'offer') {

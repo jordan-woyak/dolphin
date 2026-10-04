@@ -79,6 +79,8 @@ struct AVStream::Impl
   // AVStreamPeer-provided channels to send AV packets to.
   ManyProducerWeakVector<rtc::Track> m_audio_tracks;
   ManyProducerWeakVector<rtc::Track> m_video_tracks;
+
+  ManyProducerWeakVector<AVStream::PacketReceiver> m_packet_receiver;
 };
 
 AVStreamPeer::AVStreamPeer(std::shared_ptr<AVStream> av_stream)
@@ -320,6 +322,11 @@ void AVStream::FlushVideo()
   m_video_encoder->Flush();
 }
 
+void AVStream::AddPacketReceiver(std::weak_ptr<PacketReceiver> receiver)
+{
+  m_impl->m_packet_receiver.Append(std::move(receiver));
+}
+
 void AVStream::Impl::SendAudioDataToAllPeers(std::span<const u8> data, s64 pts)
 {
   // Our sample rate is the same as the clock rate.
@@ -361,6 +368,8 @@ void AVStream::Impl::SendVideoDataToAllPeers(std::span<const u8> data, s64 pts)
       (void)err;
     }
   });
+
+  m_packet_receiver.ForEach([&](PacketReceiver& receiver) { receiver(data); });
 }
 
 }  // namespace WebUI
