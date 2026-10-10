@@ -338,7 +338,7 @@ void NetPlaySetupDialog::OnConnectionTypeChanged(int index)
 void NetPlaySetupDialog::OnServerSelected(const NetPlay::Discovery::DiscoveredServer& server)
 {
   m_ip_edit->setText(QString::fromStdString(server.address));
-  m_connect_port_box->setValue(server.payload.port);
+  m_connect_port_box->setValue(server.details.port);
 }
 
 void NetPlaySetupDialog::show()

@@ -7,35 +7,6 @@
 #include <QTableWidget>
 #include <QTimer>
 
-static QString GetPlatformName(NetPlay::Discovery::Platform platform)
-{
-  switch (platform)
-  {
-  case NetPlay::Discovery::Platform::Linux:
-    return QStringLiteral("Linux");
-  case NetPlay::Discovery::Platform::Windows:
-    return QStringLiteral("Windows");
-  case NetPlay::Discovery::Platform::macOS:
-    return QStringLiteral("macOS");
-  case NetPlay::Discovery::Platform::Android:
-    return QStringLiteral("Android");
-  case NetPlay::Discovery::Platform::iOS:
-    return QStringLiteral("iOS");
-  case NetPlay::Discovery::Platform::FreeBSD:
-    return QStringLiteral("FreeBSD");
-  case NetPlay::Discovery::Platform::OpenBSD:
-    return QStringLiteral("OpenBSD");
-  case NetPlay::Discovery::Platform::NetBSD:
-    return QStringLiteral("NetBSD");
-  case NetPlay::Discovery::Platform::DragonFlyBSD:
-    return QStringLiteral("DragonFly BSD");
-  case NetPlay::Discovery::Platform::Haiku:
-    return QStringLiteral("Haiku");
-  default:
-    return QStringLiteral("Unknown");
-  }
-}
-
 DiscoveryWidget::DiscoveryWidget(QWidget* parent) : QTableWidget(0, 5, parent)
 {
   setHorizontalHeaderLabels({tr("Platform"), tr("Host"), tr("Game"), tr("Players"), tr("Version")});
@@ -100,16 +71,16 @@ void DiscoveryWidget::RefreshServers()
     {
       const DiscoveredServer& server = servers[row];
 
-      auto* platform_item = new QTableWidgetItem(GetPlatformName(server.payload.platform));
+      auto* platform_item = new QTableWidgetItem(QString::fromUtf8(server.details.platform));
       platform_item->setData(Qt::UserRole, QVariant::fromValue(server));
 
-      auto* host_item = new QTableWidgetItem(QString::fromStdString(server.payload.server_name));
-      auto* game_item = new QTableWidgetItem(server.payload.game_name.empty() ?
+      auto* host_item = new QTableWidgetItem(QString::fromStdString(server.details.server_name));
+      auto* game_item = new QTableWidgetItem(server.details.game_name.empty() ?
                                                  tr("No game selected") :
-                                                 QString::fromStdString(server.payload.game_name));
-      auto* players_item = new QTableWidgetItem(QString::number(server.payload.player_count));
+                                                 QString::fromStdString(server.details.game_name));
+      auto* players_item = new QTableWidgetItem(QString::number(server.details.player_count));
       players_item->setTextAlignment(Qt::AlignCenter);
-      auto* version_item = new QTableWidgetItem(QString::fromStdString(server.payload.version));
+      auto* version_item = new QTableWidgetItem(QString::fromStdString(server.details.version));
 
       setItem(row, 0, platform_item);
       setItem(row, 1, host_item);

@@ -70,6 +70,7 @@
 #include "InputCommon/InputConfig.h"
 
 #include "UICommon/GameFile.h"
+#include "UICommon/UICommon.h"
 
 #if !defined(_WIN32)
 #include <sys/socket.h>
@@ -2580,14 +2581,14 @@ void NetPlayServer::ChunkedDataAbort()
 
 void NetPlayServer::UpdateDiscoveryPayload()
 {
-  m_discovery_server.Update(NetPlay::Discovery::Payload{
+  m_discovery_server.Update(NetPlay::Discovery::DiscoveredServerDetails{
       .server_name = Common::GetHostname().value_or(Common::GetScmRevStr()),
       .version = Common::GetScmDescStr(),
       .game_name = m_selected_game_name,
       .player_count = static_cast<u8>(m_players.size()),
       .in_game = m_is_running,
       .port = GetPort(),
-      .platform = NetPlay::Discovery::GetCurrentPlatform(),
+      .platform = UICommon::GetCurrentPlatformName(),
   });
 }
 
