@@ -11,11 +11,13 @@ namespace NetPlay
 {
 
 SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
-    : m_server{ip_address, port}
 {
   m_server.ServePath("/signaling",
                      [](const Common::WebSocketRequest&, Common::WebSocket& web_socket) {
                        INFO_LOG_FMT(NETPLAY, "SignalingServer got connection !");
+
+                       // FYI: These requests each happen on their own thread.
+                       // Common::SetCurrentThreadName();
 
                        while (web_socket.IsOpen())
                        {
@@ -23,6 +25,8 @@ SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
                          std::this_thread::sleep_for(std::chrono::milliseconds{100});
                        }
                      });
+
+  m_server.Start(ip_address, port);
 }
 
 }  // namespace NetPlay

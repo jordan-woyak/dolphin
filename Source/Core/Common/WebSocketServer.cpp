@@ -26,11 +26,6 @@ bool WebSocket::IsOpen() const
 
 struct WebSocketServer::Impl
 {
-  explicit Impl(std::string_view ip, u16 port)
-  {
-    m_thread = std::thread{&Impl::ThreadFunc, this, std::string(ip), port};
-  }
-
   ~Impl()
   {
     // TODO: Expose this function
@@ -102,18 +97,25 @@ struct WebSocketServer::Impl
   std::thread m_thread;
 };
 
-WebSocketServer::WebSocketServer(std::string_view ip, u16 port)
-    : m_impl{std::make_unique<Impl>(ip, port)}
+WebSocketServer::WebSocketServer() : m_impl{std::make_unique<Impl>()}
 {
+  // TODO: Remove
+  m_impl->m_server.Get("/", [](const httplib::Request&, httplib::Response& res) {
+    res.set_content("Hello HTTP", "text/plain");
+  });
 }
 
 WebSocketServer::~WebSocketServer() = default;
 
 void WebSocketServer::ServePath(const std::string& path, HandlerType handler)
 {
-  m_impl->m_server.wait_until_ready();
   m_impl->m_server.WebSocket(
       path, std::bind_front(&Impl::TrackWebSocketAndRunHandler, m_impl.get(), std::move(handler)));
+}
+
+void WebSocketServer::Start(std::string_view ip, u16 port)
+{
+  m_impl->m_thread = std::thread{&Impl::ThreadFunc, m_impl.get(), std::string(ip), port};
 }
 
 }  // namespace Common

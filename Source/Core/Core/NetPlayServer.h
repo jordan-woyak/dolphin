@@ -201,7 +201,7 @@ private:
   std::unordered_map<u32, unsigned int> m_chunked_data_complete_count;
   bool m_abort_chunked_data = false;
 
-  SignalingServer m_signaling_server{"localhost", 2626};
+  SignalingServer m_signaling_server{"127.0.0.1", 2626};
 
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;

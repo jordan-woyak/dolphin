@@ -44,12 +44,15 @@ private:
 class WebSocketServer
 {
 public:
-  WebSocketServer(std::string_view ip, u16 port);
+  WebSocketServer();
   ~WebSocketServer();
 
   using HandlerType = std::function<void(const WebSocketRequest&, WebSocket&)>;
 
+  // TODO: Rename
   void ServePath(const std::string& path, HandlerType handler);
+
+  void Start(std::string_view ip, u16 port);
 
 private:
   struct Impl;
