@@ -26,6 +26,10 @@ int ENET_CALLBACK InterceptCallback(ENetHost* host, ENetEvent* event);
 // used for traversal packets and wake-up packets
 constexpr int SKIPPABLE_EVENT = 42;
 
+// An arbitrary amount of time of no acknowledgement of sent packets before netplay decides a
+// connection is disconnected
+static constexpr std::chrono::milliseconds PEER_TIMEOUT{30};
+
 class Peer
 {
 public:
@@ -38,6 +42,9 @@ public:
   bool SendPacket(const sf::Packet& packet, u8 channel_id);
 
   void Disconnect() {}
+
+  // TODO: Remove this
+  void Reset() {}
 
   void* user_data;
 
@@ -55,6 +62,9 @@ public:
   bool Host(u16 port) { return m_impl->Host(port); }
 
   Peer* Connect(const std::string& address, u16 port) { return m_impl->Connect(address, port); }
+
+  // Remove this ?
+  void Destroy() {}
 
   u16 GetPort() const { return 999; }
 
@@ -124,6 +134,13 @@ private:
       {
         // m_dialog->OnConnectionError(_trans("Could not create peer."));
       }
+
+      // Update time in milliseconds of no acknowledgment of
+      // sent packets before a connection is deemed disconnected
+      enet_peer_timeout(server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
+
+      if (Config::Get(Config::NETPLAY_ENABLE_QOS))
+        new_player.qos_session = Common::QoSSession(new_player.socket);
 
       return server;
     }

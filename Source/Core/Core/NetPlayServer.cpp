@@ -97,7 +97,7 @@ NetPlayServer::~NetPlayServer()
     if (m_chunked_data_thread.joinable())
       m_chunked_data_thread.join();
     m_thread.join();
-    enet_host_destroy(m_server);
+    m_server.Destroy();
 
     if (Common::g_MainNetHost.get() == m_server)
     {
@@ -428,10 +428,6 @@ ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection
   if (StringUTF8CodePointCount(new_player.name) > MAX_NAME_LENGTH)
     return ConnectionError::NameTooLong;
 
-  // Update time in milliseconds of no acknowledgment of
-  // sent packets before a connection is deemed disconnected
-  enet_peer_timeout(incoming_connection, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
-
   // force a ping on first netplay loop
   m_update_pings = true;
 
@@ -467,9 +463,6 @@ ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection
     SendResponseToPlayer(new_player, MessageID::GameStatus, existing_player.pid,
                          static_cast<u8>(existing_player.game_status));
   }
-
-  if (Config::Get(Config::NETPLAY_ENABLE_QOS))
-    new_player.qos_session = Common::QoSSession(new_player.socket);
 
   {
     std::lock_guard lkp(m_crit.players);

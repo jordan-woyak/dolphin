@@ -68,6 +68,7 @@
 #include "DiscIO/Blob.h"
 
 #include "InputCommon/GCAdapter.h"
+#include "UICommon/GameFile.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
 namespace NetPlay
@@ -109,7 +110,7 @@ NetPlayClient::~NetPlayClient()
   }
   if (m_client)
   {
-    enet_host_destroy(m_client);
+    m_client.Destroy();
     m_client = nullptr;
   }
 
@@ -132,10 +133,6 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
     m_server = m_client.Connect(address, port);
     if (!m_server)
       return;
-
-    // Update time in milliseconds of no acknowledgment of
-    // sent packets before a connection is deemed disconnected
-    enet_peer_timeout(m_server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
 
     const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
     if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
@@ -186,7 +183,7 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
       if (m_traversal_client)
         m_traversal_client->HandleResends();
 
-      if (true)
+      while (true)
       {
         const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
         if (std::holds_alternative<std::monostate>(event))
@@ -197,10 +194,6 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
         {
           const auto& connect_event = std::get<Common::ENet::Session::ConnectEvent>(event);
           m_server = connect_event.peer;
-
-          // Update time in milliseconds of no acknowledgment of
-          // sent packets before a connection is deemed disconnected
-          enet_peer_timeout(m_server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
 
           if (Connect())
           {
@@ -1547,7 +1540,7 @@ void NetPlayClient::Disconnect()
     }
   }
   // didn't disconnect gracefully force disconnect
-  enet_peer_reset(m_server);
+  m_server->Reset();
   m_server = nullptr;
 }
 
