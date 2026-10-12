@@ -38,7 +38,7 @@ public:
   void SendChunkedToClients(sf::Packet&& packet, PlayerId skip_pid = 0,
                             const std::string& title = "");
 
-  NetPlayServer(u16 port, bool forward_port, NetPlayUI* dialog);
+  NetPlayServer(u16 port, bool forward_port, NetPlayUI* dialog, std::string name);
   ~NetPlayServer();
 
   bool ChangeGame(const SyncIdentifier& sync_identifier, const std::string& netplay_name);
@@ -74,22 +74,16 @@ public:
   bool is_connected = false;
 
 private:
-  class Client
+  class Client : public Player
   {
   public:
-    PlayerId pid{};
-    std::string name;
-    std::string revision;
-    SyncIdentifierComparison game_status = SyncIdentifierComparison::Unknown;
     bool has_ipl_dump = false;
     bool has_hardware_fma = false;
 
     std::unique_ptr<PeerConnection> peer_connection;
-    u32 ping = 0;
     u32 current_game = 0;
 
     bool operator==(const Client& other) const { return this == &other; }
-    bool IsHost() const { return pid == 1; }
   };
 
   enum class TargetMode
@@ -171,9 +165,9 @@ private:
   bool m_update_pings = false;
   u32 m_current_game = 0;
   unsigned int m_target_buffer_size = 0;
-  PadMappingArray m_pad_map;
-  GBAConfigArray m_gba_config;
-  PadMappingArray m_wiimote_map;
+  PadMappingArray m_pad_map{};
+  GBAConfigArray m_gba_config{};
+  PadMappingArray m_wiimote_map{};
   unsigned int m_save_data_synced_players = 0;
   unsigned int m_codes_synced_players = 0;
   bool m_saves_synced = true;

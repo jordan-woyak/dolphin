@@ -105,38 +105,39 @@ NetPlayServer::~NetPlayServer()
 }
 
 // called from ---GUI--- thread
-NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog)
+NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog,
+                             std::string name)
     : m_dialog(dialog)
 {
-  m_pad_map.fill(0);
-  m_gba_config.fill({});
-  m_wiimote_map.fill(0);
-
   SetupIndex();
 
-  // if (m_server != nullptr)
-  {
-    is_connected = true;
-    m_do_loop = true;
-    m_thread = std::thread(&NetPlayServer::ThreadFunc, this);
-    m_target_buffer_size = 5;
-    m_chunked_data_thread = std::thread(&NetPlayServer::ChunkedDataThreadFunc, this);
+  is_connected = true;
+  m_do_loop = true;
+  m_thread = std::thread(&NetPlayServer::ThreadFunc, this);
+  m_target_buffer_size = 5;
+  m_chunked_data_thread = std::thread(&NetPlayServer::ChunkedDataThreadFunc, this);
 
 #ifdef USE_UPNP
-    if (forward_port)
-      Common::UPnP::TryPortmapping(port);
+  if (forward_port)
+    Common::UPnP::TryPortmapping(port);
 #endif
-  }
 
   auto peer_connection = std::make_unique<NetPlay::InternalPeerConnection>();
-  m_internal_client =
-      std::make_unique<NetPlayClient>(peer_connection->CreatePipe(), dialog, "TODO: Name");
 
-  HandleNewPlayer(Client{
-      .name = "TODO: name",
-      .revision = "TODO: revision",
-      .peer_connection = std::move(peer_connection),
-  });
+  Client internal_player{
+      Player{
+          .pid = AllocateFirstAvailableID(),
+          .name = std::move(name),
+          .revision = Common::GetNetplayDolphinVer(),
+      },
+  };
+
+  m_internal_client =
+      std::make_unique<NetPlayClient>(peer_connection->CreatePipe(), dialog, internal_player);
+
+  internal_player.peer_connection = std::move(peer_connection),
+
+  HandleNewPlayer(std::move(internal_player));
 }
 
 template <typename T>
@@ -367,6 +368,9 @@ ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incomin
   if (StringUTF8CodePointCount(new_player.name) > MAX_NAME_LENGTH)
     return ConnectionError::NameTooLong;
 
+  // tell new client they connected and their ID
+  SendResponseToPlayer(new_player, MessageID::ConnectionSuccessful, new_player.pid);
+
   HandleNewPlayer(std::move(new_player));
 
   return ConnectionError::NoError;
@@ -382,9 +386,6 @@ void NetPlayServer::HandleNewPlayer(Client new_player)
   // tell other players a new player joined
   SendResponseToAllPlayers(MessageID::PlayerJoin, new_player.pid, new_player.name,
                            new_player.revision);
-
-  // tell new client they connected and their ID
-  SendResponseToPlayer(new_player, MessageID::ConnectionSuccessful, new_player.pid);
 
   // tell new client the selected game
   if (!m_selected_game_name.empty())

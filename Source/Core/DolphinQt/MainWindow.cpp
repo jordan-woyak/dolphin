@@ -1717,9 +1717,11 @@ bool MainWindow::NetPlayHost(const UICommon::GameFile& game)
   u16 host_port = Config::Get(Config::NETPLAY_HOST_PORT);
   const bool use_upnp = Config::Get(Config::NETPLAY_USE_UPNP);
 
+  std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
+
   // Create Server
-  Settings::Instance().ResetNetPlayServer(
-      std::make_shared<NetPlay::NetPlayServer>(host_port, use_upnp, m_netplay_dialog));
+  Settings::Instance().ResetNetPlayServer(std::make_shared<NetPlay::NetPlayServer>(
+      host_port, use_upnp, m_netplay_dialog, std::move(nickname)));
 
   if (!Settings::Instance().GetNetPlayServer()->is_connected)
   {

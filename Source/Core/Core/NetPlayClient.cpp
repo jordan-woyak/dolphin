@@ -99,19 +99,10 @@ NetPlayClient::~NetPlayClient()
 }
 
 NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection,
-                             NetPlayUI* dialog, std::string name)
-    : m_dialog(dialog), m_peer_connection{std::move(peer_connection)},
-      m_player_name(std::move(name))
+                             NetPlayUI* dialog, Player player)
+    : m_dialog(dialog), m_peer_connection{std::move(peer_connection)}, m_player_name(player.name)
 {
-  // TODO
-  m_pid = 99;
-
-  Player player;
-  player.name = m_player_name;
-  player.pid = m_pid;
-  player.revision = Common::GetNetplayDolphinVer();
-
-  m_players[m_pid] = player;
+  m_players[m_pid] = std::move(player);
   m_local_player = &m_players[m_pid];
 
   m_dialog->Update();

@@ -113,7 +113,7 @@ public:
 
   // When hosting:
   NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection, NetPlayUI* dialog,
-                std::string name);
+                Player player);
 
   NetPlayClient(const std::string& address, u16 port, NetPlayUI* dialog, std::string name);
   ~NetPlayClient();
