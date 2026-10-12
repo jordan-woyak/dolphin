@@ -506,6 +506,8 @@ add_library(core
   NetPlayCommon.h
   NetPlayServer.cpp
   NetPlayServer.h
+  NetPlaySignalingServer.cpp
+  NetPlaySignalingServer.h
   NetworkCaptureLogger.cpp
   NetworkCaptureLogger.h
   PatchEngine.cpp
@@ -698,7 +700,6 @@ target_link_libraries(core
   PRIVATE
   FatFs
   fmt::fmt
-  httplib::httplib
   LibJuice::LibJuice
   LZO::LZO
   LZ4::LZ4
