@@ -111,6 +111,9 @@ public:
   void ThreadFunc();
   void SendAsync(sf::Packet&& packet, u8 channel_id = DEFAULT_CHANNEL);
 
+  void HandleReceive(std::span<const u8>);
+  void HandleDisconnect();
+
   // When hosting:
   NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection, NetPlayUI* dialog,
                 Player player);
@@ -338,6 +341,8 @@ private:
   std::unique_ptr<IOS::HLE::FS::FileSystem> m_wii_sync_fs;
   std::vector<u64> m_wii_sync_titles;
   std::string m_wii_sync_redirect_folder;
+
+  std::vector<Common::EventHook> m_hooks;
 };
 
 void NetPlay_Enable(NetPlayClient* np);

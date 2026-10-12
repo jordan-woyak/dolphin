@@ -270,6 +270,7 @@ public:
 
   // TODO: Maybe don't use this.
   Common::HookableEvent<std::span<const u8>> on_receive;
+  Common::HookableEvent<> on_disconnect;
 };
 
 class InternalPeerConnection : public PeerConnection

@@ -108,6 +108,11 @@ NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connec
   m_dialog->Update();
 
   m_is_connected = true;
+
+  m_hooks.emplace_back(
+      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
+  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
+      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
 }
 
 // called from ---GUI--- thread
@@ -1438,7 +1443,7 @@ void NetPlayClient::SendAsync(sf::Packet&& packet, const u8 channel_id)
   }
 }
 
-// called from ---NETPLAY--- thread
+// TODO: Eliminate this.
 void NetPlayClient::ThreadFunc()
 {
   INFO_LOG_FMT(NETPLAY, "NetPlayClient starting.");
@@ -1457,38 +1462,28 @@ void NetPlayClient::ThreadFunc()
       INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
-#if 0
-    if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
-    {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: connect event");
-    }
-    else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
-    {
-      const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
-
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: receive event");
-
-      sf::Packet rpac;
-      rpac.append(receive_event.data.data(), receive_event.data.size());
-      OnData(rpac);
-    }
-    else if (std::holds_alternative<Common::ENet::Session::DisconnectEvent>(event))
-    {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
-
-      m_dialog->OnConnectionLost();
-
-      if (m_is_running.IsSet())
-        StopGame();
-
-      break;
-    }
-#endif
   }
 
   INFO_LOG_FMT(NETPLAY, "NetPlayClient shutting down.");
 
   Disconnect();
+}
+
+void NetPlayClient::HandleReceive(std::span<const u8> data)
+{
+  sf::Packet rpac;
+  rpac.append(data.data(), data.size());
+  OnData(rpac);
+}
+
+void NetPlayClient::HandleDisconnect()
+{
+  m_dialog->OnConnectionLost();
+
+  // TODO: terminate the thread loop thing ?
+
+  if (m_is_running.IsSet())
+    StopGame();
 }
 
 // called from ---GUI--- thread
