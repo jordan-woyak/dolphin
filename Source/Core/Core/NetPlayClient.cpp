@@ -52,12 +52,10 @@
 #include "Core/HW/GCPad.h"
 #include "Core/HW/SI/SI.h"
 #include "Core/HW/SI/SI_Device.h"
-#include "Core/HW/SI/SI_DeviceAMBaseboard.h"
 #include "Core/HW/SI/SI_DeviceGCController.h"
 #include "Core/HW/Sram.h"
 #include "Core/HW/WiiSave.h"
 #include "Core/HW/WiiSaveStructs.h"
-#include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/DesiredWiimoteState.h"
 #include "Core/IOS/FS/FileSystem.h"
 #include "Core/IOS/FS/HostBackend/FS.h"
@@ -66,10 +64,10 @@
 #include "Core/NetPlayCommon.h"
 #include "Core/SyncIdentifier.h"
 #include "Core/System.h"
+
 #include "DiscIO/Blob.h"
 
 #include "InputCommon/GCAdapter.h"
-#include "UICommon/GameFile.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
 namespace NetPlay
@@ -1532,7 +1530,6 @@ u32 NetPlayClient::GetPlayersMaxPing() const
 
 void NetPlayClient::Disconnect()
 {
-  ENetEvent netEvent;
   m_connecting = false;
   m_connection_state = ConnectionState::Failure;
   if (m_server)
@@ -1540,18 +1537,13 @@ void NetPlayClient::Disconnect()
   else
     return;
 
-  while (enet_host_service(m_client, &netEvent, 3000) > 0)
+  while (true)
   {
-    switch (netEvent.type)
+    const auto event = m_client.PollEvent(std::chrono::milliseconds{3000});
+    if (std::holds_alternative<Common::ENet::Session::DisconnectEvent>(event))
     {
-    case ENET_EVENT_TYPE_RECEIVE:
-      enet_packet_destroy(netEvent.packet);
-      break;
-    case ENET_EVENT_TYPE_DISCONNECT:
       m_server = nullptr;
       return;
-    default:
-      break;
     }
   }
   // didn't disconnect gracefully force disconnect
