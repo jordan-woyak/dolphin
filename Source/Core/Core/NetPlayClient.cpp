@@ -219,7 +219,7 @@ bool NetPlayClient::Connect()
   packet << Common::GetNetplayDolphinVer();
   packet << m_player_name;
   Send(packet);
-  enet_host_flush(m_client);
+  m_client.Flush();
   sf::Packet rpac;
   // TODO: make this not hang
 
