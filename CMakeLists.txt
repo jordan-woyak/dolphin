@@ -34,6 +34,7 @@ include(DolphinDisableWarningsMSVC)
 include(DolphinLibraryTools)
 include(GNUInstallDirs)
 include(RemoveCompileFlag)
+include(FetchContent)
 
 # When using the Visual Studio generator, only show our targets and not the ones from Externals.
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT dolphin-emu)
