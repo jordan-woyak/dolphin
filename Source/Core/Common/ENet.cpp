@@ -43,9 +43,14 @@ int ENET_CALLBACK InterceptCallback(ENetHost* host, ENetEvent* event)
   return 0;
 }
 
+struct Peer::Impl
+{
+  ENetPeer* m_enet_peer;
+};
+
 bool Peer::SendPacket(const sf::Packet& packet, u8 channel_id)
 {
-  if (!socket)
+  if (!m_impl->m_enet_peer)
   {
     ERROR_LOG_FMT(NETPLAY, "Target socket is null.");
     return false;
@@ -59,7 +64,7 @@ bool Peer::SendPacket(const sf::Packet& packet, u8 channel_id)
     return false;
   }
 
-  const int result = enet_peer_send(m_enet_peer, channel_id, epac);
+  const int result = enet_peer_send(m_impl->m_enet_peer, channel_id, epac);
   if (result != 0)
   {
     ERROR_LOG_FMT(NETPLAY, "Failed to send ENetPacket (error code {}).", result);
@@ -68,11 +73,6 @@ bool Peer::SendPacket(const sf::Packet& packet, u8 channel_id)
 
   return true;
 }
-
-struct Peer::Impl
-{
-  ENetPeer* m_enet_peer;
-};
 
 struct Session::Impl
 {
@@ -122,10 +122,8 @@ struct Session::Impl
     // sent packets before a connection is deemed disconnected
     enet_peer_timeout(server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
 
-    // if (Config::Get(Config::NETPLAY_ENABLE_QOS))
-    //   new_player.qos_session = Common::QoSSession(new_player.socket);
-
-    return server;
+    // return server;
+    return nullptr;
   }
 
   void Flush() { enet_host_flush(m_client); }

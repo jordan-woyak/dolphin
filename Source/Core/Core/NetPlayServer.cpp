@@ -110,7 +110,7 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
     : m_dialog(dialog)
 {
   //--use server time
-  if (enet_initialize() != 0)
+  // if (enet_initialize() != 0)
   {
     PanicAlertFmtT("Enet Didn't Initialize");
   }
@@ -119,19 +119,11 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   m_gba_config.fill({});
   m_wiimote_map.fill(0);
 
-  ENetAddress serverAddr;
-  serverAddr.host = ENET_HOST_ANY;
-  serverAddr.port = port;
-  m_server = enet_host_create(&serverAddr, 10, CHANNEL_COUNT, 0, 0);
-  if (m_server != nullptr)
-  {
-    m_server->mtu = std::min(m_server->mtu, NetPlay::MAX_ENET_MTU);
-    m_server->intercept = Common::ENet::InterceptCallback;
-  }
+  m_server.Host(port);
 
   SetupIndex();
 
-  if (m_server != nullptr)
+  // if (m_server != nullptr)
   {
     is_connected = true;
     m_do_loop = true;

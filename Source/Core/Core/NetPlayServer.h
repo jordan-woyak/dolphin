@@ -15,7 +15,6 @@
 
 #include "Common/ENet.h"
 #include "Common/Event.h"
-#include "Common/QoSSession.h"
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
 #include "Core/NetPlayProto.h"
@@ -88,8 +87,6 @@ private:
     u32 ping = 0;
     u32 current_game = 0;
 
-    Common::QoSSession qos_session;
-
     bool operator==(const Client& other) const { return this == &other; }
     bool IsHost() const { return pid == 1; }
   };
@@ -135,7 +132,6 @@ private:
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
 
-  void OnConnectReady(ENetAddress) {}
   void OnConnectFailed() {}
   void OnTtlDetermined(u8 ttl);
   void UpdatePadMapping();

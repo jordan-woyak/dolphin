@@ -29,7 +29,6 @@
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/NandPaths.h"
-#include "Common/QoSSession.h"
 #include "Common/SFMLHelper.h"
 #include "Common/Timer.h"
 #include "Common/Version.h"
@@ -104,10 +103,10 @@ NetPlayClient::~NetPlayClient()
     Disconnect();
   }
 
-  if (m_client)
+  // if (m_client)
   {
     m_client.Destroy();
-    m_client = nullptr;
+    // m_client = nullptr;
   }
 }
 
@@ -119,9 +118,6 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
   ClearBuffers();
 
   // Direct Connection
-  m_client = enet_host_create(nullptr, 1, CHANNEL_COUNT, 0, 0);
-
-  // Direct Connection
   m_server = m_client.Connect(address, port);
   if (!m_server)
     return;
@@ -131,8 +127,8 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
   {
     if (Connect())
     {
-      m_client->intercept = Common::ENet::InterceptCallback;
-      m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
+      // m_client->intercept = Common::ENet::InterceptCallback;
+      // m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
     }
   }
   else
@@ -1489,22 +1485,6 @@ void NetPlayClient::SendAsync(sf::Packet&& packet, const u8 channel_id)
 void NetPlayClient::ThreadFunc()
 {
   INFO_LOG_FMT(NETPLAY, "NetPlayClient starting.");
-
-  Common::QoSSession qos_session;
-  if (Config::Get(Config::NETPLAY_ENABLE_QOS))
-  {
-    qos_session = Common::QoSSession(m_server);
-
-    if (qos_session.Successful())
-    {
-      m_dialog->AppendChat(
-          Common::GetStringT("Quality of Service (QoS) was successfully enabled."));
-    }
-    else
-    {
-      m_dialog->AppendChat(Common::GetStringT("Quality of Service (QoS) couldn't be enabled."));
-    }
-  }
 
   while (m_do_loop.IsSet())
   {
