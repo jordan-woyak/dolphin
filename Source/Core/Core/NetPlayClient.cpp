@@ -27,12 +27,12 @@
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+
 #include "Common/NandPaths.h"
 #include "Common/OneShotEvent.h"
 #include "Common/SFMLHelper.h"
 #include "Common/Version.h"
 
-#include "Common/WebSocketServer.h"
 #include "Core/ActionReplay.h"
 #include "Core/Boot/Boot.h"
 #include "Core/Config/GraphicsSettings.h"
@@ -43,6 +43,7 @@
 #include "Core/GeckoCode.h"
 #include "Core/HW/EXI/EXI.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
+#include "Core/NetPlaySignalingServer.h"
 #ifdef HAS_LIBMGBA
 #include "Core/HW/GBACore.h"
 #endif
@@ -122,17 +123,17 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
-  Common::WebSocketClient client{fmt::format("ws://{}:{}/signaling", address, port)};
+  SignalingClient signaling_client{fmt::format("{}:{}", address, port)};
 
-  if (client.IsOpen())
+  auto fut = signaling_client.GetFuturePeerConnection();
+
+  if (fut.wait_for(std::chrono::milliseconds{1000}) != std::future_status::ready)
   {
-    client.Send(Common::AsU8Span(std::string_view("hello")));
-    const auto result = client.Read();
-    m_dialog->OnConnectionError(fmt::format("Received from WebSocket: {}", result));
+    m_dialog->OnConnectionError(_trans("Could not communicate with host."));
     return;
   }
 
-  m_dialog->OnConnectionError(_trans("Could not communicate with host."));
+  m_peer_connection = fut.get();
 }
 
 bool NetPlayClient::Connect()

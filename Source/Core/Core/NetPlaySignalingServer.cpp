@@ -5,19 +5,61 @@
 
 #include <juice/juice.h>
 
+#include <picojson.h>
+
 #include "Common/BitUtils.h"
 #include "Common/Logging/Log.h"
+
+namespace
+{
+
+// TODO: Is it safe to just `juice_destroy` when callbacks are connected ?
+using UniqueJuiceAgent = std::unique_ptr<juice_agent_t, Common::InvokerOf<juice_destroy>>;
+
+// TODO: Needs a reliability layer !!
+class ICEPeerConnection : public NetPlay::PeerConnection
+{
+public:
+  ICEPeerConnection(UniqueJuiceAgent agent) : m_agent{std::move(agent)}
+  {
+    // TODO: Adjust the callbacks !
+  }
+
+  void Send(std::span<const u8> data, u8 channel_id) override
+  {
+    juice_send(m_agent.get(), reinterpret_cast<const char*>(data.data()), data.size());
+  }
+
+  void Disconnect() override
+  {
+    // FYI: This will apparently not be safe from within a callback !
+    m_agent.reset();
+  }
+
+  bool IsConnected() const override
+  {
+    return juice_get_state(m_agent.get()) == JUICE_STATE_CONNECTED;
+  }
+
+private:
+  UniqueJuiceAgent m_agent;
+};
+}  // namespace
 
 namespace NetPlay
 {
 
 struct SignalingClient::Impl
 {
-  void OnStateChanged(juice_state_t state) {}
+  void OnStateChanged(juice_state_t state)
+  {
+    if (state == JUICE_STATE_CONNECTED)
+    {
+      m_promise.set_value(std::make_unique<ICEPeerConnection>(std::move(m_agent)));
+    }
+  }
   void OnCandidate(const char*) {}
   void OnGatheringDone() {}
-
-  juice_agent_t* agent;
 
   template <auto MemFunc>
   static auto WrapCall()
@@ -31,10 +73,12 @@ struct SignalingClient::Impl
     };
   }
 
-  static constexpr auto test = std::mem_fn(&Impl::OnStateChanged);
+  UniqueJuiceAgent m_agent;
+  std::promise<std::unique_ptr<NetPlay::PeerConnection>> m_promise;
 };
 
-SignalingClient::SignalingClient(const std::string& address) : m_impl{std::make_unique<Impl>()}
+SignalingClient::SignalingClient(const std::string& address)
+    : m_impl{std::make_unique<Impl>()}, m_client{fmt::format("ws://{}/signaling", address)}
 {
   // Agent 1: Create agent
   juice_config_t config{};
@@ -55,10 +99,23 @@ SignalingClient::SignalingClient(const std::string& address) : m_impl{std::make_
   // config.cb_recv = on_recv;
   config.user_ptr = m_impl.get();
 
-  m_impl->agent = juice_create(&config);
+  m_impl->m_agent.reset(juice_create(&config));
+
+  char sdp[JUICE_MAX_SDP_STRING_LEN];
+  juice_get_local_description(m_impl->m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
+
+  picojson::object obj;
+  obj.emplace("type", "offer");
+  obj.emplace("sdp", sdp);
+  m_client.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
 }
 
 SignalingClient::~SignalingClient() = default;
+
+std::future<std::unique_ptr<NetPlay::PeerConnection>> SignalingClient::GetFuturePeerConnection()
+{
+  return m_impl->m_promise.get_future();
+}
 
 SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
 {
@@ -72,7 +129,9 @@ SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
                        while (web_socket.IsOpen())
                        {
                          // TODO: remove hax
-                         web_socket.Send(Common::AsU8Span(web_socket.Read()));
+                         const auto message = web_socket.Read();
+                         INFO_LOG_FMT(NETPLAY, "WS: {}", message);
+                         web_socket.Send(Common::AsU8Span(message));
                        }
                      });
 
