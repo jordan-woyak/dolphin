@@ -127,6 +127,16 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
       Common::UPnP::TryPortmapping(port);
 #endif
   }
+
+  auto peer_connection = std::make_unique<NetPlay::InternalPeerConnection>();
+  m_internal_client =
+      std::make_unique<NetPlayClient>(peer_connection->CreatePipe(), dialog, "TODO: Name");
+
+  HandleNewPlayer(Client{
+      .name = "TODO: name",
+      .revision = "TODO: revision",
+      .peer_connection = std::move(peer_connection),
+  });
 }
 
 template <typename T>
@@ -332,7 +342,7 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
     spac << x;
 }
 
-// called from ---NETPLAY--- thread
+// called from ---NETPLAY--- thread.. TODO: Always ?
 ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
                                          sf::Packet& received_packet)
 {
@@ -357,6 +367,13 @@ ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incomin
   if (StringUTF8CodePointCount(new_player.name) > MAX_NAME_LENGTH)
     return ConnectionError::NameTooLong;
 
+  HandleNewPlayer(std::move(new_player));
+
+  return ConnectionError::NoError;
+}
+
+void NetPlayServer::HandleNewPlayer(Client new_player)
+{
   // force a ping on first netplay loop
   m_update_pings = true;
 
@@ -402,8 +419,6 @@ ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incomin
     UpdateGBAConfig();
     UpdateWiimoteMapping();
   }
-
-  return ConnectionError::NoError;
 }
 
 // called from ---NETPLAY--- thread

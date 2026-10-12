@@ -103,7 +103,20 @@ NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connec
     : m_dialog(dialog), m_peer_connection{std::move(peer_connection)},
       m_player_name(std::move(name))
 {
-  Connect();
+  // TODO
+  m_pid = 99;
+
+  Player player;
+  player.name = m_player_name;
+  player.pid = m_pid;
+  player.revision = Common::GetNetplayDolphinVer();
+
+  m_players[m_pid] = player;
+  m_local_player = &m_players[m_pid];
+
+  m_dialog->Update();
+
+  m_is_connected = true;
 }
 
 // called from ---GUI--- thread
@@ -128,7 +141,7 @@ bool NetPlayClient::Connect()
   sf::Packet rpac;
   {
     Common::OneShotEvent got_msg;
-    auto hook = m_peer_connection->on_receive.Register([&](std::span<const u8> message) {
+    const auto hook = m_peer_connection->on_receive.Register([&](std::span<const u8> message) {
       rpac.append(message.data(), message.size());
       got_msg.Set();
     });

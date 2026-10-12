@@ -16,6 +16,7 @@
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
+#include "Core/NetPlayClient.h"
 #include "Core/NetPlayProto.h"
 #include "Core/NetPlaySignalingServer.h"
 #include "Core/SyncIdentifier.h"
@@ -134,6 +135,10 @@ public:
   ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
                             sf::Packet& received_packet);
 
+  void HandleNewPlayer(Client new_player);
+
+  std::shared_ptr<NetPlayClient> GetInternalClient() const { return m_internal_client; }
+
 private:
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
@@ -209,5 +214,7 @@ private:
 
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;
+
+  std::shared_ptr<NetPlayClient> m_internal_client;
 };
 }  // namespace NetPlay
