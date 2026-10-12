@@ -161,6 +161,8 @@ add_library(common
   Version.cpp
   Version.h
   WaitableFlag.h
+  WebSocketServer.cpp
+  WebSocketServer.h
   WindowSystemInfo.h
   WorkQueueThread.h
 )
@@ -185,6 +187,7 @@ target_link_libraries(common
   PRIVATE
   CURL::libcurl
   FatFs
+  httplib::httplib
   spng::spng
   watcher
   ${VTUNE_LIBRARIES}
