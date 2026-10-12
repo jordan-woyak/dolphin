@@ -37,7 +37,7 @@ int ENET_CALLBACK InterceptCallback(ENetHost* host, ENetEvent* event)
   return 0;
 }
 
-bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id)
+bool Peer::SendPacket(const sf::Packet& packet, u8 channel_id)
 {
   if (!socket)
   {
@@ -53,7 +53,7 @@ bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id)
     return false;
   }
 
-  const int result = enet_peer_send(socket, channel_id, epac);
+  const int result = enet_peer_send(m_enet_peer, channel_id, epac);
   if (result != 0)
   {
     ERROR_LOG_FMT(NETPLAY, "Failed to send ENetPacket (error code {}).", result);
@@ -62,4 +62,5 @@ bool SendPacket(ENetPeer* socket, const sf::Packet& packet, u8 channel_id)
 
   return true;
 }
+
 }  // namespace Common::ENet

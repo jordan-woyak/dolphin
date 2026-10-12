@@ -85,7 +85,7 @@ private:
     bool has_ipl_dump = false;
     bool has_hardware_fma = false;
 
-    ENetPeer* socket = nullptr;
+    Common::ENet::Peer* socket = nullptr;
     u32 ping = 0;
     u32 current_game = 0;
 
@@ -132,8 +132,8 @@ private:
   void SendResponseToAllPlayers(const MessageID message_id, Data&&... data_to_send);
   void SendToClients(const sf::Packet& packet, PlayerId skip_pid = 0,
                      u8 channel_id = DEFAULT_CHANNEL);
-  void Send(ENetPeer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
-  ConnectionError OnConnect(ENetPeer* socket, sf::Packet& received_packet);
+  void Send(Common::ENet::Peer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
+  ConnectionError OnConnect(Common::ENet::Peer* socket, sf::Packet& received_packet);
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
 
@@ -156,7 +156,7 @@ private:
   void AssignNewUserAPad(const Client& player);
   // pulled from OnConnect()
   // returns the PID given
-  PlayerId GiveFirstAvailableIDTo(ENetPeer* player);
+  PlayerId GiveFirstAvailableIDTo(Common::ENet::Peer* player);
 
   NetSettings m_settings;
 

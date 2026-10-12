@@ -169,17 +169,17 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   }
 }
 
-static PlayerId* PeerPlayerId(ENetPeer* peer)
+static PlayerId* PeerPlayerId(Common::ENet::Peer* peer)
 {
-  return static_cast<PlayerId*>(peer->data);
+  return static_cast<PlayerId*>(peer->user_data);
 }
 
-static void ClearPeerPlayerId(ENetPeer* peer)
+static void ClearPeerPlayerId(Common::ENet::Peer* peer)
 {
-  if (peer->data)
+  if (peer->user_data)
   {
     delete PeerPlayerId(peer);
-    peer->data = nullptr;
+    peer->user_data = nullptr;
   }
 }
 
@@ -293,8 +293,7 @@ void NetPlayServer::ThreadFunc()
 
       // Actual client initialization is deferred to the receive event, so here
       // we'll just log the new connection.
-      INFO_LOG_FMT(NETPLAY, "Peer connected from: {:x}:{}", netEvent.peer->address.host,
-                   netEvent.peer->address.port);
+      INFO_LOG_FMT(NETPLAY, "Peer connected from: {}", connect_event.peer->GetHostString());
     }
     else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
     {
@@ -303,36 +302,36 @@ void NetPlayServer::ThreadFunc()
       const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
 
       sf::Packet rpac;
-      rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
+      rpac.append(receive_event.data.data(), receive_event.data.size());
 
-      if (!netEvent.peer->data)
+      if (!receive_event.peer->user_data)
       {
         // uninitialized client, we'll assume this is their initialization packet
         ConnectionError error;
         {
-          INFO_LOG_FMT(NETPLAY, "Initializing peer {:x}:{}", netEvent.peer->address.host,
-                       netEvent.peer->address.port);
+          INFO_LOG_FMT(NETPLAY, "Initializing peer {}", receive_event.peer->GetHostString());
           std::lock_guard lkg(m_crit.game);
-          error = OnConnect(netEvent.peer, rpac);
+          error = OnConnect(receive_event.peer, rpac);
         }
 
         if (error != ConnectionError::NoError)
         {
-          INFO_LOG_FMT(NETPLAY, "Error {} initializing peer {:x}:{}", static_cast<u8>(error),
-                       netEvent.peer->address.host, netEvent.peer->address.port);
+          INFO_LOG_FMT(NETPLAY, "Error {} initializing peer {}", static_cast<u8>(error),
+                       receive_event.peer->GetHostString());
 
           sf::Packet spac;
           spac << error;
           // don't need to lock, this client isn't in the client map
-          Send(netEvent.peer, spac);
+          Send(receive_event.peer, spac);
 
-          ClearPeerPlayerId(netEvent.peer);
-          enet_peer_disconnect_later(netEvent.peer, 0);
+          ClearPeerPlayerId(receive_event.peer);
+          receive_event.peer
+              ->Disconnect();  // TODO: Make sure this is safe and doesn't need a "Later" version.
         }
       }
       else
       {
-        auto it = m_players.find(*PeerPlayerId(netEvent.peer));
+        auto it = m_players.find(*PeerPlayerId(receive_event.peer));
         Client& client = it->second;
         if (OnData(rpac, client) != 0)
         {
@@ -342,7 +341,7 @@ void NetPlayServer::ThreadFunc()
           std::lock_guard lkg(m_crit.game);
           OnDisconnect(client);
 
-          ClearPeerPlayerId(netEvent.peer);
+          ClearPeerPlayerId(receive_event.peer);
         }
         else
         {
@@ -350,17 +349,19 @@ void NetPlayServer::ThreadFunc()
         }
       }
     }
-    else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
+    else if (std::holds_alternative<Common::ENet::Session::DisconnectEvent>(event))
     {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
+      INFO_LOG_FMT(NETPLAY, "DisconnectEvent");
+
+      const auto& disconnect_event = std::get<Common::ENet::Session::DisconnectEvent>(event);
 
       std::lock_guard lkg(m_crit.game);
-      if (!netEvent.peer->data)
+      if (!disconnect_event.peer->user_data)
       {
         ERROR_LOG_FMT(NETPLAY, "enet_host_service: no peer data");
         break;
       }
-      const auto player_id = *PeerPlayerId(netEvent.peer);
+      const auto player_id = *PeerPlayerId(disconnect_event.peer);
       auto it = m_players.find(player_id);
       if (it != m_players.end())
       {
@@ -368,7 +369,7 @@ void NetPlayServer::ThreadFunc()
         INFO_LOG_FMT(NETPLAY, "Disconnecting client {}.", client.pid);
         OnDisconnect(client);
 
-        ClearPeerPlayerId(netEvent.peer);
+        ClearPeerPlayerId(disconnect_event.peer);
       }
       else
       {
@@ -383,7 +384,7 @@ void NetPlayServer::ThreadFunc()
   for (const auto& player_entry : std::views::values(m_players))
   {
     ClearPeerPlayerId(player_entry.socket);
-    enet_peer_disconnect(player_entry.socket, 0);
+    player_entry.socket->Disconnect();
   }
   m_players.clear();
 }
@@ -403,7 +404,8 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
 }
 
 // called from ---NETPLAY--- thread
-ConnectionError NetPlayServer::OnConnect(ENetPeer* incoming_connection, sf::Packet& received_packet)
+ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection,
+                                         sf::Packet& received_packet)
 {
   std::string netplay_version;
   received_packet >> netplay_version;
@@ -531,7 +533,7 @@ unsigned int NetPlayServer::OnDisconnect(const Client& player)
   spac << MessageID::PlayerLeave;
   spac << pid;
 
-  enet_peer_disconnect(player.socket, 0);
+  player.socket->Disconnect();
 
   std::lock_guard lkp(m_crit.players);
   auto it = m_players.find(player.pid);
@@ -695,7 +697,7 @@ void NetPlayServer::SendAsync(sf::Packet&& packet, const PlayerId pid, const u8 
     std::lock_guard lkq(m_crit.async_queue_write);
     m_async_queue.Push(AsyncQueueEntry{std::move(packet), pid, TargetMode::Only, channel_id});
   }
-  Common::ENet::WakeupThread(m_server);
+  m_server.InterruptPollEvent();
 }
 
 void NetPlayServer::SendAsyncToClients(sf::Packet&& packet, const PlayerId skip_pid,
@@ -706,7 +708,7 @@ void NetPlayServer::SendAsyncToClients(sf::Packet&& packet, const PlayerId skip_
     m_async_queue.Push(
         AsyncQueueEntry{std::move(packet), skip_pid, TargetMode::AllExcept, channel_id});
   }
-  Common::ENet::WakeupThread(m_server);
+  m_server.InterruptPollEvent();
 }
 
 void NetPlayServer::SendChunked(sf::Packet&& packet, const PlayerId pid, const std::string& title)
@@ -2208,9 +2210,9 @@ void NetPlayServer::SendToClients(const sf::Packet& packet, const PlayerId skip_
   }
 }
 
-void NetPlayServer::Send(ENetPeer* socket, const sf::Packet& packet, const u8 channel_id)
+void NetPlayServer::Send(Common::ENet::Peer* socket, const sf::Packet& packet, const u8 channel_id)
 {
-  Common::ENet::SendPacket(socket, packet, channel_id);
+  socket->SendPacket(packet, channel_id);
 }
 
 void NetPlayServer::KickPlayer(PlayerId player)
@@ -2219,7 +2221,7 @@ void NetPlayServer::KickPlayer(PlayerId player)
   {
     if (current_player.pid == player)
     {
-      enet_peer_disconnect(current_player.socket, 0);
+      current_player.socket->Disconnect();
       return;
     }
   }
@@ -2255,7 +2257,7 @@ void NetPlayServer::AssignNewUserAPad(const Client& player)
   }
 }
 
-PlayerId NetPlayServer::GiveFirstAvailableIDTo(ENetPeer* player)
+PlayerId NetPlayServer::GiveFirstAvailableIDTo(Common::ENet::Peer* player)
 {
   PlayerId pid = 1;
   for (auto i = m_players.begin(); i != m_players.end(); ++i)
@@ -2266,7 +2268,7 @@ PlayerId NetPlayServer::GiveFirstAvailableIDTo(ENetPeer* player)
       i = m_players.begin();
     }
   }
-  player->data = new PlayerId(pid);
+  player->user_data = new PlayerId(pid);
   return pid;
 }
 
@@ -2295,7 +2297,7 @@ void NetPlayServer::SendResponseToAllPlayers(const MessageID message_id, Data&&.
 
 u16 NetPlayServer::GetPort() const
 {
-  return m_server->address.port;
+  return m_server.GetPort();
 }
 
 // called from ---GUI--- thread

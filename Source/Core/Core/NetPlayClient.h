@@ -207,8 +207,8 @@ protected:
 
   NetPlayUI* m_dialog = nullptr;
 
-  ENetHost* m_client = nullptr;
-  ENetPeer* m_server = nullptr;
+  Common::ENet::Session m_client;
+  Common::ENet::Peer* m_server = nullptr;
   std::thread m_thread;
 
   SyncIdentifier m_selected_game;

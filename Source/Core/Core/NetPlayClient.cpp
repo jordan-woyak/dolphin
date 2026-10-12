@@ -131,35 +131,16 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
   if (!traversal_config.use_traversal)
   {
     // Direct Connection
-    m_client = enet_host_create(nullptr, 1, CHANNEL_COUNT, 0, 0);
-
-    if (m_client == nullptr)
-    {
-      m_dialog->OnConnectionError(_trans("Could not create client."));
+    m_server = m_client.Connect(address, port);
+    if (!m_server)
       return;
-    }
-
-    m_client->mtu = std::min(m_client->mtu, NetPlay::MAX_ENET_MTU);
-
-    ENetAddress addr;
-    enet_address_set_host(&addr, address.c_str());
-    addr.port = port;
-
-    m_server = enet_host_connect(m_client, &addr, CHANNEL_COUNT, 0);
-
-    if (m_server == nullptr)
-    {
-      m_dialog->OnConnectionError(_trans("Could not create peer."));
-      return;
-    }
 
     // Update time in milliseconds of no acknowledgment of
     // sent packets before a connection is deemed disconnected
     enet_peer_timeout(m_server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
 
-    ENetEvent netEvent;
-    int net = enet_host_service(m_client, &netEvent, 5000);
-    if (net > 0 && netEvent.type == ENET_EVENT_TYPE_CONNECT)
+    const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
+    if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
     {
       if (Connect())
       {
@@ -204,17 +185,20 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
 
     while (m_connecting)
     {
-      ENetEvent netEvent;
       if (m_traversal_client)
         m_traversal_client->HandleResends();
 
-      while (enet_host_service(m_client, &netEvent, 4) > 0)
+      if (true)
       {
+        const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
+        if (std::holds_alternative<std::monostate>(event))
+          break;
+
         sf::Packet rpac;
-        switch (netEvent.type)
+        if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
         {
-        case ENET_EVENT_TYPE_CONNECT:
-          m_server = netEvent.peer;
+          const auto& connect_event = std::get<Common::ENet::Session::ConnectEvent>(event);
+          m_server = connect_event.peer;
 
           // Update time in milliseconds of no acknowledgment of
           // sent packets before a connection is deemed disconnected
@@ -225,9 +209,6 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
             m_connection_state = ConnectionState::Connected;
             m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
           }
-          return;
-        default:
-          break;
         }
       }
       if (connect_timer.ElapsedMs() > 5000)
@@ -250,17 +231,13 @@ bool NetPlayClient::Connect()
   enet_host_flush(m_client);
   sf::Packet rpac;
   // TODO: make this not hang
-  ENetEvent netEvent;
-  int net;
-  while ((net = enet_host_service(m_client, &netEvent, 5000)) > 0 &&
-         static_cast<int>(netEvent.type) == Common::ENet::SKIPPABLE_EVENT)
+
+  // TODO: Handle the Common::ENet::SKIPPABLE_EVENT thing.
+  const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
+  if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
   {
-    // ignore packets from traversal server
-  }
-  if (net > 0 && netEvent.type == ENET_EVENT_TYPE_RECEIVE)
-  {
-    rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
-    enet_packet_destroy(netEvent.packet);
+    const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
+    rpac.append(receive_event.data.data(), receive_event.data.size());
   }
   else
   {
@@ -1535,7 +1512,7 @@ void NetPlayClient::OnGameDigestAbort()
 
 void NetPlayClient::Send(const sf::Packet& packet, const u8 channel_id)
 {
-  Common::ENet::SendPacket(m_server, packet, channel_id);
+  m_server->SendPacket(packet, channel_id);
 }
 
 void NetPlayClient::DisplayPlayersPing()
@@ -1559,7 +1536,7 @@ void NetPlayClient::Disconnect()
   m_connecting = false;
   m_connection_state = ConnectionState::Failure;
   if (m_server)
-    enet_peer_disconnect(m_server, 0);
+    m_server->Disconnect();
   else
     return;
 
@@ -1588,7 +1565,7 @@ void NetPlayClient::SendAsync(sf::Packet&& packet, const u8 channel_id)
     std::lock_guard lkq(m_crit.async_queue_write);
     m_async_queue.Push(AsyncQueueEntry{std::move(packet), channel_id});
   }
-  Common::ENet::WakeupThread(m_client);
+  m_client.InterruptPollEvent();
 }
 
 // called from ---NETPLAY--- thread
@@ -1614,11 +1591,10 @@ void NetPlayClient::ThreadFunc()
 
   while (m_do_loop.IsSet())
   {
-    ENetEvent netEvent;
-    int net;
     if (m_traversal_client)
       m_traversal_client->HandleResends();
-    net = enet_host_service(m_client, &netEvent, 250);
+
+    const auto event = m_client.PollEvent(std::chrono::milliseconds{250});
     while (!m_async_queue.Empty())
     {
       INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
@@ -1629,55 +1605,37 @@ void NetPlayClient::ThreadFunc()
       INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
-    if (net > 0)
+
+    if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
     {
+      INFO_LOG_FMT(NETPLAY, "enet_host_service: connect event");
+    }
+    else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
+    {
+      const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
+
+      INFO_LOG_FMT(NETPLAY, "enet_host_service: receive event");
+
       sf::Packet rpac;
-      switch (netEvent.type)
-      {
-      case ENET_EVENT_TYPE_CONNECT:
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: connect event");
-        break;
-      case ENET_EVENT_TYPE_RECEIVE:
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: receive event");
-
-        rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
-        OnData(rpac);
-
-        enet_packet_destroy(netEvent.packet);
-        break;
-      case ENET_EVENT_TYPE_DISCONNECT:
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
-
-        m_dialog->OnConnectionLost();
-
-        if (m_is_running.IsSet())
-          StopGame();
-
-        break;
-      default:
-        // not a valid switch case due to not technically being part of the enum
-        if (static_cast<int>(netEvent.type) == Common::ENet::SKIPPABLE_EVENT)
-          INFO_LOG_FMT(NETPLAY, "enet_host_service: skippable packet event");
-        else
-          ERROR_LOG_FMT(NETPLAY, "enet_host_service: unknown event type: {}",
-                        static_cast<int>(netEvent.type));
-        break;
-      }
+      rpac.append(receive_event.data.data(), receive_event.data.size());
+      OnData(rpac);
     }
-    else if (net == 0)
+    else if (std::holds_alternative<Common::ENet::Session::DisconnectEvent>(event))
     {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: no event occurred");
-    }
-    else
-    {
-      ERROR_LOG_FMT(NETPLAY, "enet_host_service error: {}", net);
+      INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
+
+      m_dialog->OnConnectionLost();
+
+      if (m_is_running.IsSet())
+        StopGame();
+
+      break;
     }
   }
 
   INFO_LOG_FMT(NETPLAY, "NetPlayClient shutting down.");
 
   Disconnect();
-  return;
 }
 
 // called from ---GUI--- thread
