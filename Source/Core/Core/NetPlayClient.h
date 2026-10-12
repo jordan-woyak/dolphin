@@ -112,7 +112,7 @@ public:
   void SendAsync(sf::Packet&& packet, u8 channel_id = DEFAULT_CHANNEL);
 
   // When hosting:
-  NetPlayClient(std::unique_ptr<PeerConnection> peer_connection, NetPlayUI* dialog,
+  NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection, NetPlayUI* dialog,
                 std::string name);
 
   NetPlayClient(const std::string& address, u16 port, NetPlayUI* dialog, std::string name);

@@ -1678,6 +1678,9 @@ bool MainWindow::NetPlayJoin()
 
     auto peer_connection = std::make_unique<NetPlay::InternalPeerConnection>();
 
+    // TODO: Fix jank
+    // server->OnConnect(peer_connection->CreatePipe());
+
     // Create Client
     Settings::Instance().ResetNetPlayClient(
         new NetPlay::NetPlayClient(std::move(peer_connection), m_netplay_dialog, nickname));

@@ -24,13 +24,12 @@
 #include "Common/CommonPaths.h"
 #include "Common/CommonTypes.h"
 #include "Common/Crypto/SHA1.h"
-#include "Common/ENet.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/NandPaths.h"
+#include "Common/OneShotEvent.h"
 #include "Common/SFMLHelper.h"
-#include "Common/Timer.h"
 #include "Common/Version.h"
 
 #include "Core/ActionReplay.h"
@@ -99,8 +98,8 @@ NetPlayClient::~NetPlayClient()
   }
 }
 
-NetPlayClient::NetPlayClient(std::unique_ptr<PeerConnection> peer_connection, NetPlayUI* dialog,
-                             std::string name)
+NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection,
+                             NetPlayUI* dialog, std::string name)
     : m_dialog(dialog), m_peer_connection{std::move(peer_connection)},
       m_player_name(std::move(name))
 {
@@ -126,8 +125,16 @@ bool NetPlayClient::Connect()
   packet << m_player_name;
   Send(packet);
 
-  // TODO: Wait for a message
   sf::Packet rpac;
+  {
+    Common::OneShotEvent got_msg;
+    auto hook = m_peer_connection->on_receive.Register([&](std::span<const u8> message) {
+      rpac.append(message.data(), message.size());
+      got_msg.Set();
+    });
+    if (!got_msg.WaitFor(std::chrono::milliseconds{1000}))
+      return false;
+  }
 
   ConnectionError error;
   rpac >> error;

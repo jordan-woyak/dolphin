@@ -129,8 +129,12 @@ private:
                      u8 channel_id = DEFAULT_CHANNEL);
   void Send(PeerConnection* peer_connection, const sf::Packet& packet,
             u8 channel_id = DEFAULT_CHANNEL);
+
+public:
   ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
                             sf::Packet& received_packet);
+
+private:
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
 

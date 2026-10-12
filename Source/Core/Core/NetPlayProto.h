@@ -267,16 +267,38 @@ public:
   virtual void Disconnect() = 0;
 
   virtual bool IsConnected() const = 0;
+
+  // TODO: Maybe don't use this.
+  Common::HookableEvent<std::span<const u8>> on_receive;
 };
 
 class InternalPeerConnection : public PeerConnection
 {
 public:
-  void Send(std::span<const u8> data, u8 channel_id) override {}
+  // TODO: Channel ID isn't used.
+  void Send(std::span<const u8> data, u8 channel_id) override { on_send.Trigger(data); }
 
   void Disconnect() override {}
 
   bool IsConnected() const override { return true; }
+
+  // TODO: Better name
+  std::unique_ptr<InternalPeerConnection> CreatePipe()
+  {
+    auto peer = std::make_unique<InternalPeerConnection>();
+
+    receive_hook =
+        peer->on_send.Register(std::bind_front(&decltype(on_receive)::Trigger, &on_receive));
+    peer->receive_hook =
+        on_send.Register(std::bind_front(&decltype(on_receive)::Trigger, &peer->on_receive));
+
+    return peer;
+  }
+
+private:
+  // TODO: Maybe don't use this.
+  Common::HookableEvent<std::span<const u8>> on_send;
+  Common::EventHook receive_hook;
 };
 
 }  // namespace NetPlay

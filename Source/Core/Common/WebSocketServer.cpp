@@ -12,6 +12,8 @@
 namespace Common
 {
 
+// TODO: Add a name parameter for all the logging.
+
 struct WebSocket::Impl
 {
   httplib::ws::WebSocket& m_web_socket;
