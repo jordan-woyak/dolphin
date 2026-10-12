@@ -57,7 +57,7 @@ public:
 
   bool Host(u16 port);
 
-  Peer* Connect(const std::string& address, u16 port) { return m_impl->Connect(address, port); }
+  Peer* Connect(const std::string& address, u16 port);
 
   // Remove this ?
   void Destroy() {}

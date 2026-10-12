@@ -5,8 +5,6 @@
 
 #include <SFML/Network/Packet.hpp>
 
-#include <enet/enet.h>
-
 #include <array>
 #include <chrono>
 #include <map>
@@ -19,6 +17,7 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
+#include "Common/ENet.h"
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
 #include "Core/NetPlayProto.h"

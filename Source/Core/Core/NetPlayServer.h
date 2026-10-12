@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "Common/ENet.h"
 #include "Common/Event.h"
 #include "Common/QoSSession.h"
 #include "Common/SPSCQueue.h"

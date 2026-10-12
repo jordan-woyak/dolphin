@@ -145,6 +145,12 @@ bool Session::Host(u16 port)
 {
   return m_impl->Host(port);
 }
+
+Peer* Session::Connect(const std::string& address, u16 port)
+{
+  return m_impl->Connect(address, port);
+}
+
 void Session::Flush()
 {
   m_impl->Flush();
