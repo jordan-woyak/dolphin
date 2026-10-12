@@ -91,7 +91,7 @@ NetPlayClient::~NetPlayClient()
     if (m_game_digest_thread.joinable())
       m_game_digest_thread.join();
     m_do_loop.Clear();
-    m_thread.join();
+    // m_thread.join();
 
     m_chunked_data_receive_queue.clear();
     m_dialog->HideChunkedProgressDialog();

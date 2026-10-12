@@ -146,9 +146,9 @@ public:
 
   // NetPlay
   std::shared_ptr<NetPlay::NetPlayClient> GetNetPlayClient();
-  void ResetNetPlayClient(NetPlay::NetPlayClient* client = nullptr);
+  void ResetNetPlayClient(std::shared_ptr<NetPlay::NetPlayClient> client = {});
   std::shared_ptr<NetPlay::NetPlayServer> GetNetPlayServer();
-  void ResetNetPlayServer(NetPlay::NetPlayServer* server = nullptr);
+  void ResetNetPlayServer(std::shared_ptr<NetPlay::NetPlayServer> server = {});
 
   // Cheats
   bool GetCheatsEnabled() const;

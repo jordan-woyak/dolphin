@@ -676,9 +676,9 @@ std::shared_ptr<NetPlay::NetPlayClient> Settings::GetNetPlayClient()
   return m_client;
 }
 
-void Settings::ResetNetPlayClient(NetPlay::NetPlayClient* client)
+void Settings::ResetNetPlayClient(std::shared_ptr<NetPlay::NetPlayClient> client)
 {
-  m_client.reset(client);
+  m_client = std::move(client);
 
   g_netplay_chat_ui.reset();
   g_netplay_golf_ui.reset();
@@ -689,9 +689,9 @@ std::shared_ptr<NetPlay::NetPlayServer> Settings::GetNetPlayServer()
   return m_server;
 }
 
-void Settings::ResetNetPlayServer(NetPlay::NetPlayServer* server)
+void Settings::ResetNetPlayServer(std::shared_ptr<NetPlay::NetPlayServer> server)
 {
-  m_server.reset(server);
+  m_server = std::move(server);
 }
 
 bool Settings::GetCheatsEnabled() const

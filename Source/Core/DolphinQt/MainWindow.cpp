@@ -1676,13 +1676,13 @@ bool MainWindow::NetPlayJoin()
     server->SetHostInputAuthority(host_input_authority);
     server->AdjustPadBufferSize(Config::Get(Config::NETPLAY_BUFFER_SIZE));
 
-    Settings::Instance().ResetNetPlayClient(server->GetInternalClient().get());
+    Settings::Instance().ResetNetPlayClient(server->GetInternalClient());
   }
   else
   {
     // Create Client
     Settings::Instance().ResetNetPlayClient(
-        new NetPlay::NetPlayClient(host_ip, host_port, m_netplay_dialog, nickname));
+        std::make_shared<NetPlay::NetPlayClient>(host_ip, host_port, m_netplay_dialog, nickname));
   }
 
   if (!Settings::Instance().GetNetPlayClient()->IsConnected())
@@ -1719,7 +1719,7 @@ bool MainWindow::NetPlayHost(const UICommon::GameFile& game)
 
   // Create Server
   Settings::Instance().ResetNetPlayServer(
-      new NetPlay::NetPlayServer(host_port, use_upnp, m_netplay_dialog));
+      std::make_shared<NetPlay::NetPlayServer>(host_port, use_upnp, m_netplay_dialog));
 
   if (!Settings::Instance().GetNetPlayServer()->is_connected)
   {
