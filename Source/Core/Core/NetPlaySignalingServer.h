@@ -8,6 +8,19 @@
 namespace NetPlay
 {
 
+// TODO: Maybe put SDP in the name?
+
+class SignalingClient
+{
+public:
+  SignalingClient(const std::string& address);
+  ~SignalingClient();
+
+private:
+  struct Impl;
+  std::unique_ptr<Impl> m_impl;
+};
+
 class SignalingServer
 {
 public:

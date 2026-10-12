@@ -11,6 +11,7 @@
 #include "Common/CommonTypes.h"
 
 // TODO: Rename this file to just WebSocket
+// TODO: Put client before server ?
 
 namespace Common
 {
@@ -26,7 +27,7 @@ public:
 
   bool IsOpen() const;
 
-  void Send(std::span<const u8> message);
+  bool Send(std::span<const u8> message);
 
   // TODO: Better interface.
   std::string Read();

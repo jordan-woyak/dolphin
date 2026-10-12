@@ -26,6 +26,18 @@ bool WebSocket::IsOpen() const
   return m_impl->m_web_socket.is_open();
 }
 
+bool WebSocket::Send(std::span<const u8> message)
+{
+  return m_impl->m_web_socket.send(reinterpret_cast<const char*>(message.data()), message.size());
+}
+
+std::string WebSocket::Read()
+{
+  std::string result;
+  m_impl->m_web_socket.read(result);
+  return result;
+}
+
 struct WebSocketServer::Impl
 {
   ~Impl()
