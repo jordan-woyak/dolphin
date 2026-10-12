@@ -5,6 +5,7 @@
 
 #include <functional>
 #include <memory>
+#include <span>
 
 #include "Common/CommonTypes.h"
 
@@ -21,6 +22,8 @@ public:
   ~WebSocket();
 
   bool IsOpen() const;
+
+  void Send(std::span<const u8> message);
 
 private:
   struct Impl;

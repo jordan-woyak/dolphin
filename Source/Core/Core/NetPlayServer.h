@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include <utility>
 
-#include "Common/ENet.h"
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
@@ -26,6 +25,20 @@ namespace NetPlay
 {
 class NetPlayUI;
 struct SaveSyncInfo;
+
+class PeerConnection
+{
+public:
+  virtual ~PeerConnection() = default;
+
+  virtual bool IsConnected() const = 0;
+};
+
+class InternalPeerConnection : public PeerConnection
+{
+public:
+  bool IsConnected() const override { return true; }
+};
 
 class NetPlayServer
 {
@@ -84,7 +97,7 @@ private:
     bool has_ipl_dump = false;
     bool has_hardware_fma = false;
 
-    Common::ENet::Peer* socket = nullptr;
+    std::unique_ptr<PeerConnection> peer_connection;
     u32 ping = 0;
     u32 current_game = 0;
 
@@ -200,7 +213,6 @@ private:
   std::unordered_map<u32, unsigned int> m_chunked_data_complete_count;
   bool m_abort_chunked_data = false;
 
-  Common::ENet::Session m_server;
   SignalingServer m_signaling_server{"localhost", 2626};
 
   NetPlayUI* m_dialog = nullptr;
