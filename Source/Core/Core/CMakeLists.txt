@@ -698,6 +698,7 @@ target_link_libraries(core
   PRIVATE
   FatFs
   fmt::fmt
+  httplib::httplib
   LibJuice::LibJuice
   LZO::LZO
   LZ4::LZ4
