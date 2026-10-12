@@ -102,6 +102,7 @@ NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connec
                              NetPlayUI* dialog, Player player)
     : m_dialog(dialog), m_peer_connection{std::move(peer_connection)}, m_player_name(player.name)
 {
+  m_pid = player.pid;
   m_players[m_pid] = std::move(player);
   m_local_player = &m_players[m_pid];
 
@@ -1469,6 +1470,7 @@ void NetPlayClient::ThreadFunc()
   Disconnect();
 }
 
+// TODO: Mutex ?
 void NetPlayClient::HandleReceive(std::span<const u8> data)
 {
   sf::Packet rpac;
@@ -1476,6 +1478,7 @@ void NetPlayClient::HandleReceive(std::span<const u8> data)
   OnData(rpac);
 }
 
+// TODO: Mutex ?
 void NetPlayClient::HandleDisconnect()
 {
   m_dialog->OnConnectionLost();

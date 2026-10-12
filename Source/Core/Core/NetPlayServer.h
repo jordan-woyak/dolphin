@@ -83,7 +83,7 @@ private:
     std::unique_ptr<PeerConnection> peer_connection;
     u32 current_game = 0;
 
-    bool operator==(const Client& other) const { return this == &other; }
+    std::vector<Common::EventHook> event_hooks;
   };
 
   enum class TargetMode
@@ -136,6 +136,9 @@ public:
 private:
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
+
+  void HandleReceive(Client* client, std::span<const u8>);
+  void HandleDisconnect(Client* client);
 
   void OnConnectFailed() {}
   void OnTtlDetermined(u8 ttl);
