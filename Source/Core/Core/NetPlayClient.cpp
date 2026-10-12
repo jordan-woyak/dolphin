@@ -101,9 +101,10 @@ NetPlayClient::~NetPlayClient()
 
 NetPlayClient::NetPlayClient(std::unique_ptr<PeerConnection> peer_connection, NetPlayUI* dialog,
                              std::string name)
-    : m_dialog(dialog), m_player_name(std::move(name)),
-      m_peer_connection{std::move(peer_connection)}
+    : m_dialog(dialog), m_peer_connection{std::move(peer_connection)},
+      m_player_name(std::move(name))
 {
+  Connect();
 }
 
 // called from ---GUI--- thread
@@ -157,25 +158,23 @@ bool NetPlayClient::Connect()
     Disconnect();
     return false;
   }
-  else
-  {
-    rpac >> m_pid;
 
-    Player player;
-    player.name = m_player_name;
-    player.pid = m_pid;
-    player.revision = Common::GetNetplayDolphinVer();
+  rpac >> m_pid;
 
-    // add self to player list
-    m_players[m_pid] = player;
-    m_local_player = &m_players[m_pid];
+  Player player;
+  player.name = m_player_name;
+  player.pid = m_pid;
+  player.revision = Common::GetNetplayDolphinVer();
 
-    m_dialog->Update();
+  // add self to player list
+  m_players[m_pid] = player;
+  m_local_player = &m_players[m_pid];
 
-    m_is_connected = true;
+  m_dialog->Update();
 
-    return true;
-  }
+  m_is_connected = true;
+
+  return true;
 }
 
 static void ReceiveSyncIdentifier(sf::Packet& spac, SyncIdentifier& sync_identifier)
