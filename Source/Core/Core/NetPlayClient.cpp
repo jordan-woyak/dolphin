@@ -32,6 +32,7 @@
 #include "Common/SFMLHelper.h"
 #include "Common/Version.h"
 
+#include "Common/WebSocketServer.h"
 #include "Core/ActionReplay.h"
 #include "Core/Boot/Boot.h"
 #include "Core/Config/GraphicsSettings.h"
@@ -121,6 +122,16 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
+  Common::WebSocketClient client{fmt::format("ws://{}:{}/signaling", address, port)};
+
+  if (client.IsOpen())
+  {
+    client.Send(Common::AsU8Span(std::string_view("hello")));
+    const auto result = client.Read();
+    m_dialog->OnConnectionError(fmt::format("Received from WebSocket: {}", result));
+    return;
+  }
+
   m_dialog->OnConnectionError(_trans("Could not communicate with host."));
 }
 

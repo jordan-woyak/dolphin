@@ -6,8 +6,11 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
 
 #include "Common/CommonTypes.h"
+
+// TODO: Rename this file to just WebSocket
 
 namespace Common
 {
@@ -24,6 +27,9 @@ public:
   bool IsOpen() const;
 
   void Send(std::span<const u8> message);
+
+  // TODO: Better interface.
+  std::string Read();
 
 private:
   struct Impl;
@@ -53,6 +59,24 @@ public:
   void ServePath(const std::string& path, HandlerType handler);
 
   void Start(std::string_view ip, u16 port);
+
+private:
+  struct Impl;
+  std::unique_ptr<Impl> m_impl;
+};
+
+class WebSocketClient
+{
+public:
+  WebSocketClient(const std::string& address);
+  ~WebSocketClient();
+
+  bool Send(std::span<const u8> message);
+
+  // TODO: Better interface.
+  std::string Read();
+
+  bool IsOpen() const;
 
 private:
   struct Impl;

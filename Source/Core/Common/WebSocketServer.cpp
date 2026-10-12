@@ -120,4 +120,35 @@ void WebSocketServer::Start(std::string_view ip, u16 port)
   m_impl->m_thread = std::thread{&Impl::ThreadFunc, m_impl.get(), std::string(ip), port};
 }
 
+struct WebSocketClient::Impl
+{
+  Impl(const std::string& address) : m_client{address} { m_client.connect(); }
+
+  httplib::ws::WebSocketClient m_client;
+};
+
+WebSocketClient::WebSocketClient(const std::string& address)
+    : m_impl{std::make_unique<Impl>(address)}
+{
+}
+
+WebSocketClient::~WebSocketClient() = default;
+
+bool WebSocketClient::IsOpen() const
+{
+  return m_impl->m_client.is_open();
+}
+
+bool WebSocketClient::Send(std::span<const u8> message)
+{
+  return m_impl->m_client.send(reinterpret_cast<const char*>(message.data()), message.size());
+}
+
+std::string WebSocketClient::Read()
+{
+  std::string result;
+  m_impl->m_client.read(result);
+  return result;
+}
+
 }  // namespace Common

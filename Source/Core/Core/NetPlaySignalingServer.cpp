@@ -3,8 +3,7 @@
 
 #include "Core/NetPlaySignalingServer.h"
 
-#include <thread>
-
+#include "Common/BitUtils.h"
 #include "Common/Logging/Log.h"
 
 namespace NetPlay
@@ -21,8 +20,8 @@ SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
 
                        while (web_socket.IsOpen())
                        {
-                         // web_socket.Read();
-                         std::this_thread::sleep_for(std::chrono::milliseconds{100});
+                         // TODO: remove hax
+                         web_socket.Send(Common::AsU8Span(web_socket.Read()));
                        }
                      });
 

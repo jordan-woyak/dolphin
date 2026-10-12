@@ -250,6 +250,7 @@ void NetPlaySetupDialog::SaveSettings()
   Config::ConfigChangeCallbackGuard config_guard;
 
   Config::SetBaseOrCurrent(Config::NETPLAY_NICKNAME, m_nickname_edit->text().toStdString());
+  Config::SetBaseOrCurrent(Config::NETPLAY_ADDRESS, m_ip_edit->text().toStdString());
   Config::SetBaseOrCurrent(Config::NETPLAY_CONNECT_PORT,
                            static_cast<u16>(m_connect_port_box->value()));
   Config::SetBaseOrCurrent(Config::NETPLAY_HOST_PORT, static_cast<u16>(m_host_port_box->value()));
