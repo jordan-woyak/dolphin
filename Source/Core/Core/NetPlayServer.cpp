@@ -150,15 +150,7 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   }
   else
   {
-    ENetAddress serverAddr;
-    serverAddr.host = ENET_HOST_ANY;
-    serverAddr.port = port;
-    m_server = enet_host_create(&serverAddr, 10, CHANNEL_COUNT, 0, 0);
-    if (m_server != nullptr)
-    {
-      m_server->mtu = std::min(m_server->mtu, NetPlay::MAX_ENET_MTU);
-      m_server->intercept = Common::ENet::InterceptCallback;
-    }
+    m_server.Host(port);
 
     SetupIndex();
   }
@@ -269,11 +261,11 @@ void NetPlayServer::ThreadFunc()
       m_update_pings = false;
     }
 
-    ENetEvent netEvent;
-    int net;
+    const auto event = m_server.PollEvent(std::chrono::milliseconds{1000});
+
     if (m_traversal_client)
       m_traversal_client->HandleResends();
-    net = enet_host_service(m_server, &netEvent, 1000);
+
     while (!m_async_queue.Empty())
     {
       INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
@@ -294,115 +286,94 @@ void NetPlayServer::ThreadFunc()
       INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
-    if (net > 0)
+
+    if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
     {
-      switch (netEvent.type)
+      const auto& connect_event = std::get<Common::ENet::Session::ConnectEvent>(event);
+
+      // Actual client initialization is deferred to the receive event, so here
+      // we'll just log the new connection.
+      INFO_LOG_FMT(NETPLAY, "Peer connected from: {:x}:{}", netEvent.peer->address.host,
+                   netEvent.peer->address.port);
+    }
+    else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
+    {
+      DEBUG_LOG_FMT(NETPLAY, "ReceiveEvent");
+
+      const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
+
+      sf::Packet rpac;
+      rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
+
+      if (!netEvent.peer->data)
       {
-      case ENET_EVENT_TYPE_CONNECT:
-      {
-        // Actual client initialization is deferred to the receive event, so here
-        // we'll just log the new connection.
-        INFO_LOG_FMT(NETPLAY, "Peer connected from: {:x}:{}", netEvent.peer->address.host,
-                     netEvent.peer->address.port);
+        // uninitialized client, we'll assume this is their initialization packet
+        ConnectionError error;
+        {
+          INFO_LOG_FMT(NETPLAY, "Initializing peer {:x}:{}", netEvent.peer->address.host,
+                       netEvent.peer->address.port);
+          std::lock_guard lkg(m_crit.game);
+          error = OnConnect(netEvent.peer, rpac);
+        }
+
+        if (error != ConnectionError::NoError)
+        {
+          INFO_LOG_FMT(NETPLAY, "Error {} initializing peer {:x}:{}", static_cast<u8>(error),
+                       netEvent.peer->address.host, netEvent.peer->address.port);
+
+          sf::Packet spac;
+          spac << error;
+          // don't need to lock, this client isn't in the client map
+          Send(netEvent.peer, spac);
+
+          ClearPeerPlayerId(netEvent.peer);
+          enet_peer_disconnect_later(netEvent.peer, 0);
+        }
       }
-      break;
-      case ENET_EVENT_TYPE_RECEIVE:
+      else
       {
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: receive event");
-
-        sf::Packet rpac;
-        rpac.append(netEvent.packet->data, netEvent.packet->dataLength);
-
-        if (!netEvent.peer->data)
+        auto it = m_players.find(*PeerPlayerId(netEvent.peer));
+        Client& client = it->second;
+        if (OnData(rpac, client) != 0)
         {
-          // uninitialized client, we'll assume this is their initialization packet
-          ConnectionError error;
-          {
-            INFO_LOG_FMT(NETPLAY, "Initializing peer {:x}:{}", netEvent.peer->address.host,
-                         netEvent.peer->address.port);
-            std::lock_guard lkg(m_crit.game);
-            error = OnConnect(netEvent.peer, rpac);
-          }
+          INFO_LOG_FMT(NETPLAY, "Invalid packet from client {}, disconnecting.", client.pid);
 
-          if (error != ConnectionError::NoError)
-          {
-            INFO_LOG_FMT(NETPLAY, "Error {} initializing peer {:x}:{}", static_cast<u8>(error),
-                         netEvent.peer->address.host, netEvent.peer->address.port);
-
-            sf::Packet spac;
-            spac << error;
-            // don't need to lock, this client isn't in the client map
-            Send(netEvent.peer, spac);
-
-            ClearPeerPlayerId(netEvent.peer);
-            enet_peer_disconnect_later(netEvent.peer, 0);
-          }
-        }
-        else
-        {
-          auto it = m_players.find(*PeerPlayerId(netEvent.peer));
-          Client& client = it->second;
-          if (OnData(rpac, client) != 0)
-          {
-            INFO_LOG_FMT(NETPLAY, "Invalid packet from client {}, disconnecting.", client.pid);
-
-            // if a bad packet is received, disconnect the client
-            std::lock_guard lkg(m_crit.game);
-            OnDisconnect(client);
-
-            ClearPeerPlayerId(netEvent.peer);
-          }
-          else
-          {
-            INFO_LOG_FMT(NETPLAY, "successfully handled packet from client {}", client.pid);
-          }
-        }
-        enet_packet_destroy(netEvent.packet);
-      }
-      break;
-      case ENET_EVENT_TYPE_DISCONNECT:
-      {
-        INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
-
-        std::lock_guard lkg(m_crit.game);
-        if (!netEvent.peer->data)
-        {
-          ERROR_LOG_FMT(NETPLAY, "enet_host_service: no peer data");
-          break;
-        }
-        const auto player_id = *PeerPlayerId(netEvent.peer);
-        auto it = m_players.find(player_id);
-        if (it != m_players.end())
-        {
-          Client& client = it->second;
-          INFO_LOG_FMT(NETPLAY, "Disconnecting client {}.", client.pid);
+          // if a bad packet is received, disconnect the client
+          std::lock_guard lkg(m_crit.game);
           OnDisconnect(client);
 
           ClearPeerPlayerId(netEvent.peer);
         }
         else
         {
-          ERROR_LOG_FMT(NETPLAY, "Invalid player {} to disconnect.", player_id);
+          INFO_LOG_FMT(NETPLAY, "successfully handled packet from client {}", client.pid);
         }
       }
-      break;
-      default:
-        // not a valid switch case due to not technically being part of the enum
-        if (static_cast<int>(netEvent.type) == Common::ENet::SKIPPABLE_EVENT)
-          INFO_LOG_FMT(NETPLAY, "enet_host_service: skippable packet event");
-        else
-          ERROR_LOG_FMT(NETPLAY, "enet_host_service: unknown event type: {}",
-                        static_cast<int>(netEvent.type));
+    }
+    else if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
+    {
+      INFO_LOG_FMT(NETPLAY, "enet_host_service: disconnect event");
+
+      std::lock_guard lkg(m_crit.game);
+      if (!netEvent.peer->data)
+      {
+        ERROR_LOG_FMT(NETPLAY, "enet_host_service: no peer data");
         break;
       }
-    }
-    else if (net == 0)
-    {
-      INFO_LOG_FMT(NETPLAY, "enet_host_service: no event occurred");
-    }
-    else
-    {
-      ERROR_LOG_FMT(NETPLAY, "enet_host_service error: {}", net);
+      const auto player_id = *PeerPlayerId(netEvent.peer);
+      auto it = m_players.find(player_id);
+      if (it != m_players.end())
+      {
+        Client& client = it->second;
+        INFO_LOG_FMT(NETPLAY, "Disconnecting client {}.", client.pid);
+        OnDisconnect(client);
+
+        ClearPeerPlayerId(netEvent.peer);
+      }
+      else
+      {
+        ERROR_LOG_FMT(NETPLAY, "Invalid player {} to disconnect.", player_id);
+      }
     }
   }
 

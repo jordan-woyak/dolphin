@@ -206,7 +206,7 @@ private:
   std::unordered_map<u32, unsigned int> m_chunked_data_complete_count;
   bool m_abort_chunked_data = false;
 
-  ENetHost* m_server = nullptr;
+  Common::ENet::Session m_server;
   Common::TraversalClient* m_traversal_client = nullptr;
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;
