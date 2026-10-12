@@ -256,4 +256,27 @@ void SendPowerButtonEvent();
 std::string GetGBASavePath(int pad_num);
 PadDetails GetPadDetails(int pad_num);
 int NumLocalWiimotes();
+
+class PeerConnection
+{
+public:
+  virtual ~PeerConnection() = default;
+
+  virtual void Send(std::span<const u8> data, u8 channel_id) = 0;
+
+  virtual void Disconnect() = 0;
+
+  virtual bool IsConnected() const = 0;
+};
+
+class InternalPeerConnection : public PeerConnection
+{
+public:
+  void Send(std::span<const u8> data, u8 channel_id) override {}
+
+  void Disconnect() override {}
+
+  bool IsConnected() const override { return true; }
+};
+
 }  // namespace NetPlay

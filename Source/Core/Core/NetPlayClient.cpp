@@ -97,17 +97,13 @@ NetPlayClient::~NetPlayClient()
     m_chunked_data_receive_queue.clear();
     m_dialog->HideChunkedProgressDialog();
   }
+}
 
-  if (m_server)
-  {
-    Disconnect();
-  }
-
-  // if (m_client)
-  {
-    m_client.Destroy();
-    // m_client = nullptr;
-  }
+NetPlayClient::NetPlayClient(std::unique_ptr<PeerConnection> peer_connection, NetPlayUI* dialog,
+                             std::string name)
+    : m_dialog(dialog), m_player_name(std::move(name)),
+      m_peer_connection{std::move(peer_connection)}
+{
 }
 
 // called from ---GUI--- thread
@@ -115,26 +111,7 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
-  ClearBuffers();
-
-  // Direct Connection
-  m_server = m_client.Connect(address, port);
-  if (!m_server)
-    return;
-
-  const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
-  if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
-  {
-    if (Connect())
-    {
-      // m_client->intercept = Common::ENet::InterceptCallback;
-      // m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
-    }
-  }
-  else
-  {
-    m_dialog->OnConnectionError(_trans("Could not communicate with host."));
-  }
+  m_dialog->OnConnectionError(_trans("Could not communicate with host."));
 }
 
 bool NetPlayClient::Connect()
@@ -147,21 +124,9 @@ bool NetPlayClient::Connect()
   packet << Common::GetNetplayDolphinVer();
   packet << m_player_name;
   Send(packet);
-  m_client.Flush();
-  sf::Packet rpac;
-  // TODO: make this not hang
 
-  // TODO: Handle the Common::ENet::SKIPPABLE_EVENT thing.
-  const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
-  if (std::holds_alternative<Common::ENet::Session::ReceiveEvent>(event))
-  {
-    const auto& receive_event = std::get<Common::ENet::Session::ReceiveEvent>(event);
-    rpac.append(receive_event.data.data(), receive_event.data.size());
-  }
-  else
-  {
-    return false;
-  }
+  // TODO: Wait for a message
+  sf::Packet rpac;
 
   ConnectionError error;
   rpac >> error;
@@ -1431,7 +1396,8 @@ void NetPlayClient::OnGameDigestAbort()
 
 void NetPlayClient::Send(const sf::Packet& packet, const u8 channel_id)
 {
-  m_server->SendPacket(packet, channel_id);
+  m_peer_connection->Send(std::span{static_cast<const u8*>(packet.getData()), packet.getDataSize()},
+                          channel_id);
 }
 
 void NetPlayClient::DisplayPlayersPing()
@@ -1451,25 +1417,7 @@ u32 NetPlayClient::GetPlayersMaxPing() const
 
 void NetPlayClient::Disconnect()
 {
-  m_connecting = false;
-  m_connection_state = ConnectionState::Failure;
-  if (m_server)
-    m_server->Disconnect();
-  else
-    return;
-
-  while (true)
-  {
-    const auto event = m_client.PollEvent(std::chrono::milliseconds{3000});
-    if (std::holds_alternative<Common::ENet::Session::DisconnectEvent>(event))
-    {
-      m_server = nullptr;
-      return;
-    }
-  }
-  // didn't disconnect gracefully force disconnect
-  m_server->Reset();
-  m_server = nullptr;
+  m_peer_connection.reset();
 }
 
 void NetPlayClient::SendAsync(sf::Packet&& packet, const u8 channel_id)
@@ -1478,7 +1426,6 @@ void NetPlayClient::SendAsync(sf::Packet&& packet, const u8 channel_id)
     std::lock_guard lkq(m_crit.async_queue_write);
     m_async_queue.Push(AsyncQueueEntry{std::move(packet), channel_id});
   }
-  m_client.InterruptPollEvent();
 }
 
 // called from ---NETPLAY--- thread
@@ -1488,7 +1435,7 @@ void NetPlayClient::ThreadFunc()
 
   while (m_do_loop.IsSet())
   {
-    const auto event = m_client.PollEvent(std::chrono::milliseconds{250});
+    // const auto event = m_client.PollEvent(std::chrono::milliseconds{250});
 
     while (!m_async_queue.Empty())
     {
@@ -1500,7 +1447,7 @@ void NetPlayClient::ThreadFunc()
       INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
-
+#if 0
     if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
     {
       INFO_LOG_FMT(NETPLAY, "enet_host_service: connect event");
@@ -1526,6 +1473,7 @@ void NetPlayClient::ThreadFunc()
 
       break;
     }
+#endif
   }
 
   INFO_LOG_FMT(NETPLAY, "NetPlayClient shutting down.");

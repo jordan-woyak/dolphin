@@ -97,7 +97,6 @@ NetPlayServer::~NetPlayServer()
     if (m_chunked_data_thread.joinable())
       m_chunked_data_thread.join();
     m_thread.join();
-    m_server.Destroy();
   }
 
 #ifdef USE_UPNP
@@ -113,8 +112,6 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   m_gba_config.fill({});
   m_wiimote_map.fill(0);
 
-  m_server.Host(port);
-
   SetupIndex();
 
   // if (m_server != nullptr)
@@ -129,20 +126,6 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
     if (forward_port)
       Common::UPnP::TryPortmapping(port);
 #endif
-  }
-}
-
-static PlayerId* PeerPlayerId(Common::ENet::Peer* peer)
-{
-  return static_cast<PlayerId*>(peer->user_data);
-}
-
-static void ClearPeerPlayerId(Common::ENet::Peer* peer)
-{
-  if (peer->user_data)
-  {
-    delete PeerPlayerId(peer);
-    peer->user_data = nullptr;
   }
 }
 
@@ -214,7 +197,7 @@ void NetPlayServer::ThreadFunc()
       m_update_pings = false;
     }
 
-    const auto event = m_server.PollEvent(std::chrono::milliseconds{1000});
+    // const auto event = m_server.PollEvent(std::chrono::milliseconds{1000});
 
     while (!m_async_queue.Empty())
     {
@@ -226,7 +209,7 @@ void NetPlayServer::ThreadFunc()
         if (e.target_mode == TargetMode::Only)
         {
           if (const auto it = m_players.find(e.target_pid); it != m_players.end())
-            Send(it->second.socket, e.packet, e.channel_id);
+            Send(it->second.peer_connection.get(), e.packet, e.channel_id);
         }
         else
         {
@@ -236,7 +219,7 @@ void NetPlayServer::ThreadFunc()
       INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
-
+#if 0
     if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
     {
       const auto& connect_event = std::get<Common::ENet::Session::ConnectEvent>(event);
@@ -326,16 +309,12 @@ void NetPlayServer::ThreadFunc()
         ERROR_LOG_FMT(NETPLAY, "Invalid player {} to disconnect.", player_id);
       }
     }
+#endif
   }
 
   INFO_LOG_FMT(NETPLAY, "NetPlayServer shutting down.");
 
   // close listening socket and client sockets
-  for (const auto& player_entry : std::views::values(m_players))
-  {
-    ClearPeerPlayerId(player_entry.socket);
-    player_entry.socket->Disconnect();
-  }
   m_players.clear();
 }
 
@@ -354,7 +333,7 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
 }
 
 // called from ---NETPLAY--- thread
-ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection,
+ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
                                          sf::Packet& received_packet)
 {
   std::string netplay_version;
@@ -369,8 +348,8 @@ ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection
     return ConnectionError::ServerFull;
 
   Client new_player{};
-  new_player.pid = GiveFirstAvailableIDTo(incoming_connection);
-  new_player.socket = incoming_connection;
+  new_player.pid = AllocateFirstAvailableID();
+  new_player.peer_connection = std::move(incoming_connection);
 
   received_packet >> new_player.revision;
   received_packet >> new_player.name;
@@ -397,7 +376,7 @@ ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection
     send_packet << MessageID::ChangeGame;
     SendSyncIdentifier(send_packet, m_selected_game_identifier);
     send_packet << m_selected_game_name;
-    Send(new_player.socket, send_packet);
+    Send(new_player.peer_connection.get(), send_packet);
   }
 
   if (!m_host_input_authority)
@@ -417,7 +396,7 @@ ConnectionError NetPlayServer::OnConnect(Common::ENet::Peer* incoming_connection
   {
     std::lock_guard lkp(m_crit.players);
     // add new player to list of players
-    m_players.emplace(*PeerPlayerId(new_player.socket), std::move(new_player));
+    m_players.emplace(new_player.pid, std::move(new_player));
     // sync pad mappings with everyone
     UpdatePadMapping();
     UpdateGBAConfig();
@@ -476,7 +455,7 @@ unsigned int NetPlayServer::OnDisconnect(const Client& player)
   spac << MessageID::PlayerLeave;
   spac << pid;
 
-  player.socket->Disconnect();
+  player.peer_connection->Disconnect();
 
   std::lock_guard lkp(m_crit.players);
   auto it = m_players.find(player.pid);
@@ -640,7 +619,6 @@ void NetPlayServer::SendAsync(sf::Packet&& packet, const PlayerId pid, const u8 
     std::lock_guard lkq(m_crit.async_queue_write);
     m_async_queue.Push(AsyncQueueEntry{std::move(packet), pid, TargetMode::Only, channel_id});
   }
-  m_server.InterruptPollEvent();
 }
 
 void NetPlayServer::SendAsyncToClients(sf::Packet&& packet, const PlayerId skip_pid,
@@ -651,7 +629,6 @@ void NetPlayServer::SendAsyncToClients(sf::Packet&& packet, const PlayerId skip_
     m_async_queue.Push(
         AsyncQueueEntry{std::move(packet), skip_pid, TargetMode::AllExcept, channel_id});
   }
-  m_server.InterruptPollEvent();
 }
 
 void NetPlayServer::SendChunked(sf::Packet&& packet, const PlayerId pid, const std::string& title)
@@ -768,7 +745,7 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
       if (m_current_golfer != 0)
       {
         if (const auto it = m_players.find(m_current_golfer); it != m_players.end())
-          Send(it->second.socket, spac);
+          Send(it->second.peer_connection.get(), spac);
       }
     }
     else
@@ -866,7 +843,7 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
 
       sf::Packet spac;
       spac << MessageID::GolfPrepare;
-      Send(m_players[pid].socket, spac);
+      Send(m_players[pid].peer_connection.get(), spac);
     }
   }
   break;
@@ -2132,14 +2109,16 @@ void NetPlayServer::SendToClients(const sf::Packet& packet, const PlayerId skip_
   {
     if (p.pid && p.pid != skip_pid)
     {
-      Send(p.socket, packet, channel_id);
+      Send(p.peer_connection.get(), packet, channel_id);
     }
   }
 }
 
-void NetPlayServer::Send(Common::ENet::Peer* socket, const sf::Packet& packet, const u8 channel_id)
+void NetPlayServer::Send(PeerConnection* peer_connection, const sf::Packet& packet,
+                         const u8 channel_id)
 {
-  socket->SendPacket(packet, channel_id);
+  peer_connection->Send(std::span{static_cast<const u8*>(packet.getData()), packet.getDataSize()},
+                        channel_id);
 }
 
 void NetPlayServer::KickPlayer(PlayerId player)
@@ -2148,7 +2127,7 @@ void NetPlayServer::KickPlayer(PlayerId player)
   {
     if (current_player.pid == player)
     {
-      current_player.socket->Disconnect();
+      current_player.peer_connection->Disconnect();
       return;
     }
   }
@@ -2184,7 +2163,7 @@ void NetPlayServer::AssignNewUserAPad(const Client& player)
   }
 }
 
-PlayerId NetPlayServer::GiveFirstAvailableIDTo(Common::ENet::Peer* player)
+PlayerId NetPlayServer::AllocateFirstAvailableID()
 {
   PlayerId pid = 1;
   for (auto i = m_players.begin(); i != m_players.end(); ++i)
@@ -2195,7 +2174,6 @@ PlayerId NetPlayServer::GiveFirstAvailableIDTo(Common::ENet::Peer* player)
       i = m_players.begin();
     }
   }
-  player->user_data = new PlayerId(pid);
   return pid;
 }
 
@@ -2208,7 +2186,7 @@ void NetPlayServer::SendResponseToPlayer(const Client& player, const MessageID m
   // this is a C++17 fold expression used to call the << operator for all of the data
   (response << ... << std::forward<Data>(data_to_send));
 
-  Send(player.socket, response);
+  Send(player.peer_connection.get(), response);
 }
 
 template <typename... Data>
@@ -2224,7 +2202,7 @@ void NetPlayServer::SendResponseToAllPlayers(const MessageID message_id, Data&&.
 
 u16 NetPlayServer::GetPort() const
 {
-  return m_server.GetPort();
+  return 0;  // m_server.GetPort();
 }
 
 // called from ---GUI--- thread

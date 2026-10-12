@@ -1675,11 +1675,19 @@ bool MainWindow::NetPlayJoin()
   {
     server->SetHostInputAuthority(host_input_authority);
     server->AdjustPadBufferSize(Config::Get(Config::NETPLAY_BUFFER_SIZE));
-  }
 
-  // Create Client
-  Settings::Instance().ResetNetPlayClient(
-      new NetPlay::NetPlayClient(host_ip, host_port, m_netplay_dialog, nickname));
+    auto peer_connection = std::make_unique<NetPlay::InternalPeerConnection>();
+
+    // Create Client
+    Settings::Instance().ResetNetPlayClient(
+        new NetPlay::NetPlayClient(std::move(peer_connection), m_netplay_dialog, nickname));
+  }
+  else
+  {
+    // Create Client
+    Settings::Instance().ResetNetPlayClient(
+        new NetPlay::NetPlayClient(host_ip, host_port, m_netplay_dialog, nickname));
+  }
 
   if (!Settings::Instance().GetNetPlayClient()->IsConnected())
   {

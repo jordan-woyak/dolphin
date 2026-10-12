@@ -26,20 +26,6 @@ namespace NetPlay
 class NetPlayUI;
 struct SaveSyncInfo;
 
-class PeerConnection
-{
-public:
-  virtual ~PeerConnection() = default;
-
-  virtual bool IsConnected() const = 0;
-};
-
-class InternalPeerConnection : public PeerConnection
-{
-public:
-  bool IsConnected() const override { return true; }
-};
-
 class NetPlayServer
 {
 public:
@@ -141,8 +127,10 @@ private:
   void SendResponseToAllPlayers(MessageID message_id, Data&&... data_to_send);
   void SendToClients(const sf::Packet& packet, PlayerId skip_pid = 0,
                      u8 channel_id = DEFAULT_CHANNEL);
-  void Send(Common::ENet::Peer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
-  ConnectionError OnConnect(Common::ENet::Peer* socket, sf::Packet& received_packet);
+  void Send(PeerConnection* peer_connection, const sf::Packet& packet,
+            u8 channel_id = DEFAULT_CHANNEL);
+  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
+                            sf::Packet& received_packet);
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
 
@@ -163,7 +151,7 @@ private:
   void AssignNewUserAPad(const Client& player);
   // pulled from OnConnect()
   // returns the PID given
-  PlayerId GiveFirstAvailableIDTo(Common::ENet::Peer* player);
+  PlayerId AllocateFirstAvailableID();
 
   NetSettings m_settings;
 

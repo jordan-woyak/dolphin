@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "Common/CommonTypes.h"
-#include "Common/ENet.h"
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
 #include "Core/NetPlayProto.h"
@@ -112,6 +111,10 @@ public:
   void ThreadFunc();
   void SendAsync(sf::Packet&& packet, u8 channel_id = DEFAULT_CHANNEL);
 
+  // When hosting:
+  NetPlayClient(std::unique_ptr<PeerConnection> peer_connection, NetPlayUI* dialog,
+                std::string name);
+
   NetPlayClient(const std::string& address, u16 port, NetPlayUI* dialog, std::string name);
   ~NetPlayClient();
 
@@ -202,8 +205,7 @@ protected:
 
   NetPlayUI* m_dialog = nullptr;
 
-  Common::ENet::Session m_client;
-  Common::ENet::Peer* m_server = nullptr;
+  std::unique_ptr<PeerConnection> m_peer_connection;
   std::thread m_thread;
 
   SyncIdentifier m_selected_game;
