@@ -156,9 +156,6 @@ add_library(common
   TimeUtil.cpp
   TimeUtil.h
   TransferableSharedMutex.h
-  TraversalClient.cpp
-  TraversalClient.h
-  TraversalProto.h
   TypeUtils.h
   UPnP.cpp
   UPnP.h
@@ -372,14 +369,7 @@ if(ENABLE_LLVM)
   endif()
 endif()
 
-if(UNIX)
-  # Posix networking code needs to be fixed for Windows
-  add_executable(traversal_server TraversalServer.cpp)
-  target_link_libraries(traversal_server PRIVATE common fmt::fmt)
-  if(SYSTEMD_FOUND)
-    target_link_libraries(traversal_server PRIVATE ${SYSTEMD_LIBRARIES})
-  endif()
-elseif(WIN32)
+if(WIN32)
   find_package(PowerShell REQUIRED)
   execute_process(
     COMMAND ${POWERSHELL_EXE} -Command "[System.Diagnostics.FileVersionInfo]::GetVersionInfo('$ENV{VCToolsRedistDir}vc_redist.x64.exe').ProductVersion"

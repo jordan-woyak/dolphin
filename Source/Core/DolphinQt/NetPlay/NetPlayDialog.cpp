@@ -31,7 +31,6 @@
 
 #include "Common/Config/Config.h"
 #include "Common/Logging/Log.h"
-#include "Common/TraversalClient.h"
 #include "Core/NetPlayCommon.h"
 #include "Core/NetPlayProto.h"
 
@@ -66,31 +65,6 @@
 
 #include "VideoCommon/NetPlayChatUI.h"
 #include "VideoCommon/NetPlayGolfUI.h"
-
-namespace
-{
-QString InetAddressToString(const Common::TraversalInetAddress& addr)
-{
-  QString ip;
-
-  if (addr.isIPV6)
-  {
-    ip = QStringLiteral("IPv6-Not-Implemented");
-  }
-  else
-  {
-    const auto ipv4 = reinterpret_cast<const u8*>(addr.address);
-    ip = QString::number(ipv4[0]);
-    for (u32 i = 1; i != 4; ++i)
-    {
-      ip += QStringLiteral(".");
-      ip += QString::number(ipv4[i]);
-    }
-  }
-
-  return QStringLiteral("%1:%2").arg(ip, QString::number(ntohs(addr.port)));
-}
-}  // namespace
 
 NetPlayDialog::NetPlayDialog(const GameListModel& game_list_model,
                              StartGameCallback start_game_callback, QWidget* parent)
@@ -321,12 +295,8 @@ void NetPlayDialog::ConnectWidgets()
 {
   // Players
   connect(m_room_box, &QComboBox::currentIndexChanged, this, &NetPlayDialog::UpdateGUI);
-  connect(m_hostcode_action_button, &QPushButton::clicked, [this] {
-    if (m_is_copy_button_retry)
-      Common::g_TraversalClient->ReconnectToServer();
-    else
-      QApplication::clipboard()->setText(m_hostcode_label->text());
-  });
+  connect(m_hostcode_action_button, &QPushButton::clicked,
+          [this] { QApplication::clipboard()->setText(m_hostcode_label->text()); });
   connect(m_players_list, &QTableWidget::itemSelectionChanged, [this] {
     const int row = m_players_list->currentRow();
     m_kick_button->setEnabled(row > 0 &&
@@ -501,10 +471,9 @@ void NetPlayDialog::reject()
   }
 }
 
-void NetPlayDialog::show(std::string nickname, bool use_traversal)
+void NetPlayDialog::show(std::string nickname)
 {
   m_nickname = std::move(nickname);
-  m_use_traversal = use_traversal;
   m_buffer_size = 0;
   m_old_player_count = 0;
 
@@ -516,8 +485,6 @@ void NetPlayDialog::show(std::string nickname, bool use_traversal)
 
   if (is_hosting)
   {
-    if (use_traversal)
-      m_room_box->addItem(tr("Room ID"));
     m_room_box->addItem(tr("External"));
 
     for (const auto& iface : Settings::Instance().GetNetPlayServer()->GetInterfaceSet())
@@ -573,26 +540,13 @@ void NetPlayDialog::UpdateDiscordPresence()
 
   if (IsHosting())
   {
-    if (Common::g_TraversalClient)
-    {
-      const auto host_id = Common::g_TraversalClient->GetHostID();
-      if (host_id[0] == '\0')
-        return use_default();
+    if (m_external_ip_address->empty())
+      return use_default();
+    const int port = Settings::Instance().GetNetPlayServer()->GetPort();
 
-      Discord::UpdateDiscordPresence(m_player_count, Discord::SecretType::RoomID,
-                                     std::string(host_id.begin(), host_id.end()),
-                                     m_current_game_name);
-    }
-    else
-    {
-      if (m_external_ip_address->empty())
-        return use_default();
-      const int port = Settings::Instance().GetNetPlayServer()->GetPort();
-
-      Discord::UpdateDiscordPresence(
-          m_player_count, Discord::SecretType::IPAddress,
-          Discord::CreateSecretFromIPAddress(*m_external_ip_address, port), m_current_game_name);
-    }
+    Discord::UpdateDiscordPresence(m_player_count, Discord::SecretType::IPAddress,
+                                   Discord::CreateSecretFromIPAddress(*m_external_ip_address, port),
+                                   m_current_game_name);
   }
   else
   {
@@ -688,52 +642,13 @@ void NetPlayDialog::UpdateGUI()
   if (!server)
     return;
 
-  const bool is_local_ip_selected = m_room_box->currentIndex() > (m_use_traversal ? 1 : 0);
+  const bool is_local_ip_selected = 0;
   if (is_local_ip_selected)
   {
     m_hostcode_label->setText(QString::fromStdString(
         server->GetInterfaceHost(m_room_box->currentData().toString().toStdString())));
     m_hostcode_action_button->setEnabled(true);
     m_hostcode_action_button->setText(tr("Copy"));
-    m_is_copy_button_retry = false;
-  }
-  else if (m_use_traversal)
-  {
-    switch (Common::g_TraversalClient->GetState())
-    {
-    case Common::TraversalClient::State::Connecting:
-      m_hostcode_label->setText(tr("Connecting"));
-      m_hostcode_action_button->setEnabled(false);
-      m_hostcode_action_button->setText(tr("..."));
-      break;
-    case Common::TraversalClient::State::Connected:
-    {
-      if (m_room_box->currentIndex() == 0)
-      {
-        // Display Room ID.
-        const auto host_id = Common::g_TraversalClient->GetHostID();
-        m_hostcode_label->setText(
-            QString::fromStdString(std::string(host_id.begin(), host_id.end())));
-      }
-      else
-      {
-        // Externally mapped IP and port are known when using the traversal server.
-        m_hostcode_label->setText(
-            InetAddressToString(Common::g_TraversalClient->GetExternalAddress()));
-      }
-
-      m_hostcode_action_button->setEnabled(true);
-      m_hostcode_action_button->setText(tr("Copy"));
-      m_is_copy_button_retry = false;
-      break;
-    }
-    case Common::TraversalClient::State::Failure:
-      m_hostcode_label->setText(tr("Error"));
-      m_hostcode_action_button->setText(tr("Retry"));
-      m_hostcode_action_button->setEnabled(true);
-      m_is_copy_button_retry = true;
-      break;
-    }
   }
   else
   {
@@ -752,7 +667,6 @@ void NetPlayDialog::UpdateGUI()
     }
 
     m_hostcode_action_button->setText(tr("Copy"));
-    m_is_copy_button_retry = false;
   }
 }
 
@@ -976,42 +890,6 @@ void NetPlayDialog::OnConnectionError(const std::string& message)
     ModalMessageBox::critical(this, tr("Error"),
                               tr("Failed to connect to server: %1").arg(tr(message.c_str())));
   });
-}
-
-void NetPlayDialog::OnTraversalError(Common::TraversalClient::FailureReason error)
-{
-  QueueOnObject(this, [this, error] {
-    switch (error)
-    {
-    case Common::TraversalClient::FailureReason::BadHost:
-      ModalMessageBox::critical(this, tr("Traversal Error"), tr("Couldn't look up central server"));
-      QDialog::reject();
-      break;
-    case Common::TraversalClient::FailureReason::VersionTooOld:
-      ModalMessageBox::critical(this, tr("Traversal Error"),
-                                tr("Dolphin is too old for traversal server"));
-      QDialog::reject();
-      break;
-    case Common::TraversalClient::FailureReason::ServerForgotAboutUs:
-    case Common::TraversalClient::FailureReason::SocketSendError:
-    case Common::TraversalClient::FailureReason::ResendTimeout:
-      UpdateGUI();
-      break;
-    }
-  });
-}
-
-void NetPlayDialog::OnTraversalStateChanged(Common::TraversalClient::State state)
-{
-  switch (state)
-  {
-  case Common::TraversalClient::State::Connected:
-  case Common::TraversalClient::State::Failure:
-    UpdateDiscordPresence();
-    break;
-  default:
-    break;
-  }
 }
 
 void NetPlayDialog::OnGameStartAborted()

@@ -17,7 +17,6 @@
 #include "Common/QoSSession.h"
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
-#include "Common/TraversalClient.h"
 #include "Core/NetPlayProto.h"
 #include "Core/SyncIdentifier.h"
 #include "UICommon/NetPlayIndex.h"
@@ -27,7 +26,7 @@ namespace NetPlay
 class NetPlayUI;
 struct SaveSyncInfo;
 
-class NetPlayServer : public Common::TraversalClientClient
+class NetPlayServer
 {
 public:
   void ThreadFunc();
@@ -38,9 +37,8 @@ public:
   void SendChunkedToClients(sf::Packet&& packet, PlayerId skip_pid = 0,
                             const std::string& title = "");
 
-  NetPlayServer(u16 port, bool forward_port, NetPlayUI* dialog,
-                const NetTraversalConfig& traversal_config);
-  ~NetPlayServer() override;
+  NetPlayServer(u16 port, bool forward_port, NetPlayUI* dialog);
+  ~NetPlayServer();
 
   bool ChangeGame(const SyncIdentifier& sync_identifier, const std::string& netplay_name);
   bool ComputeGameDigest(const SyncIdentifier& sync_identifier);
@@ -126,10 +124,9 @@ private:
   u64 GetInitialNetPlayRTC() const;
 
   template <typename... Data>
-  void SendResponseToPlayer(const Client& player, const MessageID message_id,
-                            Data&&... data_to_send);
+  void SendResponseToPlayer(const Client& player, MessageID message_id, Data&&... data_to_send);
   template <typename... Data>
-  void SendResponseToAllPlayers(const MessageID message_id, Data&&... data_to_send);
+  void SendResponseToAllPlayers(MessageID message_id, Data&&... data_to_send);
   void SendToClients(const sf::Packet& packet, PlayerId skip_pid = 0,
                      u8 channel_id = DEFAULT_CHANNEL);
   void Send(Common::ENet::Peer* socket, const sf::Packet& packet, u8 channel_id = DEFAULT_CHANNEL);
@@ -137,16 +134,15 @@ private:
   unsigned int OnDisconnect(const Client& player);
   unsigned int OnData(sf::Packet& packet, Client& player);
 
-  void OnTraversalStateChanged() override;
-  void OnConnectReady(ENetAddress) override {}
-  void OnConnectFailed(Common::TraversalConnectFailedReason) override {}
-  void OnTtlDetermined(u8 ttl) override;
+  void OnConnectReady(ENetAddress) {}
+  void OnConnectFailed() {}
+  void OnTtlDetermined(u8 ttl);
   void UpdatePadMapping();
   void UpdateGBAConfig();
   void UpdateWiimoteMapping();
   std::vector<std::pair<std::string, std::string>> GetInterfaceListInternal() const;
   void ChunkedDataThreadFunc();
-  void ChunkedDataSend(sf::Packet&& packet, PlayerId pid, const TargetMode target_mode);
+  void ChunkedDataSend(sf::Packet&& packet, PlayerId pid, TargetMode target_mode);
   void ChunkedDataAbort();
 
   void SetupIndex();
@@ -207,7 +203,7 @@ private:
   bool m_abort_chunked_data = false;
 
   Common::ENet::Session m_server;
-  Common::TraversalClient* m_traversal_client = nullptr;
+
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;
 };

@@ -104,107 +104,39 @@ NetPlayClient::~NetPlayClient()
     Disconnect();
   }
 
-  if (Common::g_MainNetHost.get() == m_client)
-  {
-    Common::g_MainNetHost.release();
-  }
   if (m_client)
   {
     m_client.Destroy();
     m_client = nullptr;
   }
-
-  if (m_traversal_client)
-  {
-    Common::ReleaseTraversalClient();
-  }
 }
 
 // called from ---GUI--- thread
 NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlayUI* dialog,
-                             std::string name, const NetTraversalConfig& traversal_config)
+                             std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
   ClearBuffers();
 
-  if (!traversal_config.use_traversal)
-  {
-    // Direct Connection
-    m_server = m_client.Connect(address, port);
-    if (!m_server)
-      return;
+  // Direct Connection
+  m_client = enet_host_create(nullptr, 1, CHANNEL_COUNT, 0, 0);
 
-    const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
-    if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
+  // Direct Connection
+  m_server = m_client.Connect(address, port);
+  if (!m_server)
+    return;
+
+  const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
+  if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
+  {
+    if (Connect())
     {
-      if (Connect())
-      {
-        m_client->intercept = Common::ENet::InterceptCallback;
-        m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
-      }
-    }
-    else
-    {
-      m_dialog->OnConnectionError(_trans("Could not communicate with host."));
+      m_client->intercept = Common::ENet::InterceptCallback;
+      m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
     }
   }
   else
   {
-    if (address.size() > Common::NETPLAY_CODE_SIZE)
-    {
-      m_dialog->OnConnectionError(
-          _trans("The host code is too long.\nPlease recheck that you have the correct code."));
-      return;
-    }
-
-    if (!Common::EnsureTraversalClient(traversal_config.traversal_host,
-                                       traversal_config.traversal_port))
-    {
-      return;
-    }
-    m_client = Common::g_MainNetHost.get();
-
-    m_traversal_client = Common::g_TraversalClient.get();
-
-    // If we were disconnected in the background, reconnect.
-    if (m_traversal_client->HasFailed())
-      m_traversal_client->ReconnectToServer();
-    m_traversal_client->m_Client = this;
-    m_host_spec = address;
-    m_connection_state = ConnectionState::WaitingForTraversalClientConnection;
-    OnTraversalStateChanged();
-    m_connecting = true;
-
-    Common::Timer connect_timer;
-    connect_timer.Start();
-
-    while (m_connecting)
-    {
-      if (m_traversal_client)
-        m_traversal_client->HandleResends();
-
-      while (true)
-      {
-        const auto event = m_client.PollEvent(std::chrono::milliseconds{5000});
-        if (std::holds_alternative<std::monostate>(event))
-          break;
-
-        sf::Packet rpac;
-        if (std::holds_alternative<Common::ENet::Session::ConnectEvent>(event))
-        {
-          const auto& connect_event = std::get<Common::ENet::Session::ConnectEvent>(event);
-          m_server = connect_event.peer;
-
-          if (Connect())
-          {
-            m_connection_state = ConnectionState::Connected;
-            m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
-          }
-        }
-      }
-      if (connect_timer.ElapsedMs() > 5000)
-        break;
-    }
     m_dialog->OnConnectionError(_trans("Could not communicate with host."));
   }
 }
@@ -1576,10 +1508,8 @@ void NetPlayClient::ThreadFunc()
 
   while (m_do_loop.IsSet())
   {
-    if (m_traversal_client)
-      m_traversal_client->HandleResends();
-
     const auto event = m_client.PollEvent(std::chrono::milliseconds{250});
+
     while (!m_async_queue.Empty())
     {
       INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
@@ -1838,58 +1768,6 @@ void NetPlayClient::ClearBuffers()
 
     while (m_wiimote_buffer[i].Size())
       m_wiimote_buffer[i].Pop();
-  }
-}
-
-// called from ---NETPLAY--- thread
-void NetPlayClient::OnTraversalStateChanged()
-{
-  const Common::TraversalClient::State state = m_traversal_client->GetState();
-
-  if (m_connection_state == ConnectionState::WaitingForTraversalClientConnection &&
-      state == Common::TraversalClient::State::Connected)
-  {
-    m_connection_state = ConnectionState::WaitingForTraversalClientConnectReady;
-    m_traversal_client->ConnectToClient(m_host_spec);
-  }
-  else if (m_connection_state != ConnectionState::Failure &&
-           state == Common::TraversalClient::State::Failure)
-  {
-    Disconnect();
-    m_dialog->OnTraversalError(m_traversal_client->GetFailureReason());
-  }
-  m_dialog->OnTraversalStateChanged(state);
-}
-
-// called from ---NETPLAY--- thread
-void NetPlayClient::OnConnectReady(ENetAddress addr)
-{
-  if (m_connection_state == ConnectionState::WaitingForTraversalClientConnectReady)
-  {
-    m_connection_state = ConnectionState::Connecting;
-    enet_host_connect(m_client, &addr, CHANNEL_COUNT, 0);
-  }
-}
-
-// called from ---NETPLAY--- thread
-void NetPlayClient::OnConnectFailed(Common::TraversalConnectFailedReason reason)
-{
-  m_connecting = false;
-  m_connection_state = ConnectionState::Failure;
-  switch (reason)
-  {
-  case Common::TraversalConnectFailedReason::ClientDidntRespond:
-    PanicAlertFmtT("Traversal server timed out connecting to the host");
-    break;
-  case Common::TraversalConnectFailedReason::ClientFailure:
-    PanicAlertFmtT("Server rejected traversal attempt");
-    break;
-  case Common::TraversalConnectFailedReason::NoSuchClient:
-    PanicAlertFmtT("Invalid host");
-    break;
-  default:
-    PanicAlertFmtT("Unknown error {0:x}", static_cast<int>(reason));
-    break;
   }
 }
 

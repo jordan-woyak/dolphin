@@ -1654,10 +1654,6 @@ bool MainWindow::NetPlayJoin()
 
   auto server = Settings::Instance().GetNetPlayServer();
 
-  // Settings
-  const std::string traversal_choice = Config::Get(Config::NETPLAY_TRAVERSAL_CHOICE);
-  const bool is_traversal = traversal_choice == "traversal";
-
   std::string host_ip;
   u16 host_port;
   if (server)
@@ -1667,13 +1663,10 @@ bool MainWindow::NetPlayJoin()
   }
   else
   {
-    host_ip = is_traversal ? Config::Get(Config::NETPLAY_HOST_CODE) :
-                             Config::Get(Config::NETPLAY_ADDRESS);
+    host_ip = Config::Get(Config::NETPLAY_ADDRESS);
     host_port = Config::Get(Config::NETPLAY_CONNECT_PORT);
   }
 
-  const std::string traversal_host = Config::Get(Config::NETPLAY_TRAVERSAL_SERVER);
-  const u16 traversal_port = Config::Get(Config::NETPLAY_TRAVERSAL_PORT);
   const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
   const std::string network_mode = Config::Get(Config::NETPLAY_NETWORK_MODE);
   const bool host_input_authority = network_mode == "hostinputauthority" || network_mode == "golf";
@@ -1685,11 +1678,8 @@ bool MainWindow::NetPlayJoin()
   }
 
   // Create Client
-  const bool is_hosting_netplay = server != nullptr;
-  Settings::Instance().ResetNetPlayClient(new NetPlay::NetPlayClient(
-      host_ip, host_port, m_netplay_dialog, nickname,
-      NetPlay::NetTraversalConfig{is_hosting_netplay ? false : is_traversal, traversal_host,
-                                  traversal_port}));
+  Settings::Instance().ResetNetPlayClient(
+      new NetPlay::NetPlayClient(host_ip, host_port, m_netplay_dialog, nickname));
 
   if (!Settings::Instance().GetNetPlayClient()->IsConnected())
   {
@@ -1698,7 +1688,7 @@ bool MainWindow::NetPlayJoin()
   }
 
   m_netplay_setup_dialog->close();
-  m_netplay_dialog->show(nickname, is_traversal);
+  m_netplay_dialog->show(nickname);
 
   return true;
 }
@@ -1721,22 +1711,11 @@ bool MainWindow::NetPlayHost(const UICommon::GameFile& game)
 
   // Settings
   u16 host_port = Config::Get(Config::NETPLAY_HOST_PORT);
-  const std::string traversal_choice = Config::Get(Config::NETPLAY_TRAVERSAL_CHOICE);
-  const bool is_traversal = traversal_choice == "traversal";
   const bool use_upnp = Config::Get(Config::NETPLAY_USE_UPNP);
-
-  const std::string traversal_host = Config::Get(Config::NETPLAY_TRAVERSAL_SERVER);
-  const u16 traversal_port = Config::Get(Config::NETPLAY_TRAVERSAL_PORT);
-  const u16 traversal_port_alt = Config::Get(Config::NETPLAY_TRAVERSAL_PORT_ALT);
-
-  if (is_traversal)
-    host_port = Config::Get(Config::NETPLAY_LISTEN_PORT);
 
   // Create Server
   Settings::Instance().ResetNetPlayServer(
-      new NetPlay::NetPlayServer(host_port, use_upnp, m_netplay_dialog,
-                                 NetPlay::NetTraversalConfig{is_traversal, traversal_host,
-                                                             traversal_port, traversal_port_alt}));
+      new NetPlay::NetPlayServer(host_port, use_upnp, m_netplay_dialog));
 
   if (!Settings::Instance().GetNetPlayServer()->is_connected)
   {

@@ -317,8 +317,6 @@ void NetPlayBrowser::accept()
 
   QDialog::accept();
 
-  Config::SetBaseOrCurrent(Config::NETPLAY_TRAVERSAL_CHOICE, session.method);
-
   Config::SetBaseOrCurrent(Config::NETPLAY_CONNECT_PORT, session.port);
 
   if (session.method == "traversal")

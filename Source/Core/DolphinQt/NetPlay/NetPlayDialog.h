@@ -43,7 +43,7 @@ public:
                          StartGameCallback start_game_callback, QWidget* parent = nullptr);
   ~NetPlayDialog() override;
 
-  void show(std::string nickname, bool use_traversal);
+  void show(std::string nickname);
   void reject() override;
 
   // NetPlayUI methods
@@ -68,8 +68,6 @@ public:
   void OnDesync(u32 frame, const std::string& player) override;
   void OnConnectionLost() override;
   void OnConnectionError(const std::string& message) override;
-  void OnTraversalError(Common::TraversalClient::FailureReason error) override;
-  void OnTraversalStateChanged(Common::TraversalClient::State state) override;
   void OnGameStartAborted() override;
   void OnGolferChanged(bool is_golfer, const std::string& golfer_name) override;
   void OnTtlDetermined(u8 ttl) override;
@@ -172,8 +170,6 @@ private:
   Common::Lazy<std::string> m_external_ip_address;
   std::string m_nickname;
   const GameListModel& m_game_list_model;
-  bool m_use_traversal = false;
-  bool m_is_copy_button_retry = false;
   bool m_got_stop_request = true;
   int m_buffer_size = 0;
   int m_player_count = 0;

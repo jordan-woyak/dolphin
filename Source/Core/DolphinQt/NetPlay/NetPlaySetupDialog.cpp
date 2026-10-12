@@ -40,7 +40,6 @@ NetPlaySetupDialog::NetPlaySetupDialog(const GameListModel& game_list_model, QWi
   const std::string index_name = Config::Get(Config::NETPLAY_INDEX_NAME);
   const std::string index_password = Config::Get(Config::NETPLAY_INDEX_PASSWORD);
   const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
-  const std::string traversal_choice = Config::Get(Config::NETPLAY_TRAVERSAL_CHOICE);
   const int connect_port = Config::Get(Config::NETPLAY_CONNECT_PORT);
   const int host_port = Config::Get(Config::NETPLAY_HOST_PORT);
   const int host_listen_port = Config::Get(Config::NETPLAY_LISTEN_PORT);
@@ -53,7 +52,6 @@ NetPlaySetupDialog::NetPlaySetupDialog(const GameListModel& game_list_model, QWi
 #endif
 
   m_nickname_edit->setText(QString::fromStdString(nickname));
-  m_connection_type->setCurrentIndex(traversal_choice == "direct" ? 0 : 1);
   m_connect_port_box->setValue(connect_port);
   m_host_port_box->setValue(host_port);
 
@@ -76,8 +74,6 @@ NetPlaySetupDialog::NetPlaySetupDialog(const GameListModel& game_list_model, QWi
   m_host_chunked_upload_limit_box->setValue(chunked_upload_limit);
   m_host_chunked_upload_limit_box->setEnabled(enable_chunked_upload_limit);
 
-  OnConnectionTypeChanged(m_connection_type->currentIndex());
-
   ConnectWidgets();
 }
 
@@ -86,8 +82,6 @@ void NetPlaySetupDialog::CreateMainLayout()
   m_main_layout = new QGridLayout;
   m_button_box = new QDialogButtonBox(QDialogButtonBox::Cancel);
   m_nickname_edit = new QLineEdit;
-  m_connection_type = new QComboBox;
-  m_reset_traversal_button = new NonDefaultQPushButton(tr("Reset Traversal Settings"));
   m_tab_widget = new QTabWidget;
 
   m_nickname_edit->setValidator(
@@ -189,12 +183,6 @@ void NetPlaySetupDialog::CreateMainLayout()
 
   host_widget->setLayout(host_layout);
 
-  m_connection_type->addItem(tr("Direct Connection"));
-  m_connection_type->addItem(tr("Traversal Server"));
-
-  m_main_layout->addWidget(new QLabel(tr("Connection Type:")), 0, 0);
-  m_main_layout->addWidget(m_connection_type, 0, 1);
-  m_main_layout->addWidget(m_reset_traversal_button, 0, 2);
   m_main_layout->addWidget(new QLabel(tr("Nickname:")), 1, 0);
   m_main_layout->addWidget(m_nickname_edit, 1, 1);
   m_main_layout->addWidget(m_tab_widget, 2, 0, 1, -1);
@@ -209,8 +197,6 @@ void NetPlaySetupDialog::CreateMainLayout()
 
 void NetPlaySetupDialog::ConnectWidgets()
 {
-  connect(m_connection_type, &QComboBox::currentIndexChanged, this,
-          &NetPlaySetupDialog::OnConnectionTypeChanged);
   connect(m_nickname_edit, &QLineEdit::textChanged, this, &NetPlaySetupDialog::SaveSettings);
 
   // Connect widget
@@ -252,8 +238,6 @@ void NetPlaySetupDialog::ConnectWidgets()
   connect(m_connect_button, &QPushButton::clicked, this, &QDialog::accept);
   connect(m_host_button, &QPushButton::clicked, this, &QDialog::accept);
   connect(m_button_box, &QDialogButtonBox::rejected, this, &QDialog::reject);
-  connect(m_reset_traversal_button, &QPushButton::clicked, this,
-          &NetPlaySetupDialog::ResetTraversalHost);
   connect(m_host_server_browser, &QCheckBox::toggled, this, [this](bool value) {
     m_host_server_region->setEnabled(value);
     m_host_server_name->setEnabled(value);
@@ -266,9 +250,6 @@ void NetPlaySetupDialog::SaveSettings()
   Config::ConfigChangeCallbackGuard config_guard;
 
   Config::SetBaseOrCurrent(Config::NETPLAY_NICKNAME, m_nickname_edit->text().toStdString());
-  Config::SetBaseOrCurrent(m_connection_type->currentIndex() == 0 ? Config::NETPLAY_ADDRESS :
-                                                                    Config::NETPLAY_HOST_CODE,
-                           m_ip_edit->text().toStdString());
   Config::SetBaseOrCurrent(Config::NETPLAY_CONNECT_PORT,
                            static_cast<u16>(m_connect_port_box->value()));
   Config::SetBaseOrCurrent(Config::NETPLAY_HOST_PORT, static_cast<u16>(m_host_port_box->value()));
@@ -291,31 +272,6 @@ void NetPlaySetupDialog::SaveSettings()
   Config::SetBaseOrCurrent(Config::NETPLAY_INDEX_NAME, m_host_server_name->text().toStdString());
   Config::SetBaseOrCurrent(Config::NETPLAY_INDEX_PASSWORD,
                            m_host_server_password->text().toStdString());
-}
-
-void NetPlaySetupDialog::OnConnectionTypeChanged(int index)
-{
-  m_connect_port_box->setHidden(index != 0);
-  m_connect_port_label->setHidden(index != 0);
-
-  m_host_port_label->setHidden(index != 0);
-  m_host_port_box->setHidden(index != 0);
-#ifdef USE_UPNP
-  m_host_upnp->setHidden(index != 0);
-#endif
-  m_host_force_port_check->setHidden(index == 0);
-  m_host_force_port_box->setHidden(index == 0);
-
-  m_reset_traversal_button->setHidden(index == 0);
-
-  const std::string address =
-      index == 0 ? Config::Get(Config::NETPLAY_ADDRESS) : Config::Get(Config::NETPLAY_HOST_CODE);
-
-  m_ip_label->setText(index == 0 ? tr("IP Address:") : tr("Host Code:"));
-  m_ip_edit->setText(QString::fromStdString(address));
-
-  Config::SetBaseOrCurrent(Config::NETPLAY_TRAVERSAL_CHOICE,
-                           std::string(index == 0 ? "direct" : "traversal"));
 }
 
 void NetPlaySetupDialog::show()
@@ -381,18 +337,4 @@ void NetPlaySetupDialog::PopulateGameList()
 
   if (find_list.count() > 0)
     m_host_games->setCurrentItem(find_list[0]);
-}
-
-void NetPlaySetupDialog::ResetTraversalHost()
-{
-  Config::SetBaseOrCurrent(Config::NETPLAY_TRAVERSAL_SERVER,
-                           Config::NETPLAY_TRAVERSAL_SERVER.GetDefaultValue());
-  Config::SetBaseOrCurrent(Config::NETPLAY_TRAVERSAL_PORT,
-                           Config::NETPLAY_TRAVERSAL_PORT.GetDefaultValue());
-
-  ModalMessageBox::information(
-      this, tr("Reset Traversal Server"),
-      tr("Reset Traversal Server to %1:%2")
-          .arg(QString::fromStdString(Config::NETPLAY_TRAVERSAL_SERVER.GetDefaultValue()),
-               QString::number(Config::NETPLAY_TRAVERSAL_PORT.GetDefaultValue())));
 }

@@ -4,6 +4,9 @@
 #pragma once
 
 #include <SFML/Network/Packet.hpp>
+
+#include <enet/enet.h>
+
 #include <array>
 #include <chrono>
 #include <map>
@@ -18,7 +21,6 @@
 #include "Common/CommonTypes.h"
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
-#include "Common/TraversalClient.h"
 #include "Core/NetPlayProto.h"
 #include "Core/SyncIdentifier.h"
 #include "InputCommon/GCPadStatus.h"
@@ -67,8 +69,6 @@ public:
   virtual void OnDesync(u32 frame, const std::string& player) = 0;
   virtual void OnConnectionLost() = 0;
   virtual void OnConnectionError(const std::string& message) = 0;
-  virtual void OnTraversalError(Common::TraversalClient::FailureReason error) = 0;
-  virtual void OnTraversalStateChanged(Common::TraversalClient::State state) = 0;
   virtual void OnGameStartAborted() = 0;
   virtual void OnGolferChanged(bool is_golfer, const std::string& golfer_name) = 0;
   virtual void OnTtlDetermined(u8 ttl) = 0;
@@ -107,15 +107,14 @@ public:
   bool IsHost() const { return pid == 1; }
 };
 
-class NetPlayClient : public Common::TraversalClientClient
+class NetPlayClient
 {
 public:
   void ThreadFunc();
   void SendAsync(sf::Packet&& packet, u8 channel_id = DEFAULT_CHANNEL);
 
-  NetPlayClient(const std::string& address, const u16 port, NetPlayUI* dialog, std::string name,
-                const NetTraversalConfig& traversal_config);
-  ~NetPlayClient() override;
+  NetPlayClient(const std::string& address, u16 port, NetPlayUI* dialog, std::string name);
+  ~NetPlayClient();
 
   std::vector<const Player*> GetPlayers();
   const NetSettings& GetNetSettings() const;
@@ -145,10 +144,7 @@ public:
 
   u64 GetInitialRTCValue() const;
 
-  void OnTraversalStateChanged() override;
-  void OnConnectReady(ENetAddress addr) override;
-  void OnConnectFailed(Common::TraversalConnectFailedReason reason) override;
-  void OnTtlDetermined(u8 ttl) override {}
+  void OnTtlDetermined(u8 ttl) {}
 
   bool IsFirstInGamePad(int ingame_pad) const;
   int NumLocalPads() const;
@@ -237,8 +233,6 @@ protected:
 private:
   enum class ConnectionState
   {
-    WaitingForTraversalClientConnection,
-    WaitingForTraversalClientConnectReady,
     Connecting,
     WaitingForHelloResponse,
     Connected,
@@ -321,7 +315,6 @@ private:
   std::string m_host_spec;
   std::string m_player_name;
   bool m_connecting = false;
-  Common::TraversalClient* m_traversal_client = nullptr;
   std::thread m_game_digest_thread;
   bool m_should_compute_game_digest = false;
   Common::Event m_gc_pad_event;
@@ -346,7 +339,7 @@ private:
   std::string m_wii_sync_redirect_folder;
 };
 
-void NetPlay_Enable(NetPlayClient* const np);
+void NetPlay_Enable(NetPlayClient* np);
 void NetPlay_Disable();
 bool NetPlay_GetWiimoteData(const std::span<NetPlayClient::WiimoteDataBatchEntry>& entries);
 unsigned int NetPlay_GetLocalWiimoteForSlot(unsigned int slot);

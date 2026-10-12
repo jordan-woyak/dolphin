@@ -19,7 +19,7 @@ namespace Common::ENet
 // };
 // using ENetHostPtr = std::unique_ptr<ENetHost, ENetHostDeleter>;
 
-// used for traversal packets and wake-up packets
+// used for wake-up packets
 constexpr int SKIPPABLE_EVENT = 42;
 
 // An arbitrary amount of time of no acknowledgement of sent packets before netplay decides a

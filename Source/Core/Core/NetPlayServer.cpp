@@ -98,17 +98,6 @@ NetPlayServer::~NetPlayServer()
       m_chunked_data_thread.join();
     m_thread.join();
     m_server.Destroy();
-
-    if (Common::g_MainNetHost.get() == m_server)
-    {
-      Common::g_MainNetHost.release();
-    }
-
-    if (m_traversal_client)
-    {
-      Common::g_TraversalClient->m_Client = nullptr;
-      Common::ReleaseTraversalClient();
-    }
   }
 
 #ifdef USE_UPNP
@@ -117,8 +106,7 @@ NetPlayServer::~NetPlayServer()
 }
 
 // called from ---GUI--- thread
-NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog,
-                             const NetTraversalConfig& traversal_config)
+NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog)
     : m_dialog(dialog)
 {
   //--use server time
@@ -131,29 +119,18 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   m_gba_config.fill({});
   m_wiimote_map.fill(0);
 
-  if (traversal_config.use_traversal)
+  ENetAddress serverAddr;
+  serverAddr.host = ENET_HOST_ANY;
+  serverAddr.port = port;
+  m_server = enet_host_create(&serverAddr, 10, CHANNEL_COUNT, 0, 0);
+  if (m_server != nullptr)
   {
-    if (!Common::EnsureTraversalClient(traversal_config.traversal_host,
-                                       traversal_config.traversal_port,
-                                       traversal_config.traversal_port_alt, port))
-    {
-      return;
-    }
-
-    Common::g_TraversalClient->m_Client = this;
-    m_traversal_client = Common::g_TraversalClient.get();
-
-    m_server = Common::g_MainNetHost.get();
-
-    if (Common::g_TraversalClient->HasFailed())
-      Common::g_TraversalClient->ReconnectToServer();
+    m_server->mtu = std::min(m_server->mtu, NetPlay::MAX_ENET_MTU);
+    m_server->intercept = Common::ENet::InterceptCallback;
   }
-  else
-  {
-    m_server.Host(port);
 
-    SetupIndex();
-  }
+  SetupIndex();
+
   if (m_server != nullptr)
   {
     is_connected = true;
@@ -163,7 +140,7 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
     m_chunked_data_thread = std::thread(&NetPlayServer::ChunkedDataThreadFunc, this);
 
 #ifdef USE_UPNP
-    if (forward_port && !traversal_config.use_traversal)
+    if (forward_port)
       Common::UPnP::TryPortmapping(port);
 #endif
   }
@@ -202,25 +179,15 @@ void NetPlayServer::SetupIndex()
   session.name = Config::Get(Config::NETPLAY_INDEX_NAME);
   session.region = Config::Get(Config::NETPLAY_INDEX_REGION);
   session.has_password = !Config::Get(Config::NETPLAY_INDEX_PASSWORD).empty();
-  session.method = m_traversal_client ? "traversal" : "direct";
+  session.method = "direct";
   session.game_id = m_selected_game_name.empty() ? "UNKNOWN" : m_selected_game_name;
   session.player_count = static_cast<int>(m_players.size());
   session.in_game = m_is_running;
   session.port = GetPort();
 
-  if (m_traversal_client)
-  {
-    if (!m_traversal_client->IsConnected())
-      return;
-
-    session.server_id = std::string(Common::g_TraversalClient->GetHostID().data(), 8);
-  }
-  else
-  {
-    session.server_id = GetExternalIPAddress();
-    if (session.server_id.empty())
-      return;
-  }
+  session.server_id = GetExternalIPAddress();
+  if (session.server_id.empty())
+    return;
 
   session.EncryptID(Config::Get(Config::NETPLAY_INDEX_PASSWORD));
 
@@ -262,9 +229,6 @@ void NetPlayServer::ThreadFunc()
     }
 
     const auto event = m_server.PollEvent(std::chrono::milliseconds{1000});
-
-    if (m_traversal_client)
-      m_traversal_client->HandleResends();
 
     while (!m_async_queue.Empty())
     {
@@ -1240,22 +1204,6 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
   }
 
   return 0;
-}
-
-void NetPlayServer::OnTraversalStateChanged()
-{
-  const Common::TraversalClient::State state = m_traversal_client->GetState();
-
-  if (Common::g_TraversalClient->GetHostID()[0] != '\0')
-    SetupIndex();
-
-  if (!m_dialog)
-    return;
-
-  if (state == Common::TraversalClient::State::Failure)
-    m_dialog->OnTraversalError(m_traversal_client->GetFailureReason());
-
-  m_dialog->OnTraversalStateChanged(state);
 }
 
 void NetPlayServer::OnTtlDetermined(u8 ttl)

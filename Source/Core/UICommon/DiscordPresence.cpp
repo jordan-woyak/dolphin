@@ -72,7 +72,6 @@ void HandleDiscordJoin(const char* join_secret)
   case SecretType::IPAddress:
   {
     // SetBaseOrCurrent will save the ip address, which isn't what's wanted in this situation
-    Config::SetCurrent(Config::NETPLAY_TRAVERSAL_CHOICE, "direct");
 
     std::string host = secret.substr(offset, secret.find_last_of(':') - offset);
     Config::SetCurrent(Config::NETPLAY_ADDRESS, host);
@@ -85,8 +84,6 @@ void HandleDiscordJoin(const char* join_secret)
 
   case SecretType::RoomID:
   {
-    Config::SetCurrent(Config::NETPLAY_TRAVERSAL_CHOICE, "traversal");
-
     Config::SetCurrent(Config::NETPLAY_HOST_CODE, secret.substr(offset));
   }
   break;
