@@ -121,7 +121,7 @@ struct Session::Impl
     // enet_peer_timeout(server, 0, PEER_TIMEOUT.count(), PEER_TIMEOUT.count());
 
     // // return server;
-    // return nullptr;
+    return nullptr;
   }
 
   void Flush()

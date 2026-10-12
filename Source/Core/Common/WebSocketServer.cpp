@@ -17,6 +17,13 @@ struct WebSocket::Impl
   httplib::ws::WebSocket& m_web_socket;
 };
 
+WebSocket::~WebSocket() = default;
+
+bool WebSocket::IsOpen() const
+{
+  return m_impl->m_web_socket.is_open();
+}
+
 struct WebSocketServer::Impl
 {
   explicit Impl(std::string_view ip, u16 port)
@@ -26,6 +33,7 @@ struct WebSocketServer::Impl
 
   ~Impl()
   {
+    // TODO: Expose this function
     m_server.wait_until_ready();
 
     INFO_LOG_FMT(COMMON, "Stopping server");
@@ -81,9 +89,7 @@ struct WebSocketServer::Impl
       m_web_sockets.erase(&web_socket);
     }};
 
-    WebSocketRequest ws_req;
-    // = request
-
+    WebSocketRequest ws_req{request.path};
     WebSocket ws;
     ws.m_impl = std::make_unique<WebSocket::Impl>(web_socket);
 
@@ -101,16 +107,13 @@ WebSocketServer::WebSocketServer(std::string_view ip, u16 port)
 {
 }
 
+WebSocketServer::~WebSocketServer() = default;
+
 void WebSocketServer::ServePath(const std::string& path, HandlerType handler)
 {
-  auto x = std::bind_front(&Impl::TrackWebSocketAndRunHandler, m_impl.get(), std::move(handler));
-
-  m_impl->m_server.WebSocket(path, [x = std::move(x)](const httplib::Request& request,
-                                                      httplib::ws::WebSocket& web_socket) mutable {
-    x(request, web_socket);
-  });
-
-  // ;
+  m_impl->m_server.wait_until_ready();
+  m_impl->m_server.WebSocket(
+      path, std::bind_front(&Impl::TrackWebSocketAndRunHandler, m_impl.get(), std::move(handler)));
 }
 
 }  // namespace Common

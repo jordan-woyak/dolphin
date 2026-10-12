@@ -18,6 +18,7 @@
 #include "Common/SPSCQueue.h"
 #include "Common/Timer.h"
 #include "Core/NetPlayProto.h"
+#include "Core/NetPlaySignalingServer.h"
 #include "Core/SyncIdentifier.h"
 #include "UICommon/NetPlayIndex.h"
 
@@ -200,6 +201,7 @@ private:
   bool m_abort_chunked_data = false;
 
   Common::ENet::Session m_server;
+  SignalingServer m_signaling_server{"localhost", 2626};
 
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;

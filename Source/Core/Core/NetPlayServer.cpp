@@ -109,12 +109,6 @@ NetPlayServer::~NetPlayServer()
 NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog)
     : m_dialog(dialog)
 {
-  //--use server time
-  // if (enet_initialize() != 0)
-  {
-    PanicAlertFmtT("Enet Didn't Initialize");
-  }
-
   m_pad_map.fill(0);
   m_gba_config.fill({});
   m_wiimote_map.fill(0);

@@ -3,10 +3,10 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 
 #include "Common/CommonTypes.h"
-#include "Common/Functional.h"
 
 namespace Common
 {
@@ -18,6 +18,8 @@ class WebSocket
   friend WebSocketServer;
 
 public:
+  ~WebSocket();
+
   bool IsOpen() const;
 
 private:
@@ -27,14 +29,22 @@ private:
 
 class WebSocketRequest
 {
+public:
+  WebSocketRequest(std::string_view path) : m_path{path} {}
+
+  std::string_view GetPath() const { return m_path; }
+
+private:
+  std::string_view m_path;
 };
 
 class WebSocketServer
 {
 public:
   WebSocketServer(std::string_view ip, u16 port);
+  ~WebSocketServer();
 
-  using HandlerType = Common::MoveOnlyFunction<void(const WebSocketRequest&, WebSocket&)>;
+  using HandlerType = std::function<void(const WebSocketRequest&, WebSocket&)>;
 
   void ServePath(const std::string& path, HandlerType handler);
 
