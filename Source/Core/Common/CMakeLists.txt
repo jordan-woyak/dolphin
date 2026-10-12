@@ -127,8 +127,6 @@ add_library(common
   Profiler.cpp
   Profiler.h
   Projection.h
-  QoSSession.cpp
-  QoSSession.h
   Random.cpp
   Random.h
   RangeSet.h
@@ -177,7 +175,7 @@ if(NOT MSVC AND _M_ARM_64)
 endif()
 
 target_link_libraries(common
-PUBLIC
+  PUBLIC
   ${CMAKE_THREAD_LIBS_INIT}
   enet::enet
   fmt::fmt
@@ -185,7 +183,7 @@ PUBLIC
   MINIZIP::minizip-ng
   sfml-network
 
-PRIVATE
+  PRIVATE
   CURL::libcurl
   FatFs
   spng::spng
@@ -193,14 +191,14 @@ PRIVATE
   ${VTUNE_LIBRARIES}
 )
 
-if ((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_64") OR
-    (NOT DEFINED CMAKE_ANDROID_ARCH_ABI AND _M_X86_64))
+if((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_64") OR
+  (NOT DEFINED CMAKE_ANDROID_ARCH_ABI AND _M_X86_64))
   target_link_libraries(common PRIVATE bdisasm)
 endif()
 
-if (APPLE)
+if(APPLE)
   target_link_libraries(common
-  PRIVATE
+    PRIVATE
     ${APPKIT_LIBRARY}
     ${COREFOUNDATION_LIBRARY}
     ${FOUNDATION_LIBRARY}
@@ -208,17 +206,17 @@ if (APPLE)
   )
 elseif(WIN32)
   target_link_libraries(common
-  PRIVATE
+    PRIVATE
     kernel32.lib
     shlwapi.lib
     winmm.lib
   )
-  if (_M_X86_64)
+  if(_M_X86_64)
     target_link_libraries(common PRIVATE opengl32.lib)
   endif()
-elseif (ANDROID)
+elseif(ANDROID)
   target_link_libraries(common
-  PRIVATE
+    PRIVATE
     androidcommon
   )
 elseif(HAIKU)
@@ -375,11 +373,11 @@ if(WIN32)
     COMMAND ${POWERSHELL_EXE} -Command "[System.Diagnostics.FileVersionInfo]::GetVersionInfo('$ENV{VCToolsRedistDir}vc_redist.x64.exe').ProductVersion"
     OUTPUT_VARIABLE VC_TOOLS_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+  )
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/build_info.txt.in"
     "${CMAKE_BINARY_DIR}/build_info.txt"
-    )
+  )
 
   target_link_libraries(common PRIVATE "-INCLUDE:enableCompatPatches")
 endif()
