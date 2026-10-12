@@ -177,7 +177,6 @@ endif()
 target_link_libraries(common
   PUBLIC
   ${CMAKE_THREAD_LIBS_INIT}
-  enet::enet
   fmt::fmt
   MbedTLS::mbedtls
   MINIZIP::minizip-ng

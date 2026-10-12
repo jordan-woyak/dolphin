@@ -662,7 +662,7 @@ endif()
 
 dolphin_find_optional_system_library(pugixml Externals/pugixml)
 
-dolphin_find_optional_system_library_pkgconfig(ENET libenet>=1.3.18 enet::enet Externals/enet)
+dolphin_find_optional_system_library(LibJuice Externals/libjuice)
 
 dolphin_find_optional_system_library_pkgconfig(xxhash libxxhash>=0.8.2 xxhash::xxhash Externals/xxhash)
 
