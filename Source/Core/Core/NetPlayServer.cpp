@@ -363,11 +363,11 @@ void NetPlayServer::HandleNewPlayer(Client new_player)
     UpdateWiimoteMapping();
 
     // TODO: network race
-    auto& np = it->second;
-    np.event_hooks.emplace_back(np.peer_connection->on_receive.Register(
-        std::bind_front(&NetPlayServer::HandleReceive, this, &np)));
-    np.event_hooks.emplace_back(np.peer_connection->on_disconnect.Register(
-        std::bind_front(&NetPlayServer::HandleDisconnect, this, &np)));
+    auto& client = it->second;
+    client.event_hooks.emplace_back(client.peer_connection->on_receive.Register(
+        std::bind_front(&NetPlayServer::HandleReceive, this, &client)));
+    client.event_hooks.emplace_back(client.peer_connection->on_disconnect.Register(
+        std::bind_front(&NetPlayServer::HandleDisconnect, this, &client)));
   }
 }
 

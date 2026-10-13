@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <barrier>
 #include <cstddef>
 #include <cstring>
 #include <functional>
@@ -31,6 +32,7 @@
 #include "Common/NandPaths.h"
 #include "Common/OneShotEvent.h"
 #include "Common/SFMLHelper.h"
+#include "Common/ScopeGuard.h"
 #include "Common/Version.h"
 
 #include "Core/ActionReplay.h"
@@ -141,18 +143,25 @@ bool NetPlayClient::Connect()
 {
   INFO_LOG_FMT(NETPLAY, "Connecting to server.");
 
-  m_hooks.emplace_back(
-      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
-  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
-      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
+  std::barrier connection_complete{2};
 
   sf::Packet rpac;
   {
     Common::OneShotEvent got_msg;
-    const auto hook = m_peer_connection->on_receive.Register([&](std::span<const u8> message) {
-      rpac.append(message.data(), message.size());
-      got_msg.Set();
-    });
+    Common::EventHook hook =
+        m_peer_connection->on_receive.Register([&](std::span<const u8> message) {
+          hook.reset();
+
+          rpac.append(message.data(), message.size());
+
+          m_hooks.emplace_back(m_peer_connection->on_receive.Register(
+              std::bind_front(&NetPlayClient::HandleReceive, this)));
+          m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
+              std::bind_front(&NetPlayClient::HandleDisconnect, this)));
+
+          got_msg.Set();
+          connection_complete.arrive_and_wait();
+        });
 
     // send connect message
     sf::Packet packet;
@@ -167,6 +176,8 @@ bool NetPlayClient::Connect()
       return false;
     }
   }
+
+  Common::ScopeGuard release_receive_callback{[&] { connection_complete.arrive_and_wait(); }};
 
   INFO_LOG_FMT(NETPLAY, "Got message.");
 
