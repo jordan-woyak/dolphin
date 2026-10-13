@@ -315,6 +315,9 @@ private:
   bool m_is_connected = false;
   ConnectionState m_connection_state = ConnectionState::Failure;
 
+  // Must outlive the PeerConnection objects.
+  SignalingClient m_signaling_client;
+
   PlayerId m_pid = 0;
   NetSettings m_net_settings{};
   std::map<PlayerId, Player> m_players;
@@ -343,8 +346,6 @@ private:
   std::unique_ptr<IOS::HLE::FS::FileSystem> m_wii_sync_fs;
   std::vector<u64> m_wii_sync_titles;
   std::string m_wii_sync_redirect_folder;
-
-  SignalingClient m_signaling_client;
 
   std::vector<Common::EventHook> m_hooks;
 };
