@@ -123,17 +123,15 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
-  SignalingClient signaling_client{fmt::format("{}:{}", address, port)};
+  auto peer_connection = MakeICEPeerConnection(fmt::format("{}:{}", address, port));
 
-  auto fut = signaling_client.GetFuturePeerConnection();
-
-  if (fut.wait_for(std::chrono::milliseconds{1000}) != std::future_status::ready)
+  if (!peer_connection->IsConnected())
   {
     m_dialog->OnConnectionError(_trans("Could not communicate with host."));
     return;
   }
 
-  m_peer_connection = fut.get();
+  m_peer_connection = std::move(peer_connection);
 }
 
 bool NetPlayClient::Connect()
@@ -228,7 +226,7 @@ void NetPlayClient::OnData(sf::Packet& packet)
   MessageID mid;
   packet >> mid;
 
-  INFO_LOG_FMT(NETPLAY, "Got server message: {:x}", static_cast<u8>(mid));
+  DEBUG_LOG_FMT(NETPLAY, "Got server message: {:x}", static_cast<u8>(mid));
 
   switch (mid)
   {

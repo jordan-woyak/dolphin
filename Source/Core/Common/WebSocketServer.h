@@ -79,6 +79,8 @@ public:
 
   bool IsOpen() const;
 
+  void Close();
+
 private:
   struct Impl;
   std::unique_ptr<Impl> m_impl;

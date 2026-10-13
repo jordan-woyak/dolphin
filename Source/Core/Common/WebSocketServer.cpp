@@ -151,6 +151,11 @@ bool WebSocketClient::IsOpen() const
   return m_impl->m_client.is_open();
 }
 
+void WebSocketClient::Close()
+{
+  m_impl->m_client.close();
+}
+
 bool WebSocketClient::Send(std::span<const u8> message)
 {
   return m_impl->m_client.send(reinterpret_cast<const char*>(message.data()), message.size());

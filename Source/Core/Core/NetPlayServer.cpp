@@ -212,7 +212,7 @@ void NetPlayServer::ThreadFunc()
 
     while (!m_async_queue.Empty())
     {
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
+      DEBUG_LOG_FMT(NETPLAY, "Processing async queue event.");
       {
         std::lock_guard lkp(m_crit.players);
         INFO_LOG_FMT(NETPLAY, "Locked player mutex.");
@@ -227,7 +227,7 @@ void NetPlayServer::ThreadFunc()
           SendToClients(e.packet, e.target_pid, e.channel_id);
         }
       }
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
+      DEBUG_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
   }
@@ -253,7 +253,7 @@ void NetPlayServer::HandleReceive(Client* client, std::span<const u8> data)
   }
   else
   {
-    INFO_LOG_FMT(NETPLAY, "successfully handled packet from client {}", client->pid);
+    DEBUG_LOG_FMT(NETPLAY, "successfully handled packet from client {}", client->pid);
   }
 }
 
@@ -619,8 +619,8 @@ unsigned int NetPlayServer::OnData(sf::Packet& packet, Client& player)
   MessageID mid;
   packet >> mid;
 
-  INFO_LOG_FMT(NETPLAY, "Got client message: {:x} from client {}", static_cast<u8>(mid),
-               player.pid);
+  DEBUG_LOG_FMT(NETPLAY, "Got client message: {:x} from client {}", static_cast<u8>(mid),
+                player.pid);
 
   // don't need lock because this is the only thread that modifies the players
   // only need locks for writes to m_players in this thread
