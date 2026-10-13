@@ -93,6 +93,12 @@ void NetPlaySetupDialog::CreateMainLayout()
 
   m_ip_label = new QLabel;
   m_ip_edit = new QLineEdit;
+
+  const std::string address = Config::Get(Config::NETPLAY_ADDRESS);
+
+  m_ip_label->setText(tr("IP Address:"));
+  m_ip_edit->setText(QString::fromStdString(address));
+
   m_connect_port_label = new QLabel(tr("Port:"));
   m_connect_port_box = new QSpinBox;
   m_connect_button = new NonDefaultQPushButton(tr("Connect"));
