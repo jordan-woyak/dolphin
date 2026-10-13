@@ -61,6 +61,11 @@ private:
   }
 
 public:
+  ICEPeerConnection() : m_signaling_client{""}  // TODO: Dumb..
+  {
+    // TODO: Adjust the callbacks !
+  }
+
   ICEPeerConnection(const std::string& address)
       : m_signaling_client{fmt::format("ws://{}{}", address, SIGNALING_ENDPOINT)}
   {
@@ -91,15 +96,22 @@ public:
   }
 
   // Returns the local description.
-  std::string Offer()
+  std::string Offer(const std::string& remote_sdp)
   {
     Config();
 
-    // TODO: build the string in place.
-    char desc[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(m_agent.get(), desc, JUICE_MAX_SDP_STRING_LEN);
+    juice_set_remote_description(m_agent.get(), remote_sdp.c_str());
 
-    return desc;
+    // TODO: build the string in place.
+    char sdp[JUICE_MAX_SDP_STRING_LEN];
+    juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
+
+    return sdp;
+  }
+
+  void AddRemoteCandidate(const std::string& candidate)
+  {
+    juice_add_remote_candidate(m_agent.get(), candidate.c_str());
   }
 
   void Connect()
@@ -111,13 +123,13 @@ public:
     if (!m_signaling_client.IsOpen())
       return;
 
-    char desc[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(m_agent.get(), desc, JUICE_MAX_SDP_STRING_LEN);
+    char sdp[JUICE_MAX_SDP_STRING_LEN];
+    juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
 
     {
       picojson::object obj;
       obj.emplace("type", "offer");
-      obj.emplace("sdp", desc);
+      obj.emplace("sdp", sdp);
       m_signaling_client.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
     }
 
@@ -137,7 +149,7 @@ public:
       const auto msg_type = ReadStringFromJson(*obj, "type");
       if (msg_type == "answer")
       {
-        const auto sdp = ReadStringFromJson(*obj, "sdp");
+        const auto sdp = ReadStringFromJson(*obj, "desc");
         if (sdp)
           juice_set_remote_description(m_agent.get(), sdp->c_str());
       }
@@ -240,6 +252,8 @@ void SignalingServer::Handler(const Common::WebSocketRequest&, Common::WebSocket
 
   // TODO: Disconnect after some seconds
 
+  // TODO: I'd like to be able to hand off the WebSocket to the peer I think.
+
   std::unique_ptr<ICEPeerConnection> peer;
 
   while (web_socket.IsOpen())
@@ -257,13 +271,16 @@ void SignalingServer::Handler(const Common::WebSocketRequest&, Common::WebSocket
     {
       const auto sdp = ReadStringFromJson(*obj, "sdp");
       if (sdp)
-        juice_set_remote_description(m_agent.get(), sdp->c_str());
+      {
+        peer = std::make_unique<ICEPeerConnection>();
+        peer->Offer(*sdp);
+      }
     }
-    else if (msg_type == "candidate")
+    else if (peer && msg_type == "candidate")
     {
       const auto candidate = ReadStringFromJson(*obj, "candidate");
       if (candidate)
-        juice_add_remote_candidate(m_agent.get(), candidate->c_str());
+        peer->AddRemoteCandidate(*candidate);
     }
   }
 }
