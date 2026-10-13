@@ -1736,6 +1736,7 @@ bool MainWindow::NetPlayHost(const UICommon::GameFile& game)
   Settings::Instance().GetNetPlayServer()->ChangeGame(game.GetSyncIdentifier(),
                                                       m_game_list->GetNetPlayName(game));
 
+  // TODO: eliminate this.
   // Join our local server
   return NetPlayJoin();
 }

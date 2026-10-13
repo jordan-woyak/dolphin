@@ -138,9 +138,8 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
 
   HandleNewPlayer(std::move(internal_player));
 
-  // TODO: Jank..
-  m_hooks.emplace_back(m_signaling_server.on_peer_connection.Register(
-      [this](std::unique_ptr<PeerConnection>* new_peer) { OnConnect(std::move(*new_peer)); }));
+  m_signaling_server.SetNewPeerConnectionCallback(std::bind_front(&NetPlayServer::OnConnect, this));
+  m_signaling_server.Start("127.0.0.1", 2626);
 }
 
 template <typename T>
@@ -284,19 +283,11 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
     spac << x;
 }
 
-ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection)
+ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
+                                         std::span<const u8> first_message)
 {
   sf::Packet received_packet;
-
-  // TODO: janky and racy
-  {
-    Common::Event event;
-    const auto hook = incoming_connection->on_receive.Register([&](std::span<const u8> message) {
-      received_packet.append(message.data(), message.size());
-      event.Set();
-    });
-    event.WaitFor(std::chrono::seconds{1});
-  }
+  received_packet.append(first_message.data(), first_message.size());
 
   std::string netplay_version;
   received_packet >> netplay_version;

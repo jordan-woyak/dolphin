@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <future>
-
 #include "Common/WebSocketServer.h"
 #include "Core/NetPlayProto.h"
 
@@ -18,8 +16,6 @@ class SignalingClient
 public:
   SignalingClient(const std::string& address);
   ~SignalingClient();
-
-  std::future<std::unique_ptr<NetPlay::PeerConnection>> GetFuturePeerConnection();
 
 private:
   struct Impl;
@@ -35,14 +31,20 @@ std::unique_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
 class SignalingServer
 {
 public:
-  SignalingServer(const std::string& ip_address, u16 port);
+  using ConnectionCallbackType = std::function<void(
+      std::unique_ptr<NetPlay::PeerConnection> new_peer, std::span<const u8> first_message)>;
 
-  // TODO: Do this differently...
-  Common::HookableEvent<std::unique_ptr<NetPlay::PeerConnection>*> on_peer_connection;
+  void SetNewPeerConnectionCallback(ConnectionCallbackType callback)
+  {
+    m_new_peer_connection_callback = std::move(callback);
+  }
+
+  void Start(const std::string& ip_address, u16 port);
 
 private:
   void Handler(Common::WebSocketRequest&);
 
+  ConnectionCallbackType m_new_peer_connection_callback;
   Common::WebSocketServer m_server;
 };
 

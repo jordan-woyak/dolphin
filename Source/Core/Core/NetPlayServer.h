@@ -127,7 +127,8 @@ private:
             u8 channel_id = DEFAULT_CHANNEL);
 
 public:
-  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection);
+  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
+                            std::span<const u8> first_message);
 
   void HandleNewPlayer(Client new_player);
 
@@ -207,7 +208,7 @@ private:
   std::unordered_map<u32, unsigned int> m_chunked_data_complete_count;
   bool m_abort_chunked_data = false;
 
-  SignalingServer m_signaling_server{"127.0.0.1", 2626};
+  SignalingServer m_signaling_server;
 
   NetPlayUI* m_dialog = nullptr;
   NetPlayIndex m_index;
