@@ -62,7 +62,7 @@ public:
   }
 
   // Invokes all registered callbacks.
-  // Hooks added from within a callback will be invoked.
+  // Hooks added from within a callback will *not* be invoked.
   // Hooks removed from within a callback will be skipped,
   //  but destruction of the hook's callback will be delayed until Trigger() completes.
   void Trigger(const CallbackArgs&... args)
@@ -71,7 +71,8 @@ public:
     m_storage->is_triggering = true;
 
     // Avoiding an actual iterator because the container may be modified.
-    for (std::size_t i = 0; i != m_storage->listeners.size(); ++i)
+    std::size_t current_listener_count = m_storage->listeners.size();
+    for (std::size_t i = 0; i != current_listener_count; ++i)
     {
       auto& listener = m_storage->listeners[i];
 
