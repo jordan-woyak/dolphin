@@ -141,13 +141,6 @@ bool NetPlayClient::Connect()
 {
   INFO_LOG_FMT(NETPLAY, "Connecting to server.");
 
-  // send connect message
-  sf::Packet packet;
-  packet << Common::GetScmRevGitStr();
-  packet << Common::GetNetplayDolphinVer();
-  packet << m_player_name;
-  Send(packet);
-
   sf::Packet rpac;
   {
     Common::OneShotEvent got_msg;
@@ -155,9 +148,22 @@ bool NetPlayClient::Connect()
       rpac.append(message.data(), message.size());
       got_msg.Set();
     });
-    if (!got_msg.WaitFor(std::chrono::milliseconds{1000}))
+
+    // send connect message
+    sf::Packet packet;
+    packet << Common::GetScmRevGitStr();
+    packet << Common::GetNetplayDolphinVer();
+    packet << m_player_name;
+    Send(packet);
+
+    if (!got_msg.WaitFor(std::chrono::milliseconds{2000}))
+    {
+      INFO_LOG_FMT(NETPLAY, "Didn't get message");
       return false;
+    }
   }
+
+  INFO_LOG_FMT(NETPLAY, "Got message.");
 
   ConnectionError error;
   rpac >> error;

@@ -118,6 +118,11 @@ public:
 
     m_callbacks = std::make_shared<DynamicJuiceCallbacks>();
     m_agent = MakeSharedJuiceAgent(&config, m_callbacks);
+
+    // TODO: Janky
+    m_recv_hook = m_callbacks->recv.Register([this](const char* data, unsigned long size) {
+      on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
+    });
   }
 
   void GatherCandidates() { juice_gather_candidates(m_agent.get()); }
@@ -142,6 +147,7 @@ public:
 
   bool IsConnected() const override
   {
+    // TODO: This needs to operate differently if we can't call destroy when we want..
     const auto state = juice_get_state(m_agent.get());
     return state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
   }
@@ -180,6 +186,7 @@ private:
 
   std::shared_ptr<DynamicJuiceCallbacks> m_callbacks;
   SharedJuiceAgent m_agent;
+  Common::EventHook m_recv_hook;
 };
 }  // namespace
 
@@ -321,6 +328,9 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   {
     // TODO: remove hax
     const auto message = web_socket.Read();
+    if (message.empty())
+      continue;
+
     INFO_LOG_FMT(NETPLAY, "WS: {}", message);
 
     const auto obj = ParseJsonObject(message);
