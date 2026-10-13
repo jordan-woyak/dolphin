@@ -81,7 +81,7 @@ private:
     bool has_ipl_dump = false;
     bool has_hardware_fma = false;
 
-    std::unique_ptr<PeerConnection> peer_connection;
+    std::shared_ptr<PeerConnection> peer_connection;
     u32 current_game = 0;
 
     std::vector<Common::EventHook> event_hooks;
@@ -127,7 +127,7 @@ private:
             u8 channel_id = DEFAULT_CHANNEL);
 
 public:
-  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
+  ConnectionError OnConnect(std::shared_ptr<PeerConnection> incoming_connection,
                             std::span<const u8> first_message);
 
   void HandleNewPlayer(Client new_player);

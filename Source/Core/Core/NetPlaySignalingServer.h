@@ -32,7 +32,7 @@ class SignalingServer
 {
 public:
   using ConnectionCallbackType = std::function<void(
-      std::unique_ptr<NetPlay::PeerConnection> new_peer, std::span<const u8> first_message)>;
+      std::shared_ptr<NetPlay::PeerConnection> new_peer, std::span<const u8> first_message)>;
 
   void SetNewPeerConnectionCallback(ConnectionCallbackType callback)
   {

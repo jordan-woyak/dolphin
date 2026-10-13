@@ -16,12 +16,9 @@ namespace
 
 struct DynamicJuiceCallbacks
 {
-  // Hold the mutex when changing or invoking the callbacks.
-  Common::SpinMutex mutex;
-
-  std::function<void(juice_state_t)> state_changed;
-  std::function<void(const char*)> candidate;
-  std::function<void(const char* data, unsigned long size)> recv;
+  Common::HookableEvent<juice_state_t> state_changed;
+  Common::HookableEvent<const char*> candidate;
+  Common::HookableEvent<const char*, unsigned long> recv;
 };
 
 template <auto MemFunc>
@@ -31,9 +28,7 @@ static auto WrapCall()
     auto* const last_argument = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
     auto* const user_ptr = static_cast<DynamicJuiceCallbacks*>(last_argument);
     [&]<std::size_t... I>(std::index_sequence<I...>) {
-      std::lock_guard lk{user_ptr->mutex};
-      if (auto& function = std::invoke(MemFunc, user_ptr))
-        function(std::get<I>(std::forward_as_tuple(args...))...);
+      std::invoke(MemFunc, user_ptr).Trigger(std::get<I>(std::forward_as_tuple(args...))...);
     }(std::make_index_sequence<sizeof...(args) - 1>{});
   };
 }
@@ -130,44 +125,10 @@ public:
     Config();
 
     juice_set_remote_description(m_agent.get(), remote_sdp.c_str());
-
-    {
-      // TODO: build the string in place.
-      char sdp[JUICE_MAX_SDP_STRING_LEN];
-      juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
-
-      picojson::object obj;
-      obj.emplace("type", "answer");
-      obj.emplace("sdp", sdp);
-      m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-    }
-
     juice_gather_candidates(m_agent.get());
-
-    while (m_signaling_web_socket->IsOpen())
-    {
-      // TODO: Jank
-      const auto message = m_signaling_web_socket->Read();
-      if (message.empty())
-        continue;
-
-      const auto obj = ParseJsonObject(message);
-      if (!obj)
-        continue;
-
-      const auto msg_type = ReadStringFromJson(*obj, "type");
-      if (msg_type == "candidate")
-      {
-        if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
-          juice_add_remote_candidate(m_agent.get(), candidate->c_str());
-      }
-    }
   }
 
-  //   void AddRemoteCandidate(const std::string& candidate)
-  //   {
-  //     juice_add_remote_candidate(m_agent.get(), candidate.c_str());
-  //   }
+  juice_agent_t* GetAgent() { return m_agent.get(); }
 
   // Make an outgoing connection attempt.
   void SendOffer()
@@ -235,12 +196,11 @@ public:
     return state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
   }
 
-  template <std::invocable<const char*> Func>
-  void SetCandidateCallback(Func&& func)
-  {
-    std::lock_guard lk{m_callbacks->mutex};
-    m_callbacks->candidate = std::forward<Func>(func);
-  }
+  auto& GetCandidateEvent() { return m_callbacks->candidate; }
+  auto& GetStateChangeEvent() { return m_callbacks->state_changed; }
+  auto& GetRecvEvent() { return m_callbacks->recv; }
+
+  void AddRemoteCandidate(const char* sdp) { juice_add_remote_candidate(m_agent.get(), sdp); }
 
 private:
   void OnStateChanged(juice_state_t state)
@@ -255,11 +215,11 @@ private:
     }
   }
 
-  void OnCandidate(const char* candidate)
+  void OnCandidate(const char* sdp)
   {
     picojson::object obj;
     obj.emplace("type", "candidate");
-    obj.emplace("candidate", candidate);
+    obj.emplace("candidate", sdp);
     m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   }
 
@@ -317,16 +277,26 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
   // TODO: Disconnect after some seconds
 
-  // TODO: I'd like to be able to hand off the WebSocket to the peer I think.
+  std::shared_ptr<ICEPeerConnection> peer = std::make_shared<ICEPeerConnection>(&web_socket);
 
-  std::unique_ptr<ICEPeerConnection> peer;
-
-  peer->SetCandidateCallback([&](const char* candidate) {
+  const auto candidate_hook = peer->GetCandidateEvent().Register([&](const char* candidate) {
     picojson::object obj;
     obj.emplace("type", "candidate");
     obj.emplace("candidate", candidate);
     web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   });
+
+  Common::EventHook recv_hook =
+      peer->GetRecvEvent().Register([&](const char* data, unsigned long size) {
+        // TODO: Is the test necessary ?
+        if (peer->IsConnected())
+        {
+          recv_hook.reset();
+          m_new_peer_connection_callback(std::move(peer), Common::AsU8Span(std::span{data, size}));
+        }
+      });
+
+  // TODO: We can close this socket when gathering is complete.
 
   while (web_socket.IsOpen())
   {
@@ -341,18 +311,24 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
     const auto msg_type = ReadStringFromJson(*obj, "type");
     if (msg_type == "offer")
     {
-      const auto sdp = ReadStringFromJson(*obj, "sdp");
-      if (sdp)
+      if (const auto remote_sdp = ReadStringFromJson(*obj, "sdp"))
       {
-        peer = std::make_unique<ICEPeerConnection>(&web_socket);
-        peer->HandleOffer(*sdp);
+        peer->HandleOffer(*remote_sdp);
 
-        if (peer->IsConnected())
-        {
-          // TODO: Wait for a message too
-          m_new_peer_connection_callback(std::move(peer), {});
-        }
+        // TODO: build the string in place.
+        char local_sdp[JUICE_MAX_SDP_STRING_LEN];
+        juice_get_local_description(peer->GetAgent(), local_sdp, JUICE_MAX_SDP_STRING_LEN);
+
+        picojson::object obj;
+        obj.emplace("type", "answer");
+        obj.emplace("sdp", local_sdp);
+        web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
       }
+    }
+    else if (msg_type == "candidate")
+    {
+      if (const auto sdp = ReadStringFromJson(*obj, "candidate"))
+        peer->AddRemoteCandidate(sdp->c_str());
     }
   }
 }
