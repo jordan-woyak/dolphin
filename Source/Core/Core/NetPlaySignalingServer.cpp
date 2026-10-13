@@ -108,11 +108,6 @@ public:
 
   bool IsConnected() const override { return m_is_connected; }
 
-  // TODO: kill
-  auto& GetCandidateEvent() { return on_candidate; }
-  auto& GetStateChangeEvent() { return on_state_changed; }
-  auto& GetRecvEvent() { return on_receive; }
-
   // void AddRemoteCandidate(const char* sdp) { juice_add_remote_candidate(m_agent.get(), sdp); }
 
   Common::HookableEvent<juice_state_t> on_state_changed;
@@ -155,14 +150,14 @@ std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
   auto peer = std::make_shared<ICEPeerConnection>();
 
   // TODO: Allow this WebSocket to keep living and establish candidates.
-  const auto candidate_hook = peer->GetCandidateEvent().Register([&](const char* candidate) {
+  const auto candidate_hook = peer->on_candidate.Register([&](const char* candidate) {
     picojson::object obj;
     obj.emplace("type", "candidate");
     obj.emplace("candidate", candidate);
     web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   });
 
-  const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
+  const auto state_change_hook = peer->on_state_changed.Register([&](juice_state_t state) {
     if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
     {
       INFO_LOG_FMT(NETPLAY, "connected !!");
@@ -212,10 +207,11 @@ std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
     }
     else if (msg_type == "candidate")
     {
-      INFO_LOG_FMT(NETPLAY, "remote candidate !!");
-
       if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
+      {
+        INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
         juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
+      }
     }
   }
 
@@ -248,26 +244,17 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
   std::shared_ptr<ICEPeerConnection> peer = std::make_shared<ICEPeerConnection>();
 
-  const auto candidate_hook = peer->GetCandidateEvent().Register([&](const char* candidate) {
+  const auto candidate_hook = peer->on_candidate.Register([&](const char* candidate) {
     picojson::object obj;
     obj.emplace("type", "candidate");
     obj.emplace("candidate", candidate);
     web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   });
 
-  Common::EventHook recv_hook = peer->GetRecvEvent().Register([&](std::span<const u8> message) {
+  Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
     INFO_LOG_FMT(NETPLAY, "recv_hook");
-
-    // TODO: Is the test necessary ?
-    if (peer->IsConnected())
-    {
-      recv_hook.reset();
-      m_new_peer_connection_callback(peer, message);
-    }
-  });
-
-  const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
-    INFO_LOG_FMT(NETPLAY, "juice state_change: {}", juice_state_to_string(state));
+    recv_hook.reset();
+    m_new_peer_connection_callback(peer, message);
   });
 
   // TODO: We can close this socket when gathering is complete.
@@ -282,14 +269,14 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
     INFO_LOG_FMT(NETPLAY, "WS: {}", message);
 
-    const auto obj = ParseJsonObject(message);
-    if (!obj)
+    const auto msg_obj = ParseJsonObject(message);
+    if (!msg_obj)
       continue;
 
-    const auto msg_type = ReadStringFromJson(*obj, "type");
+    const auto msg_type = ReadStringFromJson(*msg_obj, "type");
     if (msg_type == "offer")
     {
-      if (const auto remote_sdp = ReadStringFromJson(*obj, "sdp"))
+      if (const auto remote_sdp = ReadStringFromJson(*msg_obj, "sdp"))
       {
         juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
 
@@ -297,18 +284,21 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
         char local_sdp[JUICE_MAX_SDP_STRING_LEN];
         juice_get_local_description(peer->GetAgent(), local_sdp, JUICE_MAX_SDP_STRING_LEN);
 
-        picojson::object obj;
-        obj.emplace("type", "answer");
-        obj.emplace("sdp", local_sdp);
-        web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+        picojson::object answer_obj;
+        answer_obj.emplace("type", "answer");
+        answer_obj.emplace("sdp", local_sdp);
+        web_socket.Send(Common::AsU8Span(picojson::value(std::move(answer_obj)).serialize()));
 
         peer->GatherCandidates();
       }
     }
     else if (msg_type == "candidate")
     {
-      if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
+      if (const auto candidate = ReadStringFromJson(*msg_obj, "candidate"))
+      {
+        INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
         juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
+      }
     }
   }
 

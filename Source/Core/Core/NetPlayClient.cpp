@@ -141,6 +141,11 @@ bool NetPlayClient::Connect()
 {
   INFO_LOG_FMT(NETPLAY, "Connecting to server.");
 
+  m_hooks.emplace_back(
+      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
+  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
+      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
+
   sf::Packet rpac;
   {
     Common::OneShotEvent got_msg;
@@ -210,11 +215,6 @@ bool NetPlayClient::Connect()
 
   // TODO: Redundant logic.
   m_is_connected = true;
-
-  m_hooks.emplace_back(
-      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
-  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
-      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
 
   m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
 
