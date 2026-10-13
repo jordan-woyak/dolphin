@@ -16,6 +16,7 @@
 namespace Common
 {
 
+// TODO: Can maybe eliminate this ?
 class WebSocket
 {
 public:
@@ -25,8 +26,9 @@ public:
 
   virtual bool Send(std::span<const u8> message) = 0;
 
-  // TODO: Better interface.
-  virtual std::string Read() = 0;
+  virtual void SetReadTimeout(DT timeout) = 0;
+
+  virtual std::optional<std::string> Read() = 0;
 
   virtual void Close() = 0;
 };
@@ -39,7 +41,9 @@ public:
 
   bool Send(std::span<const u8> message) override;
 
-  std::string Read() override;
+  void SetReadTimeout(DT timeout) override;
+
+  std::optional<std::string> Read() override;
 
   bool IsOpen() const override;
 
@@ -65,7 +69,9 @@ public:
 
   bool Send(std::span<const u8> message) override;
 
-  std::string Read() override;
+  void SetReadTimeout(DT timeout) override;
+
+  std::optional<std::string> Read() override;
 
   bool IsOpen() const override;
 

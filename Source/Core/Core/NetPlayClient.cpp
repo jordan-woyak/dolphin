@@ -126,15 +126,22 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
-  auto peer_connection = MakeICEPeerConnection(address, port);
+  auto fut = m_signaling_client.MakePeerConnection(address, port);
 
-  if (!peer_connection->IsConnected())
+  if (fut.wait_for(std::chrono::seconds{2}) != std::future_status::ready)
+  {
+    m_dialog->OnConnectionError(_trans("Connection timed out."));
+    return;
+  }
+
+  auto peer = fut.get();
+  if (!peer->IsConnected())
   {
     m_dialog->OnConnectionError(_trans("Could not communicate with host."));
     return;
   }
 
-  m_peer_connection = std::move(peer_connection);
+  m_peer_connection = std::move(peer);
 
   Connect();
 }

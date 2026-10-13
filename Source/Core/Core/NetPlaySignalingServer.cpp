@@ -3,6 +3,8 @@
 
 #include "Core/NetPlaySignalingServer.h"
 
+#include <thread>
+
 #include <juice/juice.h>
 
 #include <picojson.h>
@@ -81,6 +83,7 @@ public:
     config.cb_state_changed = WrapCall<&ICEPeerConnection::OnStateChanged>();
     config.cb_candidate = WrapCall<&ICEPeerConnection::OnCandidate>();
     config.cb_recv = WrapCall<&ICEPeerConnection::OnRecv>();
+    // config.cb_gathering_done = WrapCall<&ICEPeerConnection::OnGatheringDone>();
     config.user_ptr = this;
 
     m_agent.reset(juice_create(&config));
@@ -104,7 +107,11 @@ public:
     juice_send(m_agent.get(), reinterpret_cast<const char*>(data.data()), data.size());
   }
 
-  void Disconnect() override { m_is_connected = false; }
+  void Disconnect() override
+  {
+    m_is_connected = false;
+    // TODO: Trigger on_disconnect ?
+  }
 
   bool IsConnected() const override { return m_is_connected; }
 
@@ -112,16 +119,21 @@ public:
 
   Common::HookableEvent<juice_state_t> on_state_changed;
   Common::HookableEvent<const char*> on_candidate;
+  // Common::HookableEvent<> on_gathering_done;
 
 private:
   void OnStateChanged(juice_state_t state)
   {
     INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
 
-    m_is_connected = state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
+    const bool is_connected = state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
+    const bool was_connected = m_is_connected.exchange(is_connected);
 
     // TODO: Prevent connection after external Disconnect call ?
     on_state_changed.Trigger(state);
+
+    if (was_connected && !is_connected)
+      on_disconnect.Trigger();
   }
 
   void OnCandidate(const char* candidate) { on_candidate.Trigger(candidate); }
@@ -131,9 +143,28 @@ private:
     on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
   }
 
+  // void OnGatheringDone() { on_gathering_done.Trigger(); }
+
   std::atomic_bool m_is_connected = false;
   UniqueJuiceAgent m_agent;
 };
+
+class IcePeerManager
+{
+public:
+  IcePeerManager();
+
+private:
+  void ThreadFunc()
+  {
+    while (!m_thread.get_stop_token().stop_requested())
+    {
+    }
+  }
+
+  std::jthread m_thread;
+};
+
 }  // namespace
 
 namespace NetPlay
@@ -141,90 +172,117 @@ namespace NetPlay
 
 struct SignalingClient::Impl
 {
-};
+  std::promise<std::shared_ptr<NetPlay::PeerConnection>> m_peer;
+  std::thread m_thread;
 
-std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address, u16 port)
-{
-  Common::WebSocketClient web_socket{
-      fmt::format("ws://{}:{}{}", address, port, SIGNALING_ENDPOINT)};
-  auto peer = std::make_shared<ICEPeerConnection>();
-
-  // TODO: Allow this WebSocket to keep living and establish candidates.
-  const auto candidate_hook = peer->on_candidate.Register([&](const char* candidate) {
-    picojson::object obj;
-    obj.emplace("type", "candidate");
-    obj.emplace("candidate", candidate);
-    web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-  });
-
-  const auto state_change_hook = peer->on_state_changed.Register([&](juice_state_t state) {
-    if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
-    {
-      INFO_LOG_FMT(NETPLAY, "connected !!");
-
-      // TODO: Is this appropriate, there may be more candidates coming in..
-      web_socket.Close();
-    }
-  });
-
+  void ThreadFunc(std::string address, u16 port)
   {
-    // TODO: build a std::string in place.
-    char sdp[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(peer->GetAgent(), sdp, JUICE_MAX_SDP_STRING_LEN);
+    // TODO: Close this socket when trying to join the thread.
+    Common::WebSocketClient web_socket{
+        fmt::format("ws://{}:{}{}", address, port, SIGNALING_ENDPOINT)};
 
-    picojson::object obj;
-    obj.emplace("type", "offer");
-    obj.emplace("sdp", sdp);
-    web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-  }
+    auto peer = std::make_shared<ICEPeerConnection>();
 
-  peer->GatherCandidates();
+    const auto candidate_hook = peer->on_candidate.Register([&](const char* candidate) {
+      picojson::object obj;
+      obj.emplace("type", "candidate");
+      obj.emplace("candidate", candidate);
+      web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+    });
 
-  // TODO: Ensure address is resolved.
-  // TODO: Verify this is correct and working..
-  // const auto manual_candidate =
-  //     fmt::format("a=candidate:999 1 UDP 2130706431 {} {} typ host", address, port);
-  // juice_add_remote_candidate(peer->GetAgent(), manual_candidate.c_str());
-
-  while (web_socket.IsOpen())
-  {
-    // TODO: Jank
-    const auto message = web_socket.Read();
-    if (message.empty())
-      continue;
-
-    const auto obj = ParseJsonObject(message);
-    if (!obj)
-      continue;
-
-    const auto msg_type = ReadStringFromJson(*obj, "type");
-    if (msg_type == "answer")
-    {
-      INFO_LOG_FMT(NETPLAY, "remote answer !!");
-
-      if (const auto sdp = ReadStringFromJson(*obj, "sdp"))
-        juice_set_remote_description(peer->GetAgent(), sdp->c_str());
-    }
-    else if (msg_type == "candidate")
-    {
-      if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
+    const auto fail_hook = peer->on_state_changed.Register([&](juice_state_t state) {
+      if (state == JUICE_STATE_FAILED || state == JUICE_STATE_DISCONNECTED)
       {
-        INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
-        juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
+        web_socket.Close();
+      }
+    });
+
+    Common::EventHook success_hook = peer->on_state_changed.Register([&](juice_state_t) {
+      if (peer->IsConnected())
+      {
+        success_hook.reset();
+        INFO_LOG_FMT(NETPLAY, "connected !!");
+        m_peer.set_value(peer);
+      }
+    });
+
+    {
+      // TODO: build a std::string in place.
+      char sdp[JUICE_MAX_SDP_STRING_LEN];
+      juice_get_local_description(peer->GetAgent(), sdp, JUICE_MAX_SDP_STRING_LEN);
+
+      picojson::object obj;
+      obj.emplace("type", "offer");
+      obj.emplace("sdp", sdp);
+      web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+    }
+
+    peer->GatherCandidates();
+
+    // TODO: Ensure address is resolved.
+    // TODO: Verify this is correct. It is working, though.
+    const auto manual_candidate =
+        fmt::format("a=candidate:999 1 UDP 2130706431 {} {} typ host", address, port);
+    juice_add_remote_candidate(peer->GetAgent(), manual_candidate.c_str());
+
+    web_socket.SetReadTimeout(std::chrono::milliseconds{5000});
+
+    while (web_socket.IsOpen())
+    {
+      const auto message = web_socket.Read();
+      if (!message)
+        break;
+
+      const auto obj = ParseJsonObject(*message);
+      if (!obj)
+        break;
+
+      const auto msg_type = ReadStringFromJson(*obj, "type");
+      if (msg_type == "answer")
+      {
+        INFO_LOG_FMT(NETPLAY, "remote answer !!");
+
+        if (const auto sdp = ReadStringFromJson(*obj, "sdp"))
+          juice_set_remote_description(peer->GetAgent(), sdp->c_str());
+      }
+      else if (msg_type == "candidate")
+      {
+        if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
+        {
+          INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
+          juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
+        }
       }
     }
+
+    INFO_LOG_FMT(NETPLAY, "WS client done");
+    web_socket.Close();
+
+    // TODO: Janky..
+    while (peer && peer.use_count() > 1)
+      std::this_thread::sleep_for(std::chrono::milliseconds{100});
+
+    INFO_LOG_FMT(NETPLAY, "SignalingClient done");
   }
+};
 
-  return peer;
-}
-
-SignalingClient::SignalingClient(const std::string& address)
-    : m_impl{std::make_unique<Impl>()},
-      m_client{fmt::format("ws://{}{}", address, SIGNALING_ENDPOINT)}
+SignalingClient::SignalingClient() : m_impl{std::make_unique<Impl>()}
 {
 }
 
-SignalingClient::~SignalingClient() = default;
+SignalingClient::~SignalingClient()
+{
+  // TODO: Close the websocket so it stops faster
+  if (m_impl->m_thread.joinable())
+    m_impl->m_thread.join();
+}
+
+std::future<std::shared_ptr<NetPlay::PeerConnection>>
+SignalingClient::MakePeerConnection(const std::string& address, u16 port)
+{
+  m_impl->m_thread = std::thread(&Impl::ThreadFunc, m_impl.get(), address, port);
+  return m_impl->m_peer.get_future();
+}
 
 void SignalingServer::Start(const std::string& ip_address, u16 port)
 {
@@ -252,26 +310,46 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   });
 
   Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
-    INFO_LOG_FMT(NETPLAY, "recv_hook");
+    NOTICE_LOG_FMT(NETPLAY, "recv_hook");
     recv_hook.reset();
     m_new_peer_connection_callback(peer, message);
   });
 
+  // std::atomic_bool local_gathering_done = false;
+  // bool remote_gathering_done = false;
+
+  // const auto done_hook = peer->on_gathering_done.Register([&]() {
+  //   picojson::object obj;
+  //   obj.emplace("type", "candidate");
+  //   obj.emplace("candidate", "");
+  //   web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+
+  //   local_gathering_done = true;
+  // });
+
+  const auto fail_hook = peer->on_state_changed.Register([&](juice_state_t state) {
+    if (state == JUICE_STATE_FAILED || state == JUICE_STATE_DISCONNECTED)
+    {
+      web_socket.Close();
+    }
+  });
+
+  web_socket.SetReadTimeout(std::chrono::milliseconds{5000});
+
   // TODO: We can close this socket when gathering is complete.
 
   // TODO: We need to stay in this loop long enough for the recv hook to trigger.
-  while (web_socket.IsOpen() || peer->IsConnected())
+
+  while (web_socket.IsOpen())
   {
-    // TODO: remove hax
+    // TODO: Jank
     const auto message = web_socket.Read();
-    if (message.empty())
-      continue;
+    if (!message)
+      break;
 
-    INFO_LOG_FMT(NETPLAY, "WS: {}", message);
-
-    const auto msg_obj = ParseJsonObject(message);
+    const auto msg_obj = ParseJsonObject(*message);
     if (!msg_obj)
-      continue;
+      break;
 
     const auto msg_type = ReadStringFromJson(*msg_obj, "type");
     if (msg_type == "offer")

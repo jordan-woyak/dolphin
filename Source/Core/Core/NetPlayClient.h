@@ -20,6 +20,7 @@
 #include "Common/Event.h"
 #include "Common/SPSCQueue.h"
 #include "Core/NetPlayProto.h"
+#include "Core/NetPlaySignalingServer.h"
 #include "Core/SyncIdentifier.h"
 #include "InputCommon/GCPadStatus.h"
 
@@ -342,6 +343,8 @@ private:
   std::unique_ptr<IOS::HLE::FS::FileSystem> m_wii_sync_fs;
   std::vector<u64> m_wii_sync_titles;
   std::string m_wii_sync_redirect_folder;
+
+  SignalingClient m_signaling_client;
 
   std::vector<Common::EventHook> m_hooks;
 };

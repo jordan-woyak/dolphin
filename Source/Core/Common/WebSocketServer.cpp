@@ -38,11 +38,17 @@ bool WebSocketRequest::Send(std::span<const u8> message)
   return m_impl->m_web_socket.send(reinterpret_cast<const char*>(message.data()), message.size());
 }
 
-std::string WebSocketRequest::Read()
+void WebSocketRequest::SetReadTimeout(DT timeout)
+{
+  m_impl->m_web_socket.set_read_timeout(timeout);
+}
+
+std::optional<std::string> WebSocketRequest::Read()
 {
   std::string result;
-  m_impl->m_web_socket.read(result);
-  return result;
+  if (m_impl->m_web_socket.read(result) != httplib::ws::ReadResult::Fail)
+    return result;
+  return std::nullopt;
 }
 
 WebSocketRequest::WebSocketRequest(std::string_view path) : m_path{path}
@@ -171,11 +177,17 @@ bool WebSocketClient::Send(std::span<const u8> message)
   return m_impl->m_client.send(reinterpret_cast<const char*>(message.data()), message.size());
 }
 
-std::string WebSocketClient::Read()
+void WebSocketClient::SetReadTimeout(DT timeout)
+{
+  m_impl->m_client.set_read_timeout(timeout);
+}
+
+std::optional<std::string> WebSocketClient::Read()
 {
   std::string result;
-  m_impl->m_client.read(result);
-  return result;
+  if (m_impl->m_client.read(result) != httplib::ws::ReadResult::Fail)
+    return result;
+  return std::nullopt;
 }
 
 }  // namespace Common

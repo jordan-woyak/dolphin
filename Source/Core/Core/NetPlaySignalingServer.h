@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <future>
+
 #include "Common/WebSocketServer.h"
 #include "Core/NetPlayProto.h"
 
@@ -14,20 +16,16 @@ namespace NetPlay
 class SignalingClient
 {
 public:
-  SignalingClient(const std::string& address);
+  SignalingClient();
   ~SignalingClient();
+
+  std::future<std::shared_ptr<NetPlay::PeerConnection>>
+  MakePeerConnection(const std::string& address, u16 port);
 
 private:
   struct Impl;
   std::unique_ptr<Impl> m_impl;
-
-  // TODO: Put inside Impl ?
-  Common::WebSocketClient m_client;
 };
-
-// TODO: Change this API
-std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address,
-                                                               u16 port);
 
 // TODO: Make this also handle direct and outgoing connections
 class SignalingServer
