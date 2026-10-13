@@ -93,7 +93,7 @@ NetPlayClient::~NetPlayClient()
     if (m_game_digest_thread.joinable())
       m_game_digest_thread.join();
     m_do_loop.Clear();
-    // m_thread.join();
+    m_thread.join();
 
     m_chunked_data_receive_queue.clear();
     m_dialog->HideChunkedProgressDialog();
@@ -111,6 +111,7 @@ NetPlayClient::NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connec
   m_dialog->Update();
 
   m_is_connected = true;
+  m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
 
   m_hooks.emplace_back(
       m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
@@ -133,13 +134,7 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
 
   m_peer_connection = std::move(peer_connection);
 
-  // TODO: Redundant logic.
-  m_is_connected = true;
-
-  m_hooks.emplace_back(
-      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
-  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
-      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
+  Connect();
 }
 
 bool NetPlayClient::Connect()
@@ -207,7 +202,15 @@ bool NetPlayClient::Connect()
 
   m_dialog->Update();
 
+  // TODO: Redundant logic.
   m_is_connected = true;
+
+  m_hooks.emplace_back(
+      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
+  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
+      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
+
+  m_thread = std::thread(&NetPlayClient::ThreadFunc, this);
 
   return true;
 }
