@@ -209,7 +209,7 @@ protected:
 
   NetPlayUI* m_dialog = nullptr;
 
-  std::unique_ptr<PeerConnection> m_peer_connection;
+  std::shared_ptr<PeerConnection> m_peer_connection;
   std::thread m_thread;
 
   SyncIdentifier m_selected_game;
