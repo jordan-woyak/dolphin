@@ -1476,12 +1476,12 @@ void NetPlayClient::ThreadFunc()
 
     while (!m_async_queue.Empty())
     {
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event.");
+      DEBUG_LOG_FMT(NETPLAY, "Processing async queue event.");
       {
         auto& e = m_async_queue.Front();
         Send(e.packet, e.channel_id);
       }
-      INFO_LOG_FMT(NETPLAY, "Processing async queue event done.");
+      DEBUG_LOG_FMT(NETPLAY, "Processing async queue event done.");
       m_async_queue.Pop();
     }
   }
