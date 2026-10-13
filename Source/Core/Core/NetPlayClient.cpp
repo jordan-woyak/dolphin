@@ -124,7 +124,7 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
                              std::string name)
     : m_dialog(dialog), m_player_name(std::move(name))
 {
-  auto peer_connection = MakeICEPeerConnection(fmt::format("{}:{}", address, port));
+  auto peer_connection = MakeICEPeerConnection(address, port);
 
   if (!peer_connection->IsConnected())
   {

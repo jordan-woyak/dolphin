@@ -26,7 +26,8 @@ private:
 };
 
 // TODO: Change this API
-std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address);
+std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address,
+                                                               u16 port);
 
 // TODO: Make this also handle direct and outgoing connections
 class SignalingServer

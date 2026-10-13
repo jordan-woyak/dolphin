@@ -14,43 +14,10 @@
 namespace
 {
 
-// TODO: All this nonsense can be relocated if the PeerConnection itself is shared.
-struct DynamicJuiceCallbacks
-{
-  Common::HookableEvent<juice_state_t> state_changed;
-  Common::HookableEvent<const char*> candidate;
-  Common::HookableEvent<const char*, unsigned long> recv;
-};
-
-template <auto MemFunc>
-static auto WrapCall()
-{
-  return [](juice_agent_t*, auto... args) {
-    auto* const last_argument = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
-    auto* const user_ptr = static_cast<DynamicJuiceCallbacks*>(last_argument);
-    [&]<std::size_t... I>(std::index_sequence<I...>) {
-      std::invoke(MemFunc, user_ptr).Trigger(std::get<I>(std::forward_as_tuple(args...))...);
-    }(std::make_index_sequence<sizeof...(args) - 1>{});
-  };
-}
-
 // FYI: juice forbids `juice_destroy` within its own callbacks which is majorly inconvenient.
 // We have a separate cleanup thread to deal with this.
 // TODO: Actually do that.
-using SharedJuiceAgent = std::shared_ptr<juice_agent_t>;
-
-SharedJuiceAgent MakeSharedJuiceAgent(juice_config_t* config,
-                                      std::shared_ptr<DynamicJuiceCallbacks> callbacks)
-{
-  config->cb_state_changed = WrapCall<&DynamicJuiceCallbacks::state_changed>();
-  config->cb_candidate = WrapCall<&DynamicJuiceCallbacks::candidate>();
-  config->cb_recv = WrapCall<&DynamicJuiceCallbacks::recv>();
-
-  config->user_ptr = callbacks.get();
-
-  return SharedJuiceAgent{juice_create(config),
-                          [callbacks](juice_agent_t* agent) { juice_destroy(agent); }};
-}
+using UniqueJuiceAgent = std::unique_ptr<juice_agent_t, Common::InvokerOf<juice_destroy>>;
 
 // TODO: /ws maybe ? or /ice or /traversal
 constexpr auto SIGNALING_ENDPOINT = "/signaling";
@@ -82,17 +49,17 @@ std::optional<picojson::object> ParseJsonObject(const std::string& message)
 class ICEPeerConnection : public NetPlay::PeerConnection
 {
 private:
-  // template <auto MemFunc>
-  // static auto WrapCall()
-  // {
-  //   return [](juice_agent_t*, auto... args) {
-  //     auto* const last_argument = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
-  //     auto* const user_ptr = static_cast<ICEPeerConnection*>(last_argument);
-  //     [&]<std::size_t... I>(std::index_sequence<I...>) {
-  //       std::invoke(MemFunc, user_ptr, std::get<I>(std::forward_as_tuple(args...))...);
-  //     }(std::make_index_sequence<sizeof...(args) - 1>{});
-  //   };
-  // }
+  template <auto MemFunc>
+  static auto WrapCall()
+  {
+    return [](juice_agent_t*, auto... args) {
+      auto* const last_argument = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
+      auto* const user_ptr = static_cast<ICEPeerConnection*>(last_argument);
+      [&]<std::size_t... I>(std::index_sequence<I...>) {
+        std::invoke(MemFunc, user_ptr, std::get<I>(std::forward_as_tuple(args...))...);
+      }(std::make_index_sequence<sizeof...(args) - 1>{});
+    };
+  }
 
 public:
   ICEPeerConnection()
@@ -111,18 +78,12 @@ public:
     // config.local_port_range_begin = 60000;
     // config.local_port_range_end = 61000;
 
-    // config.cb_state_changed = WrapCall<&ICEPeerConnection::OnStateChanged>();
-    // config.cb_candidate = WrapCall<&ICEPeerConnection::OnCandidate>();
-    // config.cb_recv = WrapCall<&ICEPeerConnection::OnRecv>();
-    // config.user_ptr = this;
+    config.cb_state_changed = WrapCall<&ICEPeerConnection::OnStateChanged>();
+    config.cb_candidate = WrapCall<&ICEPeerConnection::OnCandidate>();
+    config.cb_recv = WrapCall<&ICEPeerConnection::OnRecv>();
+    config.user_ptr = this;
 
-    m_callbacks = std::make_shared<DynamicJuiceCallbacks>();
-    m_agent = MakeSharedJuiceAgent(&config, m_callbacks);
-
-    // TODO: Janky
-    m_recv_hook = m_callbacks->recv.Register([this](const char* data, unsigned long size) {
-      on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
-    });
+    m_agent.reset(juice_create(&config));
   }
 
   void GatherCandidates() { juice_gather_candidates(m_agent.get()); }
@@ -143,50 +104,40 @@ public:
     juice_send(m_agent.get(), reinterpret_cast<const char*>(data.data()), data.size());
   }
 
-  void Disconnect() override { m_agent.reset(); }
+  void Disconnect() override { m_is_connected = false; }
 
-  bool IsConnected() const override
-  {
-    // TODO: This needs to operate differently if we can't call destroy when we want..
-    const auto state = juice_get_state(m_agent.get());
-    return state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
-  }
+  bool IsConnected() const override { return m_is_connected; }
 
-  auto& GetCandidateEvent() { return m_callbacks->candidate; }
-  auto& GetStateChangeEvent() { return m_callbacks->state_changed; }
-  auto& GetRecvEvent() { return m_callbacks->recv; }
+  // TODO: kill
+  auto& GetCandidateEvent() { return on_candidate; }
+  auto& GetStateChangeEvent() { return on_state_changed; }
+  auto& GetRecvEvent() { return on_receive; }
 
   // void AddRemoteCandidate(const char* sdp) { juice_add_remote_candidate(m_agent.get(), sdp); }
 
+  Common::HookableEvent<juice_state_t> on_state_changed;
+  Common::HookableEvent<const char*> on_candidate;
+
 private:
-  // void OnStateChanged(juice_state_t state)
-  // {
-  //   INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
+  void OnStateChanged(juice_state_t state)
+  {
+    INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
 
-  //   // TODO: Handle other states ?
-  //   if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
-  //   {
-  //     // TODO: Is this appropriate, there may be more candidates coming in..
-  //     m_signaling_web_socket->Close();
-  //   }
-  // }
+    m_is_connected = state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
 
-  // void OnCandidate(const char* sdp)
-  // {
-  //   picojson::object obj;
-  //   obj.emplace("type", "candidate");
-  //   obj.emplace("candidate", sdp);
-  //   m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-  // }
+    // TODO: Prevent connection after external Disconnect call ?
+    on_state_changed.Trigger(state);
+  }
+
+  void OnCandidate(const char* candidate) { on_candidate.Trigger(candidate); }
 
   void OnRecv(const char* data, unsigned long size)
   {
     on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
   }
 
-  std::shared_ptr<DynamicJuiceCallbacks> m_callbacks;
-  SharedJuiceAgent m_agent;
-  Common::EventHook m_recv_hook;
+  std::atomic_bool m_is_connected = false;
+  UniqueJuiceAgent m_agent;
 };
 }  // namespace
 
@@ -197,9 +148,10 @@ struct SignalingClient::Impl
 {
 };
 
-std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address)
+std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address, u16 port)
 {
-  Common::WebSocketClient web_socket{fmt::format("ws://{}{}", address, SIGNALING_ENDPOINT)};
+  Common::WebSocketClient web_socket{
+      fmt::format("ws://{}:{}{}", address, port, SIGNALING_ENDPOINT)};
   auto peer = std::make_shared<ICEPeerConnection>();
 
   // TODO: Allow this WebSocket to keep living and establish candidates.
@@ -211,8 +163,6 @@ std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
   });
 
   const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
-    INFO_LOG_FMT(NETPLAY, "juice state_change: {}", juice_state_to_string(state));
-
     if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
     {
       INFO_LOG_FMT(NETPLAY, "connected !!");
@@ -235,11 +185,11 @@ std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
 
   peer->GatherCandidates();
 
-  // TODO: Manually add a remote candidate based on the IP and port.
-  // Verify this is correct and working..
+  // TODO: Ensure address is resolved.
+  // TODO: Verify this is correct and working..
   // const auto manual_candidate =
-  //     fmt::format("a=candidate:999 1 UDP 2130706431 {} {} typ host", ip_address, port);
-  // juice_add_remote_candidate(m_agent.get(), manual_candidate.c_str());
+  //     fmt::format("a=candidate:999 1 UDP 2130706431 {} {} typ host", address, port);
+  // juice_add_remote_candidate(peer->GetAgent(), manual_candidate.c_str());
 
   while (web_socket.IsOpen())
   {
@@ -305,17 +255,16 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
     web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   });
 
-  Common::EventHook recv_hook =
-      peer->GetRecvEvent().Register([&](const char* data, unsigned long size) {
-        INFO_LOG_FMT(NETPLAY, "recv_hook");
+  Common::EventHook recv_hook = peer->GetRecvEvent().Register([&](std::span<const u8> message) {
+    INFO_LOG_FMT(NETPLAY, "recv_hook");
 
-        // TODO: Is the test necessary ?
-        if (peer->IsConnected())
-        {
-          recv_hook.reset();
-          m_new_peer_connection_callback(peer, Common::AsU8Span(std::span{data, size}));
-        }
-      });
+    // TODO: Is the test necessary ?
+    if (peer->IsConnected())
+    {
+      recv_hook.reset();
+      m_new_peer_connection_callback(peer, message);
+    }
+  });
 
   const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
     INFO_LOG_FMT(NETPLAY, "juice state_change: {}", juice_state_to_string(state));
