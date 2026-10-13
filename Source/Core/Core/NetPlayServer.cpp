@@ -22,7 +22,6 @@
 #include <fmt/ranges.h>
 
 #include "Common/CommonPaths.h"
-#include "Common/ENet.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
@@ -138,6 +137,10 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
   internal_player.peer_connection = std::move(peer_connection),
 
   HandleNewPlayer(std::move(internal_player));
+
+  // TODO: Jank..
+  m_hooks.emplace_back(m_signaling_server.on_peer_connection.Register(
+      [this](std::unique_ptr<PeerConnection>* new_peer) { OnConnect(std::move(*new_peer)); }));
 }
 
 template <typename T>
@@ -215,7 +218,7 @@ void NetPlayServer::ThreadFunc()
       DEBUG_LOG_FMT(NETPLAY, "Processing async queue event.");
       {
         std::lock_guard lkp(m_crit.players);
-        INFO_LOG_FMT(NETPLAY, "Locked player mutex.");
+        DEBUG_LOG_FMT(NETPLAY, "Locked player mutex.");
         auto& e = m_async_queue.Front();
         if (e.target_mode == TargetMode::Only)
         {
@@ -281,10 +284,20 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
     spac << x;
 }
 
-// called from ---NETPLAY--- thread.. TODO: Always ?
-ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
-                                         sf::Packet& received_packet)
+ConnectionError NetPlayServer::OnConnect(std::unique_ptr<PeerConnection> incoming_connection)
 {
+  sf::Packet received_packet;
+
+  // TODO: janky and racy
+  {
+    Common::Event event;
+    const auto hook = incoming_connection->on_receive.Register([&](std::span<const u8> message) {
+      received_packet.append(message.data(), message.size());
+      event.Set();
+    });
+    event.WaitFor(std::chrono::seconds{1});
+  }
+
   std::string netplay_version;
   received_packet >> netplay_version;
   if (netplay_version != Common::GetScmRevGitStr())

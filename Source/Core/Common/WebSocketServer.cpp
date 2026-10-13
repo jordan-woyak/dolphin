@@ -14,6 +14,8 @@ namespace Common
 
 // TODO: Add a name parameter for all the logging.
 
+WebSocket::~WebSocket() = default;
+
 struct WebSocketRequest::Impl
 {
   httplib::ws::WebSocket& m_web_socket;
@@ -24,6 +26,11 @@ WebSocketRequest::~WebSocketRequest() = default;
 bool WebSocketRequest::IsOpen() const
 {
   return m_impl->m_web_socket.is_open();
+}
+
+void WebSocketRequest::Close()
+{
+  m_impl->m_web_socket.close();
 }
 
 bool WebSocketRequest::Send(std::span<const u8> message)

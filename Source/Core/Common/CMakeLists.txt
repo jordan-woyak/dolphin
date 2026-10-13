@@ -58,8 +58,6 @@ add_library(common
   DirectIOFile.h
   DynamicLibrary.cpp
   DynamicLibrary.h
-  ENet.cpp
-  ENet.h
   EnumFormatter.h
   EnumMap.h
   Event.h

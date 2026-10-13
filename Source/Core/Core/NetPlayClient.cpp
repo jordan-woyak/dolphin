@@ -132,6 +132,14 @@ NetPlayClient::NetPlayClient(const std::string& address, const u16 port, NetPlay
   }
 
   m_peer_connection = std::move(peer_connection);
+
+  // TODO: Redundant logic.
+  m_is_connected = true;
+
+  m_hooks.emplace_back(
+      m_peer_connection->on_receive.Register(std::bind_front(&NetPlayClient::HandleReceive, this)));
+  m_hooks.emplace_back(m_peer_connection->on_disconnect.Register(
+      std::bind_front(&NetPlayClient::HandleDisconnect, this)));
 }
 
 bool NetPlayClient::Connect()

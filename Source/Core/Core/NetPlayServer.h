@@ -74,6 +74,7 @@ public:
   bool is_connected = false;
 
 private:
+  // TODO: Player base is maybe jank
   class Client : public Player
   {
   public:
@@ -126,8 +127,7 @@ private:
             u8 channel_id = DEFAULT_CHANNEL);
 
 public:
-  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection,
-                            sf::Packet& received_packet);
+  ConnectionError OnConnect(std::unique_ptr<PeerConnection> incoming_connection);
 
   void HandleNewPlayer(Client new_player);
 
@@ -213,5 +213,8 @@ private:
   NetPlayIndex m_index;
 
   std::shared_ptr<NetPlayClient> m_internal_client;
+
+  // TODO: Jank..
+  std::vector<Common::EventHook> m_hooks;
 };
 }  // namespace NetPlay

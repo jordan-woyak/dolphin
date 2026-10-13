@@ -86,30 +86,52 @@ public:
     m_agent.reset(juice_create(&config));
   }
 
-  // Returns the local description.
+  // Incoming connection attempt.
   void HandleOffer(const std::string& remote_sdp)
   {
     Config();
 
     juice_set_remote_description(m_agent.get(), remote_sdp.c_str());
 
-    // TODO: build the string in place.
-    char sdp[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
+    {
+      // TODO: build the string in place.
+      char sdp[JUICE_MAX_SDP_STRING_LEN];
+      juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
 
-    picojson::object obj;
-    obj.emplace("type", "answer");
-    obj.emplace("sdp", sdp);
-    m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+      picojson::object obj;
+      obj.emplace("type", "answer");
+      obj.emplace("sdp", sdp);
+      m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+    }
 
     juice_gather_candidates(m_agent.get());
+
+    while (m_signaling_web_socket->IsOpen())
+    {
+      // TODO: Jank
+      const auto message = m_signaling_web_socket->Read();
+      if (message.empty())
+        continue;
+
+      const auto obj = ParseJsonObject(message);
+      if (!obj)
+        continue;
+
+      const auto msg_type = ReadStringFromJson(*obj, "type");
+      if (msg_type == "candidate")
+      {
+        if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
+          juice_add_remote_candidate(m_agent.get(), candidate->c_str());
+      }
+    }
   }
 
-  void AddRemoteCandidate(const std::string& candidate)
-  {
-    juice_add_remote_candidate(m_agent.get(), candidate.c_str());
-  }
+  //   void AddRemoteCandidate(const std::string& candidate)
+  //   {
+  //     juice_add_remote_candidate(m_agent.get(), candidate.c_str());
+  //   }
 
+  // Make an outgoing connection attempt.
   void SendOffer()
   {
     Config();
@@ -119,10 +141,10 @@ public:
     if (!m_signaling_web_socket->IsOpen())
       return;
 
-    char sdp[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
-
     {
+      char sdp[JUICE_MAX_SDP_STRING_LEN];
+      juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
+
       picojson::object obj;
       obj.emplace("type", "offer");
       obj.emplace("sdp", sdp);
@@ -145,14 +167,12 @@ public:
       const auto msg_type = ReadStringFromJson(*obj, "type");
       if (msg_type == "answer")
       {
-        const auto sdp = ReadStringFromJson(*obj, "desc");
-        if (sdp)
+        if (const auto sdp = ReadStringFromJson(*obj, "sdp"))
           juice_set_remote_description(m_agent.get(), sdp->c_str());
       }
       else if (msg_type == "candidate")
       {
-        const auto candidate = ReadStringFromJson(*obj, "candidate");
-        if (candidate)
+        if (const auto candidate = ReadStringFromJson(*obj, "candidate"))
           juice_add_remote_candidate(m_agent.get(), candidate->c_str());
       }
     }
@@ -171,7 +191,8 @@ public:
 
   bool IsConnected() const override
   {
-    return juice_get_state(m_agent.get()) == JUICE_STATE_CONNECTED;
+    const auto state = juice_get_state(m_agent.get());
+    return state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
   }
 
 private:
@@ -179,8 +200,10 @@ private:
   {
     INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
 
+    // TODO: Handle other states ?
     if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
     {
+      // TODO: Is this appropriate, there may be more candidates coming in..
       m_signaling_web_socket->Close();
     }
   }
@@ -276,13 +299,14 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
       {
         peer = std::make_unique<ICEPeerConnection>(&web_socket);
         peer->HandleOffer(*sdp);
+
+        if (peer->IsConnected())
+        {
+          // TODO: Jank
+          std::unique_ptr<PeerConnection> new_peer = std::move(peer);
+          on_peer_connection.Trigger(&new_peer);
+        }
       }
-    }
-    else if (peer && msg_type == "candidate")
-    {
-      const auto candidate = ReadStringFromJson(*obj, "candidate");
-      if (candidate)
-        peer->AddRemoteCandidate(*candidate);
     }
   }
 }

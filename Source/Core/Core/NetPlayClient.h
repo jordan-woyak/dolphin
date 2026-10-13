@@ -114,10 +114,11 @@ public:
   void HandleReceive(std::span<const u8>);
   void HandleDisconnect();
 
-  // When hosting:
+  // Hosting.
   NetPlayClient(std::unique_ptr<InternalPeerConnection> peer_connection, NetPlayUI* dialog,
                 Player player);
 
+  // Joining.
   NetPlayClient(const std::string& address, u16 port, NetPlayUI* dialog, std::string name);
   ~NetPlayClient();
 

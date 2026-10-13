@@ -19,7 +19,7 @@ namespace Common
 class WebSocket
 {
 public:
-  virtual ~WebSocket() = 0;
+  virtual ~WebSocket();
 
   virtual bool IsOpen() const = 0;
 
