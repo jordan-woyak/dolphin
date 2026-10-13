@@ -6,6 +6,7 @@
 #include "Common/UPnP.h"
 
 #include "Common/Logging/Log.h"
+#include "Common/SmallVector.h"
 
 #include <array>
 #include <cstdlib>
@@ -17,10 +18,20 @@
 #include <upnpcommands.h>
 #include <upnperrors.h>
 
+namespace
+{
+struct PortMapping
+{
+  u16 port;
+  const char* protocol;
+};
+
+Common::SmallVector<PortMapping, 2> g_mapped_ports;
+}  // namespace
+
 static UPNPUrls s_urls;
 static IGDdatas s_data;
 static std::array<char, 20> s_our_ip;
-static u16 s_mapped = 0;
 static std::thread s_thread;
 
 // called from ---UPnP--- thread
@@ -115,10 +126,10 @@ static bool InitUPnP()
 // hanging, the NVRAM will fill with portmappings, and eventually all UPnP
 // requests will fail silently, with the only recourse being a factory reset.
 // --
-static bool UnmapPort(const u16 port)
+static bool UnmapPort(const u16 port, const char* protocol)
 {
   std::string port_str = std::to_string(port);
-  UPNP_DeletePortMapping(s_urls.controlURL, s_data.first.servicetype, port_str.c_str(), "UDP",
+  UPNP_DeletePortMapping(s_urls.controlURL, s_data.first.servicetype, port_str.c_str(), protocol,
                          nullptr);
 
   return true;
@@ -126,41 +137,44 @@ static bool UnmapPort(const u16 port)
 
 // called from ---UPnP--- thread
 // Attempt to portforward!
-static bool MapPort(const char* addr, const u16 port)
+static bool MapPort(const char* addr, const u16 port, const char* protocol)
 {
-  if (s_mapped > 0)
-    UnmapPort(s_mapped);
-
   std::string port_str = std::to_string(port);
   int result = UPNP_AddPortMapping(
       s_urls.controlURL, s_data.first.servicetype, port_str.c_str(), port_str.c_str(), addr,
-      (std::string("dolphin-emu UDP on ") + addr).c_str(), "UDP", nullptr, nullptr);
+      fmt::format("dolphin-emu {} on {}", protocol, addr).c_str(), protocol, nullptr, nullptr);
 
-  if (result != 0)
-    return false;
+  return result == 0;
+}
 
-  s_mapped = port;
-
-  return true;
+static void UnmapAllMappedPorts()
+{
+  for (auto&& mapping : g_mapped_ports)
+    UnmapPort(mapping.port, mapping.protocol);
+  g_mapped_ports.clear();
 }
 
 // UPnP thread: try to map a port
 static void MapPortThread(const u16 port)
 {
-  if (InitUPnP() && MapPort(s_our_ip.data(), port))
-  {
-    NOTICE_LOG_FMT(NETPLAY, "Successfully mapped port {} to {}.", port, s_our_ip.data());
+  UnmapAllMappedPorts();
+
+  if (!InitUPnP())
     return;
+
+  for (const char* protocol : {"UDP", "TCP"})
+  {
+    if (MapPort(s_our_ip.data(), port, protocol))
+    {
+      NOTICE_LOG_FMT(NETPLAY, "Successfully mapped {} port {} to {}.", protocol, port,
+                     s_our_ip.data());
+      g_mapped_ports.emplace_back(port, protocol);
+    }
+    else
+    {
+      WARN_LOG_FMT(NETPLAY, "Failed to map {} port {} to {}.", protocol, port, s_our_ip.data());
+    }
   }
-
-  WARN_LOG_FMT(NETPLAY, "Failed to map port {} to {}.", port, s_our_ip.data());
-}
-
-// UPnP thread: try to unmap a port
-static void UnmapPortThread()
-{
-  if (s_mapped > 0)
-    UnmapPort(s_mapped);
 }
 
 void Common::UPnP::TryPortmapping(u16 port)
@@ -174,7 +188,7 @@ void Common::UPnP::StopPortmapping()
 {
   if (s_thread.joinable())
     s_thread.join();
-  s_thread = std::thread(&UnmapPortThread);
+  s_thread = std::thread(&UnmapAllMappedPorts);
   s_thread.join();
 }
 
