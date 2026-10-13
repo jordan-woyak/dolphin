@@ -204,6 +204,8 @@ std::shared_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string
   });
 
   const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
+    INFO_LOG_FMT(NETPLAY, "juice state_change: {}", juice_state_to_string(state));
+
     if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
     {
       INFO_LOG_FMT(NETPLAY, "connected !!");
@@ -298,17 +300,24 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
   Common::EventHook recv_hook =
       peer->GetRecvEvent().Register([&](const char* data, unsigned long size) {
+        INFO_LOG_FMT(NETPLAY, "recv_hook");
+
         // TODO: Is the test necessary ?
         if (peer->IsConnected())
         {
           recv_hook.reset();
-          m_new_peer_connection_callback(std::move(peer), Common::AsU8Span(std::span{data, size}));
+          m_new_peer_connection_callback(peer, Common::AsU8Span(std::span{data, size}));
         }
       });
 
+  const auto state_change_hook = peer->GetStateChangeEvent().Register([&](juice_state_t state) {
+    INFO_LOG_FMT(NETPLAY, "juice state_change: {}", juice_state_to_string(state));
+  });
+
   // TODO: We can close this socket when gathering is complete.
 
-  while (web_socket.IsOpen())
+  // TODO: We need to stay in this loop long enough for the recv hook to trigger.
+  while (web_socket.IsOpen() || peer->IsConnected())
   {
     // TODO: remove hax
     const auto message = web_socket.Read();
@@ -343,6 +352,8 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
         juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
     }
   }
+
+  INFO_LOG_FMT(NETPLAY, "SignalingServer leaving handler !");
 }
 
 }  // namespace NetPlay
