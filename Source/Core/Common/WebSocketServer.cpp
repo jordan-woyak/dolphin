@@ -14,28 +14,32 @@ namespace Common
 
 // TODO: Add a name parameter for all the logging.
 
-struct WebSocket::Impl
+struct WebSocketRequest::Impl
 {
   httplib::ws::WebSocket& m_web_socket;
 };
 
-WebSocket::~WebSocket() = default;
+WebSocketRequest::~WebSocketRequest() = default;
 
-bool WebSocket::IsOpen() const
+bool WebSocketRequest::IsOpen() const
 {
   return m_impl->m_web_socket.is_open();
 }
 
-bool WebSocket::Send(std::span<const u8> message)
+bool WebSocketRequest::Send(std::span<const u8> message)
 {
   return m_impl->m_web_socket.send(reinterpret_cast<const char*>(message.data()), message.size());
 }
 
-std::string WebSocket::Read()
+std::string WebSocketRequest::Read()
 {
   std::string result;
   m_impl->m_web_socket.read(result);
   return result;
+}
+
+WebSocketRequest::WebSocketRequest(std::string_view path) : m_path{path}
+{
 }
 
 struct WebSocketServer::Impl
@@ -99,10 +103,9 @@ struct WebSocketServer::Impl
     }};
 
     WebSocketRequest ws_req{request.path};
-    WebSocket ws;
-    ws.m_impl = std::make_unique<WebSocket::Impl>(web_socket);
+    ws_req.m_impl = std::make_unique<WebSocketRequest::Impl>(web_socket);
 
-    std::invoke(handler, ws_req, ws);
+    std::invoke(handler, ws_req);
   }
 
   httplib::Server m_server;

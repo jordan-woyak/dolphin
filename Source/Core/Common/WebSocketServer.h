@@ -16,36 +16,66 @@
 namespace Common
 {
 
-class WebSocketServer;
-
 class WebSocket
 {
-  friend WebSocketServer;
-
 public:
-  ~WebSocket();
+  virtual ~WebSocket() = 0;
 
-  bool IsOpen() const;
+  virtual bool IsOpen() const = 0;
 
-  bool Send(std::span<const u8> message);
+  virtual bool Send(std::span<const u8> message) = 0;
 
   // TODO: Better interface.
-  std::string Read();
+  virtual std::string Read() = 0;
+
+  virtual void Close() = 0;
+};
+
+class WebSocketClient : public WebSocket
+{
+public:
+  WebSocketClient(const std::string& address);
+  ~WebSocketClient() override;
+
+  bool Send(std::span<const u8> message) override;
+
+  std::string Read() override;
+
+  bool IsOpen() const override;
+
+  void Close() override;
 
 private:
   struct Impl;
   std::unique_ptr<Impl> m_impl;
 };
 
-class WebSocketRequest
+class WebSocketServer;
+
+// TODO: Better name
+class WebSocketRequest : public WebSocket
 {
+  friend WebSocketServer;
+
 public:
-  WebSocketRequest(std::string_view path) : m_path{path} {}
+  WebSocketRequest(std::string_view path);
+  ~WebSocketRequest() override;
 
   std::string_view GetPath() const { return m_path; }
 
+  bool Send(std::span<const u8> message) override;
+
+  std::string Read() override;
+
+  bool IsOpen() const override;
+
+  void Close() override;
+
 private:
   std::string_view m_path;
+
+  struct Impl;
+  std::unique_ptr<Impl> m_impl;
 };
 
 class WebSocketServer
@@ -54,32 +84,12 @@ public:
   WebSocketServer();
   ~WebSocketServer();
 
-  using HandlerType = std::function<void(const WebSocketRequest&, WebSocket&)>;
+  using HandlerType = std::function<void(WebSocketRequest&)>;
 
   // TODO: Rename
   void ServePath(const std::string& path, HandlerType handler);
 
   void Start(std::string_view ip, u16 port);
-
-private:
-  struct Impl;
-  std::unique_ptr<Impl> m_impl;
-};
-
-class WebSocketClient
-{
-public:
-  WebSocketClient(const std::string& address);
-  ~WebSocketClient();
-
-  bool Send(std::span<const u8> message);
-
-  // TODO: Better interface.
-  std::string Read();
-
-  bool IsOpen() const;
-
-  void Close();
 
 private:
   struct Impl;

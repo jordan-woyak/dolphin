@@ -61,16 +61,7 @@ private:
   }
 
 public:
-  ICEPeerConnection() : m_signaling_client{""}  // TODO: Dumb..
-  {
-    // TODO: Adjust the callbacks !
-  }
-
-  ICEPeerConnection(const std::string& address)
-      : m_signaling_client{fmt::format("ws://{}{}", address, SIGNALING_ENDPOINT)}
-  {
-    // TODO: Adjust the callbacks !
-  }
+  ICEPeerConnection(Common::WebSocket* web_socket) : m_signaling_web_socket{web_socket} {}
 
   void Config()
   {
@@ -96,7 +87,7 @@ public:
   }
 
   // Returns the local description.
-  std::string Offer(const std::string& remote_sdp)
+  void HandleOffer(const std::string& remote_sdp)
   {
     Config();
 
@@ -106,7 +97,12 @@ public:
     char sdp[JUICE_MAX_SDP_STRING_LEN];
     juice_get_local_description(m_agent.get(), sdp, JUICE_MAX_SDP_STRING_LEN);
 
-    return sdp;
+    picojson::object obj;
+    obj.emplace("type", "answer");
+    obj.emplace("sdp", sdp);
+    m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+
+    juice_gather_candidates(m_agent.get());
   }
 
   void AddRemoteCandidate(const std::string& candidate)
@@ -114,13 +110,13 @@ public:
     juice_add_remote_candidate(m_agent.get(), candidate.c_str());
   }
 
-  void Connect()
+  void SendOffer()
   {
     Config();
 
     // TODO: Ensure juice produces no traffic when we exit here.
 
-    if (!m_signaling_client.IsOpen())
+    if (!m_signaling_web_socket->IsOpen())
       return;
 
     char sdp[JUICE_MAX_SDP_STRING_LEN];
@@ -130,15 +126,15 @@ public:
       picojson::object obj;
       obj.emplace("type", "offer");
       obj.emplace("sdp", sdp);
-      m_signaling_client.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+      m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
     }
 
     juice_gather_candidates(m_agent.get());
 
-    while (m_signaling_client.IsOpen())
+    while (m_signaling_web_socket->IsOpen())
     {
       // TODO: Jank
-      const auto message = m_signaling_client.Read();
+      const auto message = m_signaling_web_socket->Read();
       if (message.empty())
         continue;
 
@@ -181,9 +177,11 @@ public:
 private:
   void OnStateChanged(juice_state_t state)
   {
+    INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
+
     if (state == JUICE_STATE_CONNECTED || state == JUICE_STATE_FAILED)
     {
-      m_signaling_client.Close();
+      m_signaling_web_socket->Close();
     }
   }
 
@@ -192,7 +190,7 @@ private:
     picojson::object obj;
     obj.emplace("type", "candidate");
     obj.emplace("candidate", candidate);
-    m_signaling_client.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+    m_signaling_web_socket->Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
   }
 
   void OnGatheringDone() {}
@@ -202,8 +200,7 @@ private:
     on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
   }
 
-  // TODO: This needs to support using a WebSocket from the SignalingServer...
-  Common::WebSocketClient m_signaling_client;
+  Common::WebSocket* m_signaling_web_socket{};
   UniqueJuiceAgent m_agent;
 };
 }  // namespace
@@ -218,8 +215,13 @@ struct SignalingClient::Impl
 
 std::unique_ptr<NetPlay::PeerConnection> MakeICEPeerConnection(const std::string& address)
 {
-  auto result = std::make_unique<ICEPeerConnection>(address);
-  result->Connect();
+  Common::WebSocketClient client{fmt::format("ws://{}{}", address, SIGNALING_ENDPOINT)};
+  auto result = std::make_unique<ICEPeerConnection>(&client);
+
+  result->SendOffer();
+
+  // TODO: Wait..
+
   return result;
 }
 
@@ -243,7 +245,7 @@ SignalingServer::SignalingServer(const std::string& ip_address, u16 port)
   m_server.Start(ip_address, port);
 }
 
-void SignalingServer::Handler(const Common::WebSocketRequest&, Common::WebSocket& web_socket)
+void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 {
   INFO_LOG_FMT(NETPLAY, "SignalingServer got connection !");
 
@@ -272,8 +274,8 @@ void SignalingServer::Handler(const Common::WebSocketRequest&, Common::WebSocket
       const auto sdp = ReadStringFromJson(*obj, "sdp");
       if (sdp)
       {
-        peer = std::make_unique<ICEPeerConnection>();
-        peer->Offer(*sdp);
+        peer = std::make_unique<ICEPeerConnection>(&web_socket);
+        peer->HandleOffer(*sdp);
       }
     }
     else if (peer && msg_type == "candidate")

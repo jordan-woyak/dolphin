@@ -41,7 +41,7 @@ public:
   Common::HookableEvent<std::unique_ptr<NetPlay::PeerConnection>*> on_peer_connection;
 
 private:
-  void Handler(const Common::WebSocketRequest&, Common::WebSocket& web_socket);
+  void Handler(Common::WebSocketRequest&);
 
   Common::WebSocketServer m_server;
 };
