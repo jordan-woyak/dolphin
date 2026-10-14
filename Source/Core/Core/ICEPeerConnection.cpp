@@ -39,8 +39,6 @@ void ICEPeerConnection::HandleSDPJsonMessage(const picojson::object& msg_obj)
 
       if (state == JUICE_STATE_DISCONNECTED)
         SendDescription();
-      else
-        GatherCandidates();
     }
   }
   else if (*msg_type == "candidate")

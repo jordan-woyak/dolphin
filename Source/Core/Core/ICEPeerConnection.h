@@ -42,11 +42,9 @@ public:
     juice_config_t config{};
 
     // TODO:
-    // STUN server example
     // config.stun_server_host = "stun.l.google.com";
     // config.stun_server_port = 19302;
 
-    // TODO:
     config.concurrency_mode = JUICE_CONCURRENCY_MODE_POLL;
 
     // TODO:

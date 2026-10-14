@@ -75,89 +75,6 @@ std::optional<picojson::object> ParseJsonObject(const std::string& message)
 //   std::map<std::string, std::shared_ptr<NetPlay::ICEPeerConnection>> m_peers;
 // };
 
-struct ICEJsonMessageHandler
-{
-  std::map<std::string, Common::MoveOnlyFunction<void(picojson::object)>> message_handlers;
-
-  bool HandleMessage(picojson::object msg_obj)
-  {
-    const auto msg_type = ReadStringFromJson(msg_obj, "type");
-    if (!msg_type)
-      return false;
-
-    const auto it = message_handlers.find(*msg_type);
-    if (it == message_handlers.end())
-      return false;
-
-    std::invoke(it->second, std::move(msg_obj));
-    return true;
-  }
-};
-
-struct SDPJsonHandlingICEPeerConnection
-{
-  std::shared_ptr<NetPlay::ICEPeerConnection> peer;
-
-  ICEJsonMessageHandler handler;
-
-  Common::MoveOnlyFunction<void(picojson::object)> send_callback;
-  Common::MoveOnlyFunction<void()> connect_callback;
-  Common::MoveOnlyFunction<void()> recv_callback;
-
-  SDPJsonHandlingICEPeerConnection()
-  {
-    InstallCanidateExchangeHooks();
-
-    handler.message_handlers["description"] = [&](const picojson::object& msg_obj) {
-      INFO_LOG_FMT(NETPLAY, "remote description !!");
-
-      if (const auto remote_sdp = ReadStringFromJson(msg_obj, "sdp"))
-      {
-        // TODO: Semi jank
-        peer->DestroyAndRecreateAgent();
-
-        juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
-
-        SendDescription();
-      }
-    };
-  }
-
-  void SendDescription()
-  {
-    // TODO: build a std::string in place.
-    char sdp[JUICE_MAX_SDP_STRING_LEN];
-    juice_get_local_description(peer->GetAgent(), sdp, JUICE_MAX_SDP_STRING_LEN);
-
-    picojson::object obj;
-    obj.emplace("type", "description");
-    obj.emplace("sdp", sdp);
-    send_callback(std::move(obj));
-
-    peer->GatherCandidates();
-  }
-
-  void InstallCanidateExchangeHooks()
-  {
-    // auto hook = peer->on_candidate.Register([&](const char* candidate) {
-    //   INFO_LOG_FMT(NETPLAY, "local candidate: {}", candidate);
-    //   picojson::object obj;
-    //   obj.emplace("type", "candidate");
-    //   obj.emplace("candidate", candidate);
-    //   send_callback(std::move(obj));
-    // });
-
-    // handler.message_handlers["candidate"] = [hook = std::move(hook),
-    //                                          this](const picojson::object& msg_obj) {
-    //   if (const auto candidate = ReadStringFromJson(msg_obj, "candidate"))
-    //   {
-    //     INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
-    //     juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
-    //   }
-    // };
-  }
-};
-
 }  // namespace
 
 namespace NetPlay
@@ -325,9 +242,7 @@ void SignalingServer::IndexThreadFunc(std::string secret)
   // };
 
   using ClientUID = std::string;
-  std::map<ClientUID, SDPJsonHandlingICEPeerConnection> m_peers;
-
-  ICEJsonMessageHandler main_handler;
+  std::map<ClientUID, ICEPeerConnection> m_peers;
 
   // TODO: Instead close the web socket from outside on stop
   web_socket.SetReadTimeout(std::chrono::milliseconds{500});
@@ -349,7 +264,7 @@ void SignalingServer::IndexThreadFunc(std::string secret)
     if (!src)
       continue;
 
-    m_peers[*src].handler.HandleMessage(*obj);
+    m_peers[*src].HandleSDPJsonMessage(*obj);
   }
 }
 
