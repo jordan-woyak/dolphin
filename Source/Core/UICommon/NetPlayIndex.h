@@ -48,6 +48,7 @@ public:
   void Remove();
 
   bool HasActiveSession() const;
+  const std::string& GetSecret() const;
 
   void SetPlayerCount(int player_count);
   void SetInGame(bool in_game);

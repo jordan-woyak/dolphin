@@ -140,6 +140,10 @@ NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI*
 
   m_signaling_server.SetNewPeerConnectionCallback(std::bind_front(&NetPlayServer::OnConnect, this));
   m_signaling_server.Start("127.0.0.1", 2626);
+
+  // TODO: Should it be possible to use the message relay without the server in the list?
+  if (m_index.HasActiveSession())
+    m_signaling_server.ConnectToNetPlayIndex(m_index.GetSecret());
 }
 
 template <typename T>

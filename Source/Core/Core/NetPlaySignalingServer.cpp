@@ -12,6 +12,7 @@
 #include "Common/BitUtils.h"
 #include "Common/JsonUtil.h"
 #include "Common/Logging/Log.h"
+#include "Core/Config/NetplaySettings.h"
 #include "Core/ICEPeerConnection.h"
 
 namespace
@@ -43,20 +44,60 @@ std::optional<picojson::object> ParseJsonObject(const std::string& message)
   return obj;
 }
 
+// TODO:..
 class IcePeerManager
 {
 public:
-  IcePeerManager();
+  IcePeerManager() { m_thread = std::jthread(&IcePeerManager::ThreadFunc, this); }
+
+  std::shared_ptr<NetPlay::ICEPeerConnection> GetOrCreatePeer(const std::string& key)
+  {
+    std::lock_guard lk{m_mutex};
+    return m_peers[key];
+  }
 
 private:
   void ThreadFunc()
   {
     while (!m_thread.get_stop_token().stop_requested())
     {
+      // for (auto&& [key, peer] : m_peers)
+
+      //   while (peer && peer.use_count() > 1)
+
+      //     // TODO: Janky..
+      //     std::this_thread::sleep_for(std::chrono::milliseconds{100});
     }
   }
 
+  std::mutex m_mutex;
   std::jthread m_thread;
+  std::map<std::string, std::shared_ptr<NetPlay::ICEPeerConnection>> m_peers;
+};
+
+struct ICEJsonMessageHandler
+{
+  Common::WebSocket& web_socket;
+
+  std::map<std::string, Common::MoveOnlyFunction<void(const picojson::object&)>> message_handlers;
+
+  void HandleMessage(const std::string& message)
+  {
+    // TODO: Jank
+    const auto msg_obj = ParseJsonObject(message);
+    if (!msg_obj)
+      return;
+
+    const auto msg_type = ReadStringFromJson(*msg_obj, "type");
+    if (!msg_type)
+      return;
+
+    const auto it = message_handlers.find(*msg_type);
+    if (it == message_handlers.end())
+      return;
+
+    std::invoke(it->second, *msg_obj);
+  }
 };
 
 struct WebSocketJsonReadLoop
@@ -216,6 +257,11 @@ void SignalingServer::Start(const std::string& ip_address, u16 port)
   m_server.Start(ip_address, port);
 }
 
+void SignalingServer::ConnectToNetPlayIndex(std::string secret)
+{
+  m_thread = std::jthread(&SignalingServer::IndexThreadFunc, this, std::move(secret));
+}
+
 void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 {
   INFO_LOG_FMT(NETPLAY, "SignalingServer got connection !");
@@ -273,6 +319,64 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   read_loop.Run();
 
   INFO_LOG_FMT(NETPLAY, "SignalingServer leaving handler !");
+}
+
+void SignalingServer::IndexThreadFunc(std::string secret)
+{
+  // TODO: Jank for http -> ws
+  const auto index_url =
+      fmt::format("ws{}", std::string_view{Config::Get(Config::NETPLAY_INDEX_URL).substr(4)});
+
+  const auto path = fmt::format("{}/ws/v0/session/listen?secret={}", index_url, secret);
+  Common::WebSocketClient web_socket{path};
+
+  struct TraversalPeer
+  {
+    std::shared_ptr<NetPlay::ICEPeerConnection> peer;
+  };
+
+  using ClientUID = std::string;
+  std::map<ClientUID, TraversalPeer> m_peers;
+
+  WebSocketJsonReadLoop read_loop{web_socket};
+
+  read_loop.message_handlers["offer"] = [&](const picojson::object& msg_obj) {
+    INFO_LOG_FMT(NETPLAY, "remote traversal offer !!");
+
+    if (const auto remote_sdp = ReadStringFromJson(msg_obj, "sdp"))
+    {
+      // TODO: Add this peer somewhere to be referenced later..
+      auto peer = std::make_shared<ICEPeerConnection>();
+
+      juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
+
+      // TODO: build the string in place.
+      char local_sdp[JUICE_MAX_SDP_STRING_LEN];
+      juice_get_local_description(peer->GetAgent(), local_sdp, JUICE_MAX_SDP_STRING_LEN);
+
+      picojson::object answer_obj;
+      answer_obj.emplace("type", "answer");
+      answer_obj.emplace("sdp", local_sdp);
+      web_socket.Send(Common::AsU8Span(picojson::value(std::move(answer_obj)).serialize()));
+
+      // InstallCanidateExchangeHooks(read_loop, peer);
+
+      peer->GatherCandidates();
+    }
+  };
+
+  // TODO: Instead close the web socket from outside on stop
+  web_socket.SetReadTimeout(std::chrono::milliseconds{500});
+
+  while (!m_thread.get_stop_token().stop_requested())
+  {
+    if (!web_socket.IsOpen())
+    {
+      // TODO: Reconnect after some random time
+      WARN_LOG_FMT(NETPLAY, "IndexThreadFunc: WebSocket closed.");
+      break;
+    }
+  }
 }
 
 }  // namespace NetPlay

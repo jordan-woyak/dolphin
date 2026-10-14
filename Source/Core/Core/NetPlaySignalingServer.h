@@ -4,6 +4,7 @@
 #pragma once
 
 #include <future>
+#include <thread>
 
 #include "Common/WebSocketServer.h"
 #include "Core/NetPlayProto.h"
@@ -42,11 +43,16 @@ public:
 
   void Start(const std::string& ip_address, u16 port);
 
+  void ConnectToNetPlayIndex(std::string secret);
+
 private:
   void Handler(Common::WebSocketRequest&);
 
+  void IndexThreadFunc(std::string secret);
+
   ConnectionCallbackType m_new_peer_connection_callback;
   Common::WebSocketServer m_server;
+  std::jthread m_thread;
 };
 
 }  // namespace NetPlay
