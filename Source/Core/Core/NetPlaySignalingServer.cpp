@@ -100,7 +100,7 @@ struct SignalingClient::Impl
     });
 
     const auto fail_hook = peer->on_state_changed.Register([&](juice_state_t state) {
-      if (state == JUICE_STATE_FAILED || state == JUICE_STATE_DISCONNECTED)
+      if (state == JUICE_STATE_FAILED)
       {
         web_socket.Close();
       }
@@ -200,7 +200,7 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   });
 
   const auto fail_hook = peer->on_state_changed.Register([&](juice_state_t state) {
-    if (state == JUICE_STATE_FAILED || state == JUICE_STATE_DISCONNECTED)
+    if (state == JUICE_STATE_FAILED)
     {
       web_socket.Close();
     }
@@ -235,14 +235,27 @@ void SignalingServer::IndexThreadFunc(std::string secret)
   const auto path = fmt::format("{}/ws/v0/session/listen?secret={}", index_url, secret);
   Common::WebSocketClient web_socket{path};
 
-  // struct TraversalPeer
-  // {
-  //   std::shared_ptr<NetPlay::ICEPeerConnection> peer;
-  //   ICEJsonMessageHandler msg_handler;
-  // };
+  struct TraversalPeer
+  {
+    std::shared_ptr<NetPlay::ICEPeerConnection> peer;
+
+    // TraversalPeer(Common::WebSocket& ws)
+    // {
+    //   const auto sdp_hook = peer->on_sdp_json_message.Register([&](picojson::object obj) {
+    //     ws.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+    //   });
+    // }
+
+    // Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
+    //   // We received the initial message from the client.
+    //   NOTICE_LOG_FMT(NETPLAY, "recv_hook");
+    //   recv_hook.reset();
+    //   m_new_peer_connection_callback(peer, message);
+    // });
+  };
 
   using ClientUID = std::string;
-  std::map<ClientUID, ICEPeerConnection> m_peers;
+  std::map<ClientUID, TraversalPeer> m_peers;
 
   // TODO: Instead close the web socket from outside on stop
   web_socket.SetReadTimeout(std::chrono::milliseconds{500});
@@ -264,7 +277,7 @@ void SignalingServer::IndexThreadFunc(std::string secret)
     if (!src)
       continue;
 
-    m_peers[*src].HandleSDPJsonMessage(*obj);
+    m_peers[*src].peer->HandleSDPJsonMessage(*obj);
   }
 }
 
