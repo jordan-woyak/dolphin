@@ -5,6 +5,8 @@
 
 #include <juice/juice.h>
 
+#include <picojson.h>
+
 #include "Core/NetPlayProto.h"
 
 // TODO: Needs a reliability layer !!
@@ -33,7 +35,9 @@ private:
   }
 
 public:
-  ICEPeerConnection()
+  ICEPeerConnection();
+
+  void DestroyAndRecreateAgent()
   {
     juice_config_t config{};
 
@@ -87,8 +91,12 @@ public:
   // void AddRemoteCandidate(const char* sdp) { juice_add_remote_candidate(m_agent.get(), sdp); }
 
   Common::HookableEvent<juice_state_t> on_state_changed;
-  Common::HookableEvent<const char*> on_candidate;
-  // Common::HookableEvent<> on_gathering_done;
+  // Common::HookableEvent<const char*> on_candidate;
+  Common::HookableEvent<picojson::object> on_sdp_json_message;
+
+  void HandleSDPJsonMessage(const picojson::object& obj);
+
+  void SendDescription();
 
 private:
   void OnStateChanged(juice_state_t state)
@@ -105,7 +113,7 @@ private:
       on_disconnect.Trigger();
   }
 
-  void OnCandidate(const char* candidate) { on_candidate.Trigger(candidate); }
+  void OnCandidate(const char* candidate);
 
   void OnRecv(const char* data, unsigned long size)
   {

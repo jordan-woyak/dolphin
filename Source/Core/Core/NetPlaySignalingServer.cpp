@@ -104,76 +104,57 @@ struct SDPJsonHandlingICEPeerConnection
   Common::MoveOnlyFunction<void()> connect_callback;
   Common::MoveOnlyFunction<void()> recv_callback;
 
-  void SendOffer()
+  SDPJsonHandlingICEPeerConnection()
   {
-    handler.message_handlers["answer"] = [&](const picojson::object& msg_obj) {
-      INFO_LOG_FMT(NETPLAY, "remote answer !!");
+    InstallCanidateExchangeHooks();
 
-      if (const auto sdp = ReadStringFromJson(msg_obj, "sdp"))
-        juice_set_remote_description(peer->GetAgent(), sdp->c_str());
+    handler.message_handlers["description"] = [&](const picojson::object& msg_obj) {
+      INFO_LOG_FMT(NETPLAY, "remote description !!");
+
+      if (const auto remote_sdp = ReadStringFromJson(msg_obj, "sdp"))
+      {
+        // TODO: Semi jank
+        peer->DestroyAndRecreateAgent();
+
+        juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
+
+        SendDescription();
+      }
     };
+  }
 
+  void SendDescription()
+  {
     // TODO: build a std::string in place.
     char sdp[JUICE_MAX_SDP_STRING_LEN];
     juice_get_local_description(peer->GetAgent(), sdp, JUICE_MAX_SDP_STRING_LEN);
 
     picojson::object obj;
-    obj.emplace("type", "offer");
+    obj.emplace("type", "description");
     obj.emplace("sdp", sdp);
     send_callback(std::move(obj));
 
-    InstallCanidateExchangeHooks();
-
-    // TODO: This happens before the answer. Probably fine ?
     peer->GatherCandidates();
   }
 
   void InstallCanidateExchangeHooks()
   {
-    auto hook = peer->on_candidate.Register([&](const char* candidate) {
-      INFO_LOG_FMT(NETPLAY, "local candidate: {}", candidate);
-      picojson::object obj;
-      obj.emplace("type", "candidate");
-      obj.emplace("candidate", candidate);
-      send_callback(std::move(obj));
-    });
+    // auto hook = peer->on_candidate.Register([&](const char* candidate) {
+    //   INFO_LOG_FMT(NETPLAY, "local candidate: {}", candidate);
+    //   picojson::object obj;
+    //   obj.emplace("type", "candidate");
+    //   obj.emplace("candidate", candidate);
+    //   send_callback(std::move(obj));
+    // });
 
-    handler.message_handlers["candidate"] = [hook = std::move(hook),
-                                             this](const picojson::object& msg_obj) {
-      if (const auto candidate = ReadStringFromJson(msg_obj, "candidate"))
-      {
-        INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
-        juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
-      }
-    };
-  }
-
-  SDPJsonHandlingICEPeerConnection()
-  {
-    handler.message_handlers["offer"] = [&](const picojson::object& msg_obj) {
-      INFO_LOG_FMT(NETPLAY, "remote offer !!");
-
-      if (const auto remote_sdp = ReadStringFromJson(msg_obj, "sdp"))
-      {
-        // TODO: This re-creates the peer
-        // peer = std::make_shared<NetPlay::ICEPeerConnection>();
-
-        juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
-
-        // TODO: build the string in place.
-        char local_sdp[JUICE_MAX_SDP_STRING_LEN];
-        juice_get_local_description(peer->GetAgent(), local_sdp, JUICE_MAX_SDP_STRING_LEN);
-
-        picojson::object answer_obj;
-        answer_obj.emplace("type", "answer");
-        answer_obj.emplace("sdp", local_sdp);
-        send_callback(std::move(answer_obj));
-
-        InstallCanidateExchangeHooks();
-
-        peer->GatherCandidates();
-      }
-    };
+    // handler.message_handlers["candidate"] = [hook = std::move(hook),
+    //                                          this](const picojson::object& msg_obj) {
+    //   if (const auto candidate = ReadStringFromJson(msg_obj, "candidate"))
+    //   {
+    //     INFO_LOG_FMT(NETPLAY, "remote candidate: {}", *candidate);
+    //     juice_add_remote_candidate(peer->GetAgent(), candidate->c_str());
+    //   }
+    // };
   }
 };
 
@@ -193,13 +174,13 @@ struct SignalingClient::Impl
     Common::WebSocketClient web_socket{
         fmt::format("ws://{}:{}{}", address, port, SIGNALING_ENDPOINT)};
 
-    SDPJsonHandlingICEPeerConnection sdp_peer;
-    sdp_peer.peer = std::make_shared<NetPlay::ICEPeerConnection>();
-    auto peer = sdp_peer.peer;
+    // SDPJsonHandlingICEPeerConnection sdp_peer;
+    auto peer = std::make_shared<NetPlay::ICEPeerConnection>();
+    // auto peer = sdp_peer.peer;
 
-    sdp_peer.send_callback = [&](picojson::object obj) {
+    const auto sdp_hook = peer->on_sdp_json_message.Register([&](picojson::object obj) {
       web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-    };
+    });
 
     const auto fail_hook = peer->on_state_changed.Register([&](juice_state_t state) {
       if (state == JUICE_STATE_FAILED || state == JUICE_STATE_DISCONNECTED)
@@ -217,10 +198,10 @@ struct SignalingClient::Impl
       }
     });
 
-    sdp_peer.SendOffer();
+    peer->SendDescription();
 
     // TODO: Ensure address is resolved.
-    // TODO: Verify this is correct. It is working, though.
+    // TODO: Is it okay to add this before the remote description ?
     const auto manual_candidate =
         fmt::format("a=candidate:999 1 UDP 2130706431 {} {} typ host", address, port);
     juice_add_remote_candidate(peer->GetAgent(), manual_candidate.c_str());
@@ -233,13 +214,12 @@ struct SignalingClient::Impl
       if (!obj)
         break;
 
-      sdp_peer.handler.HandleMessage(std::move(*obj));
+      peer->HandleSDPJsonMessage(*obj);
     }
 
     INFO_LOG_FMT(NETPLAY, "WS client done");
 
     // TODO: Janky..
-    sdp_peer.peer.reset();
     while (peer && peer.use_count() > 1)
       std::this_thread::sleep_for(std::chrono::milliseconds{100});
 
@@ -287,13 +267,13 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
   // TODO: Disconnect after some seconds
 
-  SDPJsonHandlingICEPeerConnection sdp_peer;
+  // SDPJsonHandlingICEPeerConnection sdp_peer;
   auto peer = std::make_shared<ICEPeerConnection>();
-  sdp_peer.peer = peer;
+  // sdp_peer.peer = peer;
 
-  sdp_peer.send_callback = [&](picojson::object obj) {
+  const auto sdp_hook = peer->on_sdp_json_message.Register([&](picojson::object obj) {
     web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
-  };
+  });
 
   Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
     // We received the initial message from the client.
@@ -323,7 +303,7 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
     if (!obj)
       break;
 
-    sdp_peer.handler.HandleMessage(*obj);
+    peer->HandleSDPJsonMessage(*obj);
   }
 
   INFO_LOG_FMT(NETPLAY, "SignalingServer leaving handler !");
