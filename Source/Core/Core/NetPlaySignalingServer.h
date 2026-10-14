@@ -19,6 +19,7 @@ public:
   SignalingClient();
   ~SignalingClient();
 
+  // TODO: Allow this to work with NetPlay index.
   std::future<std::shared_ptr<NetPlay::PeerConnection>>
   MakePeerConnection(const std::string& address, u16 port);
 
@@ -27,7 +28,7 @@ private:
   std::unique_ptr<Impl> m_impl;
 };
 
-// TODO: Make this also handle direct and outgoing connections
+// TODO: Allow this to use NetPlayIndex to communicate new connections.
 class SignalingServer
 {
 public:

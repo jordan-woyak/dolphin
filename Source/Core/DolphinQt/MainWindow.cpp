@@ -1714,7 +1714,7 @@ bool MainWindow::NetPlayHost(const UICommon::GameFile& game)
   }
 
   // Settings
-  u16 host_port = Config::Get(Config::NETPLAY_HOST_PORT);
+  const u16 host_port = Config::Get(Config::NETPLAY_HOST_PORT);
   const bool use_upnp = Config::Get(Config::NETPLAY_USE_UPNP);
 
   std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);

@@ -508,6 +508,10 @@ add_library(core
   NetPlayServer.h
   NetPlaySignalingServer.cpp
   NetPlaySignalingServer.h
+  # TODO: NetPlay directory
+  ICEPeerConnection.cpp
+  ICEPeerConnection.h
+  #
   NetworkCaptureLogger.cpp
   NetworkCaptureLogger.h
   PatchEngine.cpp

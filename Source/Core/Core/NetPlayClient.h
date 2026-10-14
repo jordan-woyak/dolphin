@@ -237,14 +237,6 @@ protected:
   bool m_is_recording = false;
 
 private:
-  enum class ConnectionState
-  {
-    Connecting,
-    WaitingForHelloResponse,
-    Connected,
-    Failure
-  };
-
   void SendStartGamePacket();
   void SendStopGamePacket();
 
@@ -313,7 +305,6 @@ private:
   void OnGameDigestAbort();
 
   bool m_is_connected = false;
-  ConnectionState m_connection_state = ConnectionState::Failure;
 
   // Must outlive the PeerConnection objects.
   SignalingClient m_signaling_client;
@@ -323,7 +314,6 @@ private:
   std::map<PlayerId, Player> m_players;
   std::string m_host_spec;
   std::string m_player_name;
-  bool m_connecting = false;
   std::thread m_game_digest_thread;
   bool m_should_compute_game_digest = false;
   Common::Event m_gc_pad_event;

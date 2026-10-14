@@ -12,14 +12,10 @@
 #include "Common/BitUtils.h"
 #include "Common/JsonUtil.h"
 #include "Common/Logging/Log.h"
+#include "Core/ICEPeerConnection.h"
 
 namespace
 {
-
-// FYI: juice forbids `juice_destroy` within its own callbacks which is majorly inconvenient.
-// We have a separate cleanup thread to deal with this.
-// TODO: Actually do that.
-using UniqueJuiceAgent = std::unique_ptr<juice_agent_t, Common::InvokerOf<juice_destroy>>;
 
 // TODO: /ws maybe ? or /ice or /traversal
 constexpr auto SIGNALING_ENDPOINT = "/signaling";
@@ -46,108 +42,6 @@ std::optional<picojson::object> ParseJsonObject(const std::string& message)
   obj.emplace(json.get<picojson::object>());
   return obj;
 }
-
-// TODO: Needs a reliability layer !!
-class ICEPeerConnection : public NetPlay::PeerConnection
-{
-private:
-  template <auto MemFunc>
-  static auto WrapCall()
-  {
-    return [](juice_agent_t*, auto... args) {
-      auto* const last_argument = std::get<sizeof...(args) - 1>(std::forward_as_tuple(args...));
-      auto* const user_ptr = static_cast<ICEPeerConnection*>(last_argument);
-      [&]<std::size_t... I>(std::index_sequence<I...>) {
-        std::invoke(MemFunc, user_ptr, std::get<I>(std::forward_as_tuple(args...))...);
-      }(std::make_index_sequence<sizeof...(args) - 1>{});
-    };
-  }
-
-public:
-  ICEPeerConnection()
-  {
-    juice_config_t config{};
-
-    // TODO:
-    // STUN server example
-    // config.stun_server_host = "stun.l.google.com";
-    // config.stun_server_port = 19302;
-
-    // TODO:
-    config.concurrency_mode = JUICE_CONCURRENCY_MODE_POLL;
-
-    // TODO:
-    // config.local_port_range_begin = 60000;
-    // config.local_port_range_end = 61000;
-
-    config.cb_state_changed = WrapCall<&ICEPeerConnection::OnStateChanged>();
-    config.cb_candidate = WrapCall<&ICEPeerConnection::OnCandidate>();
-    config.cb_recv = WrapCall<&ICEPeerConnection::OnRecv>();
-    // config.cb_gathering_done = WrapCall<&ICEPeerConnection::OnGatheringDone>();
-    config.user_ptr = this;
-
-    m_agent.reset(juice_create(&config));
-  }
-
-  void GatherCandidates() { juice_gather_candidates(m_agent.get()); }
-
-  // TODO: Eliminate
-  // Incoming connection attempt.
-  // void HandleOffer(const std::string& remote_sdp)
-  // {
-  //   GatherCandidates();
-
-  //   juice_set_remote_description(m_agent.get(), remote_sdp.c_str());
-  // }
-
-  juice_agent_t* GetAgent() { return m_agent.get(); }
-
-  void Send(std::span<const u8> data, u8 channel_id) override
-  {
-    juice_send(m_agent.get(), reinterpret_cast<const char*>(data.data()), data.size());
-  }
-
-  void Disconnect() override
-  {
-    m_is_connected = false;
-    // TODO: Trigger on_disconnect ?
-  }
-
-  bool IsConnected() const override { return m_is_connected; }
-
-  // void AddRemoteCandidate(const char* sdp) { juice_add_remote_candidate(m_agent.get(), sdp); }
-
-  Common::HookableEvent<juice_state_t> on_state_changed;
-  Common::HookableEvent<const char*> on_candidate;
-  // Common::HookableEvent<> on_gathering_done;
-
-private:
-  void OnStateChanged(juice_state_t state)
-  {
-    INFO_LOG_FMT(NETPLAY, "ICEPeerConnection: OnStateChanged: {}", juice_state_to_string(state));
-
-    const bool is_connected = state == JUICE_STATE_CONNECTED || state == JUICE_STATE_COMPLETED;
-    const bool was_connected = m_is_connected.exchange(is_connected);
-
-    // TODO: Prevent connection after external Disconnect call ?
-    on_state_changed.Trigger(state);
-
-    if (was_connected && !is_connected)
-      on_disconnect.Trigger();
-  }
-
-  void OnCandidate(const char* candidate) { on_candidate.Trigger(candidate); }
-
-  void OnRecv(const char* data, unsigned long size)
-  {
-    on_receive.Trigger(Common::AsU8Span(std::span{data, size}));
-  }
-
-  // void OnGatheringDone() { on_gathering_done.Trigger(); }
-
-  std::atomic_bool m_is_connected = false;
-  UniqueJuiceAgent m_agent;
-};
 
 class IcePeerManager
 {
@@ -199,7 +93,7 @@ struct WebSocketJsonReadLoop
 
 // Allow exchange of candidates in both directions.
 void InstallCanidateExchangeHooks(WebSocketJsonReadLoop& handler,
-                                  std::shared_ptr<ICEPeerConnection> peer)
+                                  std::shared_ptr<NetPlay::ICEPeerConnection> peer)
 {
   auto hook = peer->on_candidate.Register([&](const char* candidate) {
     INFO_LOG_FMT(NETPLAY, "local candidate: {}", candidate);
@@ -333,8 +227,8 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
 
   auto peer = std::make_shared<ICEPeerConnection>();
 
-  // We received the initial message from the client.
   Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
+    // We received the initial message from the client.
     NOTICE_LOG_FMT(NETPLAY, "recv_hook");
     recv_hook.reset();
     m_new_peer_connection_callback(peer, message);

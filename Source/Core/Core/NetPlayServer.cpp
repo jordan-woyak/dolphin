@@ -283,6 +283,7 @@ static void SendSyncIdentifier(sf::Packet& spac, const SyncIdentifier& sync_iden
     spac << x;
 }
 
+// TODO: Invoked from signaling threads..
 ConnectionError NetPlayServer::OnConnect(std::shared_ptr<PeerConnection> incoming_connection,
                                          std::span<const u8> first_message)
 {
