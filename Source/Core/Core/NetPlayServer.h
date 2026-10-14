@@ -74,6 +74,8 @@ public:
   bool is_connected = false;
 
 private:
+  const u16 m_port;
+
   // TODO: Player base is maybe jank
   class Client : public Player
   {

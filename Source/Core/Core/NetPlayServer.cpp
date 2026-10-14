@@ -106,7 +106,7 @@ NetPlayServer::~NetPlayServer()
 // called from ---GUI--- thread
 NetPlayServer::NetPlayServer(const u16 port, const bool forward_port, NetPlayUI* dialog,
                              std::string name)
-    : m_dialog(dialog)
+    : m_port{port}, m_dialog(dialog)
 {
   SetupIndex();
 
@@ -2168,7 +2168,7 @@ void NetPlayServer::SendResponseToAllPlayers(const MessageID message_id, Data&&.
 
 u16 NetPlayServer::GetPort() const
 {
-  return 0;  // m_server.GetPort();
+  return m_port;
 }
 
 // called from ---GUI--- thread

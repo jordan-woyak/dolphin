@@ -1654,19 +1654,6 @@ bool MainWindow::NetPlayJoin()
 
   auto server = Settings::Instance().GetNetPlayServer();
 
-  std::string host_ip;
-  u16 host_port;
-  if (server)
-  {
-    host_ip = "127.0.0.1";
-    host_port = server->GetPort();
-  }
-  else
-  {
-    host_ip = Config::Get(Config::NETPLAY_ADDRESS);
-    host_port = Config::Get(Config::NETPLAY_CONNECT_PORT);
-  }
-
   const std::string nickname = Config::Get(Config::NETPLAY_NICKNAME);
   const std::string network_mode = Config::Get(Config::NETPLAY_NETWORK_MODE);
   const bool host_input_authority = network_mode == "hostinputauthority" || network_mode == "golf";
@@ -1680,6 +1667,9 @@ bool MainWindow::NetPlayJoin()
   }
   else
   {
+    const std::string host_ip = Config::Get(Config::NETPLAY_ADDRESS);
+    const u16 host_port = Config::Get(Config::NETPLAY_CONNECT_PORT);
+
     // Create Client
     Settings::Instance().ResetNetPlayClient(
         std::make_shared<NetPlay::NetPlayClient>(host_ip, host_port, m_netplay_dialog, nickname));
