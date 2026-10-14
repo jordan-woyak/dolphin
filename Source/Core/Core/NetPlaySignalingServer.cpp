@@ -151,12 +151,12 @@ struct SDPJsonHandlingICEPeerConnection
   SDPJsonHandlingICEPeerConnection()
   {
     handler.message_handlers["offer"] = [&](const picojson::object& msg_obj) {
-      INFO_LOG_FMT(NETPLAY, "remote traversal offer !!");
+      INFO_LOG_FMT(NETPLAY, "remote offer !!");
 
       if (const auto remote_sdp = ReadStringFromJson(msg_obj, "sdp"))
       {
         // TODO: This re-creates the peer
-        peer = std::make_shared<NetPlay::ICEPeerConnection>();
+        // peer = std::make_shared<NetPlay::ICEPeerConnection>();
 
         juice_set_remote_description(peer->GetAgent(), remote_sdp->c_str());
 
@@ -185,9 +185,9 @@ namespace NetPlay
 struct SignalingClient::Impl
 {
   std::promise<std::shared_ptr<NetPlay::PeerConnection>> m_peer;
-  std::thread m_thread;
+  std::jthread m_thread;
 
-  void ThreadFunc(std::string address, u16 port)
+  void ThreadFunc(const std::stop_token& stoken, std::string address, u16 port)
   {
     // TODO: Close this socket when trying to join the thread.
     Common::WebSocketClient web_socket{
@@ -227,11 +227,12 @@ struct SignalingClient::Impl
 
     web_socket.SetReadTimeout(std::chrono::milliseconds{5000});
 
-    while (web_socket.IsOpen())
+    while (!stoken.stop_requested() && web_socket.IsOpen())
     {
       auto obj = web_socket.Read().and_then(ParseJsonObject);
       if (!obj)
-        continue;
+        break;
+
       sdp_peer.handler.HandleMessage(std::move(*obj));
     }
 
@@ -260,7 +261,7 @@ SignalingClient::~SignalingClient()
 std::future<std::shared_ptr<NetPlay::PeerConnection>>
 SignalingClient::MakePeerConnection(const std::string& address, u16 port)
 {
-  m_impl->m_thread = std::thread(&Impl::ThreadFunc, m_impl.get(), address, port);
+  m_impl->m_thread = std::jthread(std::bind_front(&Impl::ThreadFunc, m_impl.get()), address, port);
   return m_impl->m_peer.get_future();
 }
 
@@ -273,7 +274,8 @@ void SignalingServer::Start(const std::string& ip_address, u16 port)
 
 void SignalingServer::ConnectToNetPlayIndex(std::string secret)
 {
-  m_thread = std::jthread(&SignalingServer::IndexThreadFunc, this, std::move(secret));
+  m_thread =
+      std::jthread(std::bind_front(&SignalingServer::IndexThreadFunc, this), std::move(secret));
 }
 
 void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
@@ -286,8 +288,12 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   // TODO: Disconnect after some seconds
 
   SDPJsonHandlingICEPeerConnection sdp_peer;
-
   auto peer = std::make_shared<ICEPeerConnection>();
+  sdp_peer.peer = peer;
+
+  sdp_peer.send_callback = [&](picojson::object obj) {
+    web_socket.Send(Common::AsU8Span(picojson::value(std::move(obj)).serialize()));
+  };
 
   Common::EventHook recv_hook = peer->on_receive.Register([&](std::span<const u8> message) {
     // We received the initial message from the client.
@@ -308,7 +314,17 @@ void SignalingServer::Handler(Common::WebSocketRequest& web_socket)
   // TODO: We can close this socket when gathering is complete.
   // TODO: We need to stay in this loop long enough for the recv hook to trigger.
 
-  // WebSocketJsonReadLoop read_loop{web_socket};
+  while (true)
+  {
+    if (!web_socket.IsOpen())
+      break;
+
+    const auto obj = web_socket.Read().and_then(ParseJsonObject);
+    if (!obj)
+      break;
+
+    sdp_peer.handler.HandleMessage(*obj);
+  }
 
   INFO_LOG_FMT(NETPLAY, "SignalingServer leaving handler !");
 }
