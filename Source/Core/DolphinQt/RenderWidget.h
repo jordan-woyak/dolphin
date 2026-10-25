@@ -56,4 +56,5 @@ private:
   bool m_dont_lock_cursor_on_show = false;
   bool m_waiting_for_message_box = false;
   bool m_should_unpause_on_focus = false;
+  QObject* m_cursor_clipper{};
 };

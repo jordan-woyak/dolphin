@@ -29,6 +29,7 @@
 #include "DolphinQt/Config/ConfigControls/ConfigRadio.h"
 #include "DolphinQt/Config/ToolTipControls/ToolTipCheckBox.h"
 #include "DolphinQt/Config/ToolTipControls/ToolTipComboBox.h"
+#include "DolphinQt/QtUtils/ClipCursor.h"
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/QtUtils/SignalBlocking.h"
 #include "DolphinQt/Settings.h"
@@ -222,8 +223,6 @@ void InterfacePane::CreateInGame()
   m_vboxlayout_hide_mouse->addWidget(m_radio_cursor_visible_always);
 
   m_checkbox_lock_mouse = new ConfigBool(tr("Lock Mouse Cursor"), Config::MAIN_LOCK_CURSOR);
-  // this ends up not being managed unless _WIN32, so lets not leak
-  m_checkbox_lock_mouse->setParent(this);
 
   mouse_groupbox->setLayout(m_vboxlayout_hide_mouse);
   groupbox_layout->addWidget(m_checkbox_top_window);
@@ -232,11 +231,10 @@ void InterfacePane::CreateInGame()
   groupbox_layout->addWidget(m_checkbox_show_active_title);
   groupbox_layout->addWidget(m_checkbox_pause_on_focus_lost);
   groupbox_layout->addWidget(mouse_groupbox);
-#ifdef _WIN32
   groupbox_layout->addWidget(m_checkbox_lock_mouse);
-#else
-  m_checkbox_lock_mouse->hide();
-#endif
+
+  if (!QtUtils::IsClipCursorAvailable())
+    m_checkbox_lock_mouse->hide();
 }
 
 void InterfacePane::ConnectLayout()
