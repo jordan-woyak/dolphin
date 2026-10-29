@@ -37,7 +37,6 @@ private:
   void OnHandleChanged(void* handle);
   void OnHideCursorChanged();
   void OnNeverHideCursorChanged();
-  void OnLockCursorChanged();
   void OnKeepOnTopChanged(bool top);
   void UpdateCursor();
   void PassEventToPresenter(const QEvent* event);
@@ -45,7 +44,6 @@ private:
   void dragEnterEvent(QDragEnterEvent* event) override;
   void dropEvent(QDropEvent* event) override;
 
-  static constexpr int MOUSE_HIDE_DELAY = 3000;
   QTimer* m_mouse_timer;
   QPoint m_last_mouse{};
   int m_last_window_width = 0;

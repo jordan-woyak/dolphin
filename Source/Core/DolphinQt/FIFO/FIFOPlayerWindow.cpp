@@ -17,6 +17,7 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 
+#include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/FifoPlayer/FifoDataFile.h"
 #include "Core/FifoPlayer/FifoPlayer.h"

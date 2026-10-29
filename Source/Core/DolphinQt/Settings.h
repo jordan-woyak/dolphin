@@ -12,7 +12,6 @@
 
 #include "Common/Config/Config.h"
 #include "Common/HookableEvent.h"
-#include "Core/Config/MainSettings.h"
 #include "DiscIO/Enums.h"
 
 namespace Core
@@ -131,8 +130,6 @@ public:
   bool GetIsContinuouslyFrameStepping() const;
 
   // Graphics
-  Config::ShowCursor GetCursorVisibility() const;
-  bool GetLockCursor() const;
   void SetKeepWindowOnTop(bool top);
   bool IsKeepWindowOnTopEnabled() const;
   bool GetGraphicModsEnabled() const;
@@ -206,7 +203,6 @@ signals:
   void MetadataRefreshCompleted();
   void AutoRefreshToggled(bool enabled);
   void CursorVisibilityChanged();
-  void LockCursorChanged();
   void KeepWindowOnTopChanged(bool top);
   void NANDRefresh();
   void RegistersVisibilityChanged(bool visible);

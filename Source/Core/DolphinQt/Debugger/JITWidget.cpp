@@ -24,6 +24,7 @@
 
 #include "Common/CommonFuncs.h"
 #include "Common/GekkoDisassembler.h"
+#include "Core/Config/MainSettings.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/JitCommon/JitCache.h"
 #include "Core/PowerPC/JitInterface.h"

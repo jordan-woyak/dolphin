@@ -13,6 +13,7 @@
 #include <optional>
 #include <utility>
 
+#include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/SI/SI_Device.h"

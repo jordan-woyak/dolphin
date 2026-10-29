@@ -259,8 +259,6 @@ void InterfacePane::ConnectLayout()
           &Settings::CursorVisibilityChanged);
   connect(m_radio_cursor_visible_always, &ConfigRadioInt::OnSelected, &Settings::Instance(),
           &Settings::CursorVisibilityChanged);
-  connect(m_checkbox_lock_mouse, &QCheckBox::toggled, &Settings::Instance(),
-          &Settings::LockCursorChanged);
 }
 
 void InterfacePane::UpdateShowDebuggingCheckbox()

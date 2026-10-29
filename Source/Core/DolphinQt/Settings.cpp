@@ -583,16 +583,6 @@ void Settings::SetStateSlot(int slot)
   GetQSettings().setValue(QStringLiteral("Emulation/StateSlot"), slot);
 }
 
-Config::ShowCursor Settings::GetCursorVisibility() const
-{
-  return Config::Get(Config::MAIN_SHOW_CURSOR);
-}
-
-bool Settings::GetLockCursor() const
-{
-  return Config::Get(Config::MAIN_LOCK_CURSOR);
-}
-
 void Settings::SetKeepWindowOnTop(bool top)
 {
   if (IsKeepWindowOnTopEnabled() == top)
