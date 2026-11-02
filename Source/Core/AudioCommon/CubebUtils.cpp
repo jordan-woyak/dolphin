@@ -9,6 +9,7 @@
 
 #include "Common/Logging/Log.h"
 #include "Common/Logging/LogManager.h"
+#include "Common/Projection.h"
 #include "Common/StringUtil.h"
 #include "Core/Config/MainSettings.h"
 
@@ -249,6 +250,39 @@ const void* GetOutputDeviceById(std::string_view id)
 
   cubeb_device_collection_destroy(cubeb_ctx.get(), &collection);
   return device_id;
+}
+
+std::vector<std::string_view> GetBackendNames()
+{
+#if CUBEB_HAS_GET_BACKEND_NAMES
+  const auto names = cubeb_get_backend_names();
+  return {names.names, names.names + names.count};
+#else
+  return {};
+#endif
+}
+
+std::string_view GetCubebBackendDisplayName(std::string_view backend_name)
+{
+  static constexpr std::pair<const char*, const char*> name_map[] = {
+      {"pulse", "PulseAudio"},
+      {"pulse-rust", "PulseAudio (Rust)"},
+      {"jack", "JACK"},
+      {"alsa", "ALSA"},
+      {"audiounit", "AudioUnit"},
+      {"audiounit-rust", "AudioUnit (Rust)"},
+      {"wasapi", "WASAPI"},
+      {"winmm", "WinMM"},
+      {"sun", "Sun"},
+      {"opensl", "OpenSL"},
+      {"oss", "OSS"},
+      {"aaudio", "AAudio"},
+      {"audiotrack", "AudioTrack"},
+      {"kai", "KAI"},
+  };
+
+  const auto it = std::ranges::find(name_map, backend_name, Common::Projection::First{});
+  return (it != std::end(name_map)) ? it->second : backend_name;
 }
 
 CoInitSyncWorker::CoInitSyncWorker([[maybe_unused]] std::string worker_name)
