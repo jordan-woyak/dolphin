@@ -14,19 +14,6 @@ add_library(audiocommon
 )
 
 if(ENABLE_CUBEB)
-  get_target_property(cubeb_includes cubeb::cubeb INTERFACE_INCLUDE_DIRECTORIES)
-  cmake_push_check_state(RESET)
-  list(APPEND CMAKE_REQUIRED_INCLUDES ${cubeb_includes})
-  check_cxx_source_compiles([[
-  #include <cubeb/cubeb.h>
-  int main() { cubeb_get_backend_names; }
-  ]]    CUBEB_HAS_GET_BACKEND_NAMES)
-  cmake_pop_check_state()
-
-  if(CUBEB_HAS_GET_BACKEND_NAMES)
-    target_compile_definitions(audiocommon PRIVATE CUBEB_HAS_GET_BACKEND_NAMES)
-  endif()
-
   message(STATUS "Cubeb found, enabling Cubeb sound backend")
   target_sources(audiocommon PRIVATE
     CubebStream.cpp

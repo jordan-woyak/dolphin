@@ -254,12 +254,16 @@ const void* GetOutputDeviceById(std::string_view id)
 
 std::vector<std::string_view> GetBackendNames()
 {
-#if CUBEB_HAS_GET_BACKEND_NAMES
-  const auto names = cubeb_get_backend_names();
-  return {names.names, names.names + names.count};
-#else
-  return {};
-#endif
+  return [](auto... args) -> std::vector<std::string_view> {
+    if constexpr (requires() { cubeb_get_backend_names(args...); })
+    {
+      const auto names = [&] { return cubeb_get_backend_names(args...); }();
+      return {names.names, names.names + names.count};
+    }
+
+    // The included version of Cubeb lacks the `cubeb_get_backend_names` function.
+    return {};
+  }();
 }
 
 std::string_view GetCubebBackendDisplayName(std::string_view backend_name)
