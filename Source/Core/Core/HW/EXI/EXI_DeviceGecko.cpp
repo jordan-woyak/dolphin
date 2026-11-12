@@ -3,227 +3,141 @@
 
 #include "Core/HW/EXI/EXI_DeviceGecko.h"
 
-#include <array>
-#include <memory>
-#include <mutex>
-#include <queue>
+#include <functional>
+#include <stop_token>
 #include <thread>
-#include <vector>
 
+#include <asio.hpp>
 #include <fmt/format.h>
 
-#include "SFML/Network/TcpListener.hpp"
-#include "SFML/Network/TcpSocket.hpp"
-
+#include "Common/AsioUtil.h"  // IWYU pragma: keep
 #include "Common/CommonTypes.h"
-#include "Common/Flag.h"
 #include "Common/Logging/Log.h"
+#include "Common/SPSCQueue.h"
 #include "Common/Thread.h"
 #include "Core/Core.h"
 
 namespace
 {
+using asio::ip::tcp;
+
 class GeckoSockServer
 {
 public:
-  GeckoSockServer();
-  ~GeckoSockServer();
-  bool GetAvailableSock();
+  // Multiple CEXIGecko objects share one server.
+  static std::shared_ptr<GeckoSockServer> GetInstance()
+  {
+    auto result = s_instance.lock();
+    if (!result)
+    {
+      result = std::shared_ptr<GeckoSockServer>(new GeckoSockServer);
+      s_instance = result;
+    }
+    return result;
+  }
 
-  // Client for this server object
-  std::unique_ptr<sf::TcpSocket> client;
-  // Set before starting the client thread; cleared after it closes the socket.
-  Common::Flag client_connected{false};
-  void ClientThread();
-  std::thread clientThread;
-
-  std::mutex send_lock;
-  std::mutex recv_lock;
-
-  std::deque<u8> send_fifo;
-  std::deque<u8> recv_fifo;
+  std::shared_ptr<tcp::socket> GetAvailableSock();
 
 private:
-  static int client_count;
-  Common::Flag client_running;
+  static std::weak_ptr<GeckoSockServer> s_instance;
 
-  // Only ever one server thread
-  static void GeckoConnectionWaiter();
+  GeckoSockServer() = default;
 
-  static Common::Flag server_running;
-  static std::thread connectionThread;
-  static std::mutex connection_lock;
-  static std::queue<std::unique_ptr<sf::TcpSocket>> waiting_socks;
+  void SocketThreadFunc(std::stop_token stoken);
+
+  Common::SPSCQueue<tcp::socket> m_waiting_socks;
+
+  std::jthread m_thread{std::bind_front(&GeckoSockServer::SocketThreadFunc, this)};
 };
 
-int GeckoSockServer::client_count;
-std::thread GeckoSockServer::connectionThread;
-Common::Flag GeckoSockServer::server_running;
-std::mutex GeckoSockServer::connection_lock;
-std::queue<std::unique_ptr<sf::TcpSocket>> GeckoSockServer::waiting_socks;
+std::weak_ptr<GeckoSockServer> GeckoSockServer::s_instance;
 
-GeckoSockServer::GeckoSockServer() : client_running(false)
+void GeckoSockServer::SocketThreadFunc(std::stop_token stoken)
 {
-  if (!connectionThread.joinable())
-    connectionThread = std::thread(GeckoConnectionWaiter);
-}
+  Common::SetCurrentThreadName("USBGecko IO");
 
-GeckoSockServer::~GeckoSockServer()
-{
-  if (clientThread.joinable())
-  {
-    --client_count;
+  asio::io_context io;
 
-    client_running.Clear();
-    clientThread.join();
-  }
+  tcp::acceptor server{io};
 
-  if (client_count <= 0 && connectionThread.joinable())
-  {
-    server_running.Clear();
-    connectionThread.join();
-  }
-}
-
-void GeckoSockServer::GeckoConnectionWaiter()
-{
-  Common::SetCurrentThreadName("Gecko Connection Waiter");
-
-  sf::TcpListener server;
   constexpr u16 initial_port = 0xd6ec;  // "dolphin gecko"
-  constexpr int port_retries = 10;
-  u16 server_port = initial_port;
-  for (int bind_tries = 0; bind_tries <= port_retries && !server_running.IsSet(); bind_tries++)
+  constexpr u16 port_retries = 10;
+  constexpr u16 last_port = initial_port + port_retries;
+
+  for (u16 server_port = initial_port; server_port <= last_port; ++server_port)
   {
-    server_running.Set(server.listen(server_port) == sf::Socket::Status::Done);
-    if (!server_running.IsSet())
-      server_port++;
+    tcp::acceptor acceptor{io};
+
+    std::error_code ec;
+    if (!acceptor.open(tcp::v4(), ec) &&
+        !acceptor.bind(tcp::endpoint{tcp::v4(), server_port}, ec) &&
+        !acceptor.listen(tcp::socket::max_listen_connections, ec))
+    {
+      Core::DisplayMessage(fmt::format("USBGecko: Listening on TCP port {}", server_port), 5000);
+      server = std::move(acceptor);
+      break;
+    }
+
+    WARN_LOG_FMT(EXPANSIONINTERFACE, "USBGecko: Unable to bind TCP port {}: {}", server_port,
+                 ec.message());
   }
 
-  if (!server_running.IsSet())
+  if (!server.is_open())
   {
-    const std::string message = fmt::format("USBGecko: Failed to bind to any port in range {}-{}",
-                                            initial_port, initial_port + port_retries);
+    const std::string message =
+        fmt::format("USBGecko: Failed to bind to any port in range {}-{}", initial_port, last_port);
     ERROR_LOG_FMT(EXPANSIONINTERFACE, "{}", message);
     Core::DisplayMessage(message, 5000);
     return;
   }
 
-  Core::DisplayMessage(fmt::format("USBGecko: Listening on TCP port {}", server_port), 5000);
-
-  server.setBlocking(false);
-
-  auto new_client = std::make_unique<sf::TcpSocket>();
-  while (server_running.IsSet())
-  {
-    if (server.accept(*new_client) == sf::Socket::Status::Done)
+  const auto enqueue_accepted_sockets =
+      [](tcp::acceptor& acceptor, Common::SPSCQueue<tcp::socket>& queue) -> asio::awaitable<void> {
+    while (true)
     {
-      std::lock_guard lk(connection_lock);
-      waiting_socks.push(std::move(new_client));
-
-      new_client = std::make_unique<sf::TcpSocket>();
+      auto [ec, socket] = co_await acceptor.async_accept(asio::as_tuple);
+      if (ec)
+        break;
+      queue.Emplace(std::move(socket));
     }
+  };
 
-    Common::SleepCurrentThread(1);
-  }
+  asio::co_spawn(io, enqueue_accepted_sockets(server, m_waiting_socks), asio::detached);
+
+  std::stop_callback cb{stoken, [&] { io.stop(); }};
+
+  // Keep the io_context running even if our acceptor tasks were to error out somehow.
+  // Otherwise outside initiated async tasks would never finish.
+  const auto work_guard = asio::make_work_guard(io);
+
+  io.run();
 }
 
-bool GeckoSockServer::GetAvailableSock()
+std::shared_ptr<tcp::socket> GeckoSockServer::GetAvailableSock()
 {
-  bool sock_filled = false;
-
-  std::lock_guard lk(connection_lock);
-
-  if (!waiting_socks.empty())
+  std::shared_ptr<tcp::socket> result;
+  if (!m_waiting_socks.Empty())
   {
-    if (clientThread.joinable())
-    {
-      client_running.Clear();
-      clientThread.join();
-
-      recv_fifo = std::deque<u8>();
-      send_fifo = std::deque<u8>();
-    }
-    client = std::move(waiting_socks.front());
-    client_running.Set();
-    client_connected.Set();
-    clientThread = std::thread(&GeckoSockServer::ClientThread, this);
-    client_count++;
-    waiting_socks.pop();
-    sock_filled = true;
+    result = std::make_shared<tcp::socket>(std::move(m_waiting_socks.Front()));
+    m_waiting_socks.Pop();
   }
-
-  return sock_filled;
+  return result;
 }
 
-void GeckoSockServer::ClientThread()
-{
-  Common::SetCurrentThreadName("Gecko Client");
-
-  client->setBlocking(false);
-
-  while (client_running.IsSet())
-  {
-    bool did_nothing = true;
-
-    {
-      std::lock_guard lk(recv_lock);
-
-      // what's an ideal buffer size?
-      std::array<char, 128> buffer;
-      std::size_t got = 0;
-
-      if (client->receive(buffer.data(), buffer.size(), got) == sf::Socket::Status::Disconnected)
-        client_running.Clear();
-
-      if (got != 0)
-      {
-        did_nothing = false;
-
-        recv_fifo.insert(recv_fifo.end(), buffer.data(), buffer.data() + got);
-      }
-    }  // unlock recv
-
-    {
-      std::lock_guard lk(send_lock);
-
-      if (!send_fifo.empty())
-      {
-        std::size_t sent;
-
-        std::vector<char> packet(send_fifo.begin(), send_fifo.end());
-
-        if (client->send(packet.data(), packet.size(), sent) == sf::Socket::Status::Disconnected)
-          client_running.Clear();
-
-        if (sent)
-        {
-          did_nothing = false;
-
-          send_fifo.erase(send_fifo.begin(), send_fifo.begin() + sent);
-        }
-      }
-    }  // unlock send
-
-    if (did_nothing)
-      Common::YieldCPU();
-  }
-
-  client->disconnect();
-  client_connected.Clear();
-}
-}  // namespace
-
-namespace ExpansionInterface
-{
-class CEXIGecko : public IEXIDevice, private GeckoSockServer
+class CEXIGecko : public ExpansionInterface::IEXIDevice
 {
 public:
   using IEXIDevice::IEXIDevice;
   bool IsPresent() const override { return true; }
   void ImmReadWrite(u32& _uData, u32 _uSize) override;
 
+  ~CEXIGecko();
+
 private:
+  static constexpr auto FIFO_SIZE = 1024uz;
+
+  bool Connect();
+
   enum
   {
     CMD_LED_OFF = 0x7,
@@ -235,19 +149,107 @@ private:
     CMD_CHK_RX = 0xd,
   };
 
-  static const u32 ident = 0x04700000;
+  static constexpr u32 IDENT = 0x04700000;
 
-  // Only accessed by the CPU thread. Refilled from recv_fifo under recv_lock
-  std::deque<u8> m_recv_buffer;
+  std::shared_ptr<Common::SPSCQueue<u8>> m_tx_queue{std::make_shared<Common::SPSCQueue<u8>>()};
+  std::shared_ptr<Common::SPSCQueue<u8>> m_rx_queue{std::make_shared<Common::SPSCQueue<u8>>()};
+
+  std::weak_ptr<tcp::socket> m_socket;
+
+  std::shared_ptr<GeckoSockServer> m_server{GeckoSockServer::GetInstance()};
 };
+
+CEXIGecko::~CEXIGecko()
+{
+  if (auto socket = m_socket.lock())
+  {
+    // If we have an open socket, defer its closure.
+    asio::post(socket->get_executor(), [socket] {
+      std::error_code ec;
+      (void)socket->close(ec);
+    });
+  }
+}
+
+bool CEXIGecko::Connect()
+{
+  if (m_socket.lock())
+    return true;
+
+  const auto socket = m_server->GetAvailableSock();
+  if (!socket)
+    return false;
+
+  m_socket = socket;
+
+  INFO_LOG_FMT(EXPANSIONINTERFACE, "USBGecko: New client connected.");
+
+  const auto send_bytes =
+      [](std::shared_ptr<tcp::socket> socket,
+         std::shared_ptr<Common::SPSCQueue<u8>> tx_queue) -> asio::awaitable<void> {
+    std::array<u8, FIFO_SIZE> buffer{};
+    while (true)
+    {
+      const std::size_t send_count = std::min(buffer.size(), tx_queue->Size());
+      if (send_count == 0)
+      {
+        // TX FIFO is empty. Wait for some data.
+        co_await asio::steady_timer{socket->get_executor(), std::chrono::milliseconds{1}}
+            .async_wait(asio::as_tuple);
+        continue;
+      }
+
+      for (auto i = 0uz; i != send_count; ++i)
+        tx_queue->Pop(buffer[i]);
+
+      auto [ec, count] =
+          co_await socket->async_send(asio::buffer(buffer.data(), send_count), asio::as_tuple);
+      if (ec)
+        break;
+    }
+  };
+
+  const auto receive_bytes =
+      [](std::shared_ptr<tcp::socket> socket,
+         std::shared_ptr<Common::SPSCQueue<u8>> rx_queue) -> asio::awaitable<void> {
+    std::array<u8, FIFO_SIZE> buffer{};
+    while (true)
+    {
+      const std::size_t recv_count = FIFO_SIZE - rx_queue->Size();
+      if (recv_count == 0)
+      {
+        DEBUG_LOG_FMT(EXPANSIONINTERFACE, "USBGecko: RX FIFO full. Sleeping.");
+        co_await asio::steady_timer{socket->get_executor(), std::chrono::milliseconds{1}}
+            .async_wait(asio::as_tuple);
+        continue;
+      }
+
+      auto [ec, count] =
+          co_await socket->async_read_some(asio::buffer(buffer.data(), recv_count), asio::as_tuple);
+      if (ec)
+        break;
+
+      for (u8 b : std::span{buffer}.first(count))
+        rx_queue->Emplace(b);
+    }
+  };
+
+  const auto& io = socket->get_executor();
+
+  // Note: These hold shared_ptr to the socket which they let go out of scope on r/w failure.
+  // We detect disconnection via trying to lock our weak_ptr.
+  asio::co_spawn(io, send_bytes(socket, m_tx_queue), asio::detached);
+  asio::co_spawn(io, receive_bytes(socket, m_rx_queue), asio::detached);
+
+  return true;
+}
 
 void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
 {
   // We don't really care about _uSize
   (void)_uSize;
 
-  if (!client_connected.IsSet())
-    GetAvailableSock();
+  Connect();
 
   switch (_uData >> 28)
   {
@@ -260,23 +262,16 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
     break;
 
   case CMD_INIT:
-    _uData = ident;
+    _uData = IDENT;
     break;
 
   // PC -> Gecko
   // |= 0x08000000 if successful
   case CMD_RECV:
   {
-    if (m_recv_buffer.empty())
-    {
-      std::lock_guard lk(recv_lock);
-      m_recv_buffer.swap(recv_fifo);
-    }
-    if (!m_recv_buffer.empty())
-    {
-      _uData = 0x08000000 | (m_recv_buffer.front() << 16);
-      m_recv_buffer.pop_front();
-    }
+    u8 byte{};
+    if (m_rx_queue->Pop(byte))
+      _uData = 0x08000000 | (byte << 16u);
     break;
   }
 
@@ -284,18 +279,12 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   // |= 0x04000000 if successful
   case CMD_SEND:
   {
-    std::lock_guard lk(send_lock);
-
-    if (send_fifo.size() < 1024)
+    if (m_tx_queue->Size() < FIFO_SIZE)
     {
-      send_fifo.push_back(_uData >> 20);
-      _uData = 0x04000000;
+      const u8 byte = _uData >> 20;
+      m_tx_queue->Emplace(byte);
+      _uData |= 0x04000000;
     }
-    else
-    {
-      _uData = 0;
-    }
-
     break;
   }
 
@@ -303,8 +292,8 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   // |= 0x04000000 if FIFO is not full
   case CMD_CHK_TX:
   {
-    std::lock_guard lk(send_lock);
-    _uData = send_fifo.size() < 1024 ? 0x04000000 : 0;
+    if (m_tx_queue->Size() < FIFO_SIZE)
+      _uData |= 0x04000000;
     break;
   }
 
@@ -312,8 +301,8 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
   // |= 0x04000000 if data in recv FIFO
   case CMD_CHK_RX:
   {
-    std::lock_guard lk(recv_lock);
-    _uData = m_recv_buffer.empty() && recv_fifo.empty() ? 0 : 0x04000000;
+    if (!m_rx_queue->Empty())
+      _uData |= 0x04000000;
     break;
   }
 
@@ -322,7 +311,10 @@ void CEXIGecko::ImmReadWrite(u32& _uData, u32 _uSize)
     break;
   }
 }
+}  // namespace
 
+namespace ExpansionInterface
+{
 std::unique_ptr<IEXIDevice> CreateEXIGecko(Core::System& system)
 {
   return std::make_unique<CEXIGecko>(system);
