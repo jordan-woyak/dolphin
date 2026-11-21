@@ -13,7 +13,6 @@
 #include "Common/BitSet.h"
 #include "Common/Config/Config.h"
 #include "Common/EnumMap.h"
-#include "Common/Event.h"
 #include "Common/Logging/Log.h"
 #include "Common/SPSCQueue.h"
 
@@ -100,7 +99,7 @@ private:
   struct LogEntry
   {
     std::chrono::system_clock::time_point now;
-    LogLevel level;
+    LogLevel level = LogLevel::LDEBUG;
     LogType type;
     const char* file;
     int line;
@@ -108,11 +107,10 @@ private:
   };
 
   std::mutex m_log_queue_mutex;
-  Common::SPSCQueue<LogEntry> m_log_queue;
+  Common::WaitableSPSCQueue<LogEntry> m_log_queue;
 
   void ThreadFunc(std::stop_token stoken);
 
-  Common::Event m_thread_event;
   std::jthread m_thread{std::bind_front(&LogManager::ThreadFunc, this)};
 };
 }  // namespace Common::Log

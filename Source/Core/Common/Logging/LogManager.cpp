@@ -206,36 +206,23 @@ void LogManager::LogWithFullPath(LogLevel level, LogType type, const char* file,
     std::this_thread::sleep_for(std::chrono::milliseconds{1});
   }
 
-  {
-    std::lock_guard lk{m_log_queue_mutex};
-    m_log_queue.Emplace(now, level, type, file, line, std::move(message));
-  }
-
-  m_thread_event.Set();
+  std::lock_guard lk{m_log_queue_mutex};
+  m_log_queue.Emplace(now, level, type, file, line, std::move(message));
 }
 
 void LogManager::ThreadFunc(std::stop_token stoken)
 {
-  std::stop_callback kick{stoken, [this] { m_thread_event.Set(); }};
+  // nullptr shutdown signal.
+  std::stop_callback shutdown{stoken, [this] { m_log_queue.Push({.file = nullptr}); }};
 
   while (true)
   {
-    LogEntry entry;
-    if (!m_log_queue.Pop(entry))
-    {
-      if (stoken.stop_requested())
-      {
-        // Make sure we flush the queue before stopping.
-        if (m_log_queue.Empty())
-          break;
-      }
-      else
-      {
-        m_thread_event.Wait();
-      }
+    m_log_queue.WaitForData();
 
-      continue;
-    }
+    const LogEntry& entry = m_log_queue.Front();
+
+    if (entry.file == nullptr)
+      break;
 
     // NOTE: the Qt LogWidget hardcodes the expected length of the timestamp portion of the log
     // line, so ensure they stay in sync
@@ -254,6 +241,8 @@ void LogManager::ThreadFunc(std::stop_token stoken)
       if (m_listeners[listener_id])
         m_listeners[listener_id]->Log(entry.level, msg.c_str());
     }
+
+    m_log_queue.Pop();
   }
 }
 
