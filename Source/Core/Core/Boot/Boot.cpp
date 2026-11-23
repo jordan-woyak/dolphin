@@ -25,6 +25,7 @@
 #include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
+#include "Common/SCSIDevice.h"
 #include "Common/StringUtil.h"
 
 #include "Core/AchievementManager.h"
@@ -56,6 +57,7 @@
 
 #include "DiscIO/Enums.h"
 #include "DiscIO/GameModDescriptor.h"
+#include "DiscIO/OpticalDiscBlob.h"
 #include "DiscIO/RiivolutionParser.h"
 #include "DiscIO/RiivolutionPatcher.h"
 #include "DiscIO/VolumeDisc.h"
@@ -186,20 +188,26 @@ BootParameters::BootParameters(Parameters&& parameters_, BootSessionData boot_se
 {
 }
 
-std::unique_ptr<BootParameters> BootParameters::GenerateFromFile(std::string boot_path,
-                                                                 BootSessionData boot_session_data_)
+std::unique_ptr<BootParameters>
+BootParameters::GenerateFromFile(std::string boot_path, BootSessionData boot_session_data_,
+                                 const std::function<bool()>& is_cancelled)
 {
   return GenerateFromFile(std::vector<std::string>{std::move(boot_path)},
-                          std::move(boot_session_data_));
+                          std::move(boot_session_data_), is_cancelled);
 }
 
-std::unique_ptr<BootParameters> BootParameters::GenerateFromFile(std::vector<std::string> paths,
-                                                                 BootSessionData boot_session_data_)
+std::unique_ptr<BootParameters>
+BootParameters::GenerateFromFile(std::vector<std::string> paths, BootSessionData boot_session_data_,
+                                 const std::function<bool()>& is_cancelled)
 {
   ASSERT(!paths.empty());
 
   for (std::string& path : paths)
     UnifyPathSeparators(path);
+
+  // Optical drives have no file to check and no extension to match
+  if (Common::SCSIDevice::IsOpticalDrive(paths.front()))
+    return GenerateFromOpticalDrive(paths.front(), std::move(boot_session_data_), is_cancelled);
 
   // Check if the file exist, we may have gotten it from a --elf command line
   // that gave an incorrect file name
@@ -285,10 +293,13 @@ std::unique_ptr<BootParameters> BootParameters::GenerateFromFile(std::vector<std
     auto descriptor = DiscIO::ParseGameModDescriptorFile(path);
     if (descriptor)
     {
-      auto boot_params = GenerateFromFile(descriptor->base_file, std::move(boot_session_data_));
+      auto boot_params =
+          GenerateFromFile(descriptor->base_file, std::move(boot_session_data_), is_cancelled);
       if (!boot_params)
       {
-        PanicAlertFmtT("Could not recognize file {0}", descriptor->base_file);
+        // An optical drive has already reported why its disc could not be opened, or was cancelled
+        if (!GetOpticalDrive(descriptor->base_file))
+          PanicAlertFmtT("Could not recognize file {0}", descriptor->base_file);
         return nullptr;
       }
 
@@ -307,6 +318,62 @@ std::unique_ptr<BootParameters> BootParameters::GenerateFromFile(std::vector<std
 
   PanicAlertFmtT("Could not recognize file {0}", path);
   return {};
+}
+
+// Opens the disc in an optical drive and alerts on any failure.
+// is_cancelled is polled while the drive spins up.
+std::unique_ptr<BootParameters>
+BootParameters::GenerateFromOpticalDrive(std::string drive, BootSessionData boot_session_data_,
+                                         const std::function<bool()>& is_cancelled)
+{
+  DiscIO::OpticalDiscError error = DiscIO::OpticalDiscError::None;
+  std::unique_ptr<DiscIO::VolumeDisc> disc =
+      DiscIO::CreateOpticalDiscForCore(drive, &error, is_cancelled);
+  if (!disc)
+  {
+    const std::string message = DiscIO::GetOpticalDiscErrorMessage(error, drive);
+    if (!message.empty())
+    {
+      ERROR_LOG_FMT(BOOT, "{}", message);
+
+      // A failure that follows a cancel is not reported: reads cannot be cancelled, so the disc may
+      // still fail to open after the user has given up on it
+      if (!is_cancelled || !is_cancelled())
+        PanicAlertFmt("{}", message);
+    }
+    return {};
+  }
+
+  return std::make_unique<BootParameters>(Disc{std::move(drive), std::move(disc), {}},
+                                          std::move(boot_session_data_));
+}
+
+std::optional<std::string> BootParameters::GetOpticalDrive(std::string path)
+{
+  UnifyPathSeparators(path);
+  if (Common::SCSIDevice::IsOpticalDrive(path))
+    return path;
+
+  // A game mod descriptor boots its base file, which may be an optical drive
+  std::string extension;
+  SplitPath(path, nullptr, nullptr, &extension);
+  Common::ToLower(&extension);
+  if (extension != ".json")
+    return std::nullopt;
+
+  const std::optional<DiscIO::GameModDescriptor> descriptor =
+      DiscIO::ParseGameModDescriptorFile(path);
+  if (!descriptor)
+    return std::nullopt;
+  return GetOpticalDrive(descriptor->base_file);
+}
+
+bool BootParameters::InsertsDefaultDisc() const
+{
+  // Must match the boots that call SetDefaultDisc in CBoot::BootUp
+  return std::holds_alternative<Executable>(parameters) ||
+         std::holds_alternative<DiscIO::VolumeWAD>(parameters) ||
+         std::holds_alternative<NANDTitle>(parameters);
 }
 
 BootParameters::IPL::IPL(DiscIO::Region region_) : region(region_)
@@ -480,11 +547,18 @@ bool CBoot::Load_BS2(Core::System& system, const std::string& boot_rom_filename)
   return true;
 }
 
-static void SetDefaultDisc(DVD::DVDInterface& dvd_interface)
+// Inserts the default ISO. default_disc holds it if it was opened before the boot
+static void SetDefaultDisc(DVD::DVDInterface& dvd_interface,
+                           std::optional<std::unique_ptr<DiscIO::VolumeDisc>> default_disc)
 {
   const std::string default_iso = Config::Get(Config::MAIN_DEFAULT_ISO);
-  if (!default_iso.empty())
-    SetDisc(dvd_interface, DiscIO::CreateDiscForCore(default_iso));
+  if (default_iso.empty())
+    return;
+
+  std::unique_ptr<DiscIO::VolumeDisc> disc =
+      default_disc ? std::move(*default_disc) : DiscIO::CreateDiscForCore(default_iso);
+  if (SetDisc(dvd_interface, std::move(disc)) != nullptr)
+    dvd_interface.SetInsertedDiscPath(default_iso);
 }
 
 static void CopyDefaultExceptionHandlers(Core::System& system)
@@ -519,9 +593,10 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
   struct BootTitle
   {
     BootTitle(Core::System& system_, const Core::CPUThreadGuard& guard_,
-              const std::vector<DiscIO::Riivolution::Patch>& patches)
+              const std::vector<DiscIO::Riivolution::Patch>& patches,
+              std::optional<std::unique_ptr<DiscIO::VolumeDisc>>& default_disc_)
         : system(system_), guard(guard_), config(SConfig::GetInstance()),
-          riivolution_patches(patches)
+          riivolution_patches(patches), default_disc(default_disc_)
     {
     }
     bool operator()(BootParameters::Disc& disc) const
@@ -529,6 +604,7 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
       NOTICE_LOG_FMT(BOOT, "Booting from disc: {}", disc.path);
       const DiscIO::VolumeDisc* volume =
           SetDisc(system.GetDVDInterface(), std::move(disc.volume), disc.auto_disc_change_paths);
+      system.GetDVDInterface().SetInsertedDiscPath(disc.path);
       AchievementManager::GetInstance().LoadGame(volume);
 
       if (!volume)
@@ -548,7 +624,7 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
       if (!executable.reader->IsValid())
         return false;
 
-      SetDefaultDisc(system.GetDVDInterface());
+      SetDefaultDisc(system.GetDVDInterface(), std::move(default_disc));
 
       auto& ppc_state = system.GetPPCState();
 
@@ -611,7 +687,7 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
 
     bool operator()(const DiscIO::VolumeWAD& wad) const
     {
-      SetDefaultDisc(system.GetDVDInterface());
+      SetDefaultDisc(system.GetDVDInterface(), std::move(default_disc));
       if (!Boot_WiiWAD(system, wad))
         return false;
 
@@ -623,7 +699,7 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
 
     bool operator()(const BootParameters::NANDTitle& nand_title) const
     {
-      SetDefaultDisc(system.GetDVDInterface());
+      SetDefaultDisc(system.GetDVDInterface(), std::move(default_disc));
       if (!BootNANDTitle(system, nand_title.id))
         return false;
 
@@ -633,7 +709,7 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
       return true;
     }
 
-    bool operator()(const BootParameters::IPL& ipl) const
+    bool operator()(BootParameters::IPL& ipl) const
     {
       NOTICE_LOG_FMT(BOOT, "Booting GC IPL: {}", ipl.path);
       if (!File::Exists(ipl.path))
@@ -653,8 +729,15 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
       {
         NOTICE_LOG_FMT(BOOT, "Inserting disc: {}", ipl.disc->path);
 
-        volume = SetDisc(system.GetDVDInterface(), DiscIO::CreateDiscForCore(ipl.disc->path),
-                         ipl.disc->auto_disc_change_paths);
+        // A disc from an optical drive is already open, and opening it again would repeat the
+        // drive's identification and reads
+        std::unique_ptr<DiscIO::VolumeDisc> disc =
+            ipl.disc->volume && Common::SCSIDevice::IsOpticalDrive(ipl.disc->path) ?
+                std::move(ipl.disc->volume) :
+                DiscIO::CreateDiscForCore(ipl.disc->path);
+        volume =
+            SetDisc(system.GetDVDInterface(), std::move(disc), ipl.disc->auto_disc_change_paths);
+        system.GetDVDInterface().SetInsertedDiscPath(ipl.disc->path);
       }
 
       AchievementManager::GetInstance().LoadGame(volume);
@@ -675,9 +758,11 @@ bool CBoot::BootUp(Core::System& system, const Core::CPUThreadGuard& guard,
     const Core::CPUThreadGuard& guard;
     const SConfig& config;
     const std::vector<DiscIO::Riivolution::Patch>& riivolution_patches;
+    std::optional<std::unique_ptr<DiscIO::VolumeDisc>>& default_disc;
   };
 
-  if (!std::visit(BootTitle(system, guard, boot->riivolution_patches), boot->parameters))
+  if (!std::visit(BootTitle(system, guard, boot->riivolution_patches, boot->default_disc),
+                  boot->parameters))
     return false;
 
   DiscIO::Riivolution::ApplyGeneralMemoryPatches(guard, boot->riivolution_patches);

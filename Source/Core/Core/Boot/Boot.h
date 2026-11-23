@@ -139,18 +139,36 @@ struct BootParameters
     std::string dff_path;
   };
 
+  // is_cancelled is polled while an optical drive the boot reads from spins up
   static std::unique_ptr<BootParameters>
-  GenerateFromFile(std::string boot_path, BootSessionData boot_session_data_ = BootSessionData());
+  GenerateFromFile(std::string boot_path, BootSessionData boot_session_data_ = BootSessionData(),
+                   const std::function<bool()>& is_cancelled = {});
   static std::unique_ptr<BootParameters>
   GenerateFromFile(std::vector<std::string> paths,
-                   BootSessionData boot_session_data_ = BootSessionData());
+                   BootSessionData boot_session_data_ = BootSessionData(),
+                   const std::function<bool()>& is_cancelled = {});
+  static std::unique_ptr<BootParameters>
+  GenerateFromOpticalDrive(std::string drive,
+                           BootSessionData boot_session_data_ = BootSessionData(),
+                           const std::function<bool()>& is_cancelled = {});
+
+  // Returns the optical drive that GenerateFromFile reads the disc from for path: path itself, or
+  // the base file of a game mod descriptor
+  static std::optional<std::string> GetOpticalDrive(std::string path);
 
   using Parameters = std::variant<Disc, Executable, DiscIO::VolumeWAD, NANDTitle, IPL, DFF>;
   BootParameters(Parameters&& parameters_, BootSessionData boot_session_data_ = BootSessionData());
 
+  // Returns true for the boots that insert the default ISO: executables, WADs and NAND titles
+  bool InsertsDefaultDisc() const;
+
   Parameters parameters;
   std::vector<DiscIO::Riivolution::Patch> riivolution_patches;
   BootSessionData boot_session_data;
+
+  // The default ISO, opened before the boot, or a null pointer if it could not be opened. Only used
+  // by the boots InsertsDefaultDisc names; std::nullopt makes them open it themselves
+  std::optional<std::unique_ptr<DiscIO::VolumeDisc>> default_disc;
 };
 
 class CBoot
