@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <vector>
 
@@ -45,9 +45,8 @@ public:
   // Waits while the drive spins up (is_cancelled is polled meanwhile), queries the firmware,
   // picks the read path and finds the image size from the disc header. On failure, error
   // receives the reason
-  static std::unique_ptr<OpticalDiscReader> Create(const std::string& drive,
-                                                   OpticalDiscError* error = nullptr,
-                                                   const std::function<bool()>& is_cancelled = {});
+  static std::unique_ptr<OpticalDiscReader>
+  Create(const std::string& drive, OpticalDiscError* error = nullptr, std::stop_token stoken = {});
 
   BlobType GetBlobType() const override { return BlobType::DRIVE; }
   bool ReadsFromOpticalDrive() const override { return true; }
@@ -101,17 +100,17 @@ private:
 // always ignored, as filling the cache from the optical drive while the game is accessing the disc
 // causes constant seeking, significantly slowing down the loading speeds to the point it's
 // unusable. On failure, error receives the reason
-std::unique_ptr<VolumeDisc>
-CreateOpticalDiscForCore(const std::string& drive, OpticalDiscError* error,
-                         const std::function<bool()>& is_cancelled = {});
+std::unique_ptr<VolumeDisc> CreateOpticalDiscForCore(const std::string& drive,
+                                                     OpticalDiscError* error,
+                                                     std::stop_token stoken = {});
 
 // Translated text for a panic alert. Empty for None and Cancelled
 std::string GetOpticalDiscErrorMessage(OpticalDiscError error, const std::string& drive);
 
 // Polls the drive while it reports that it is becoming ready (spinning up), until the timeout
 // passes or the caller cancels. Returns the last status, or std::nullopt if cancelled
-std::optional<Common::OpticalDriveStatus>
-WaitWhileBecomingReady(const std::string& drive, const std::function<bool()>& is_cancelled = {});
+std::optional<Common::OpticalDriveStatus> WaitWhileBecomingReady(const std::string& drive,
+                                                                 std::stop_token stoken = {});
 
 // Waits while the drive spins up (is_cancelled is polled meanwhile), then queries its firmware:
 // firmware receives the OmniDrive version, or std::nullopt for stock firmware. Returns false if

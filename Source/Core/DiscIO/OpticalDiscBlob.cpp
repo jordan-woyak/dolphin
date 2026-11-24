@@ -79,8 +79,8 @@ constexpr u32 KEY_ZERO_LBA_LIMIT = 16;
 // Size assumed while the disc header is read to find the real size (comes from DiscUtils.h)
 constexpr u64 PROBE_SIZE = DL_DVD_R_SIZE;
 
-std::optional<Common::OpticalDriveStatus>
-WaitWhileBecomingReady(const std::string& drive, const std::function<bool()>& is_cancelled)
+std::optional<Common::OpticalDriveStatus> WaitWhileBecomingReady(const std::string& drive,
+                                                                 std::stop_token stoken)
 {
   const std::shared_ptr<Common::OpticalDrive> optical_drive = Common::OpticalDrive::Acquire(drive);
   const std::chrono::steady_clock::time_point deadline =
@@ -88,7 +88,7 @@ WaitWhileBecomingReady(const std::string& drive, const std::function<bool()>& is
   while (true)
   {
     // Opening the drive can take as long as its disc takes to spin up; cancelling ends the wait
-    if (!optical_drive->WaitForOpen(is_cancelled) && is_cancelled && is_cancelled())
+    if (!optical_drive->WaitForOpen(stoken) && stoken.stop_requested())
       return std::nullopt;
 
     const Common::OpticalDriveStatus status = optical_drive->QueryStatus();
@@ -98,7 +98,7 @@ WaitWhileBecomingReady(const std::string& drive, const std::function<bool()>& is
       return status;
     }
 
-    if (is_cancelled && is_cancelled())
+    if (stoken.stop_requested())
       return std::nullopt;
 
     std::this_thread::sleep_for(DRIVE_READY_POLL_INTERVAL);
@@ -323,8 +323,7 @@ OpticalDiscReader::OpticalDiscReader(std::string drive_path,
 OpticalDiscReader::~OpticalDiscReader() = default;
 
 std::unique_ptr<OpticalDiscReader>
-OpticalDiscReader::Create(const std::string& drive, OpticalDiscError* error,
-                          const std::function<bool()>& is_cancelled)
+OpticalDiscReader::Create(const std::string& drive, OpticalDiscError* error, std::stop_token stoken)
 {
   const auto fail = [error](OpticalDiscError reason) -> std::unique_ptr<OpticalDiscReader> {
     if (error != nullptr)
@@ -336,8 +335,7 @@ OpticalDiscReader::Create(const std::string& drive, OpticalDiscError* error,
   // and opened again when nothing else holds it
   const std::shared_ptr<Common::OpticalDrive> optical_drive = Common::OpticalDrive::Acquire(drive);
 
-  const std::optional<Common::OpticalDriveStatus> status =
-      WaitWhileBecomingReady(drive, is_cancelled);
+  const std::optional<Common::OpticalDriveStatus> status = WaitWhileBecomingReady(drive, stoken);
   if (!status)
     return fail(OpticalDiscError::Cancelled);
 
@@ -358,9 +356,9 @@ OpticalDiscReader::Create(const std::string& drive, OpticalDiscError* error,
     return fail(OpticalDiscError::NotReady);
   }
 
-  if (!optical_drive->WaitForOpen(is_cancelled))
+  if (!optical_drive->WaitForOpen(stoken))
   {
-    if (is_cancelled && is_cancelled())
+    if (stoken.stop_requested())
       return fail(OpticalDiscError::Cancelled);
     return fail(OpticalDiscError::OpenFailed);
   }
@@ -591,11 +589,10 @@ void OpticalDiscReader::NoteReadCommand(u32 last_lba)
     m_spin_keeper->NoteReadCommand(last_lba, m_disc_key.has_value());
 }
 
-std::unique_ptr<VolumeDisc> CreateOpticalDiscForCore(const std::string& drive,
-                                                     OpticalDiscError* error,
-                                                     const std::function<bool()>& is_cancelled)
+std::unique_ptr<VolumeDisc>
+CreateOpticalDiscForCore(const std::string& drive, OpticalDiscError* error, std::stop_token stoken)
 {
-  std::unique_ptr<OpticalDiscReader> reader = OpticalDiscReader::Create(drive, error, is_cancelled);
+  std::unique_ptr<OpticalDiscReader> reader = OpticalDiscReader::Create(drive, error, stoken);
   if (!reader)
     return nullptr;
 
@@ -645,18 +642,17 @@ std::string GetOpticalDiscErrorMessage(OpticalDiscError error, const std::string
 
 bool QueryOpticalDriveFirmware(const std::string& drive,
                                std::optional<OmniDrive::FirmwareVersion>* firmware,
-                               const std::function<bool()>& is_cancelled)
+                               std::stop_token stoken)
 {
   // Held from here on, so the drive stays open between the wait and the query
   const std::shared_ptr<Common::OpticalDrive> optical_drive = Common::OpticalDrive::Acquire(drive);
 
   // Drives cannot answer the firmware query command while they are becoming ready
-  const std::optional<Common::OpticalDriveStatus> status =
-      WaitWhileBecomingReady(drive, is_cancelled);
+  const std::optional<Common::OpticalDriveStatus> status = WaitWhileBecomingReady(drive, stoken);
   if (!status || *status == Common::OpticalDriveStatus::BecomingReady)
     return false;
 
-  return optical_drive->WaitForOpen(is_cancelled) &&
+  return optical_drive->WaitForOpen(stoken) &&
          OmniDrive::QueryFirmwareVersion(*optical_drive, firmware);
 }
 

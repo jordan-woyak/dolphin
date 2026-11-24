@@ -5,11 +5,11 @@
 
 #include <chrono>
 #include <condition_variable>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <span>
+#include <stop_token>
 #include <string>
 
 #include "Common/CommonTypes.h"
@@ -57,9 +57,8 @@ public:
   // The canonical path of the drive (see SCSIDevice::GetCanonicalPath)
   const std::string& GetPath() const;
 
-  // Waits until the drive is open, opening it on a thread of its own if it is not, and polls
-  // is_cancelled meanwhile
-  bool WaitForOpen(const std::function<bool()>& is_cancelled = {});
+  // Waits until the drive is open, opening it on a thread of its own if it is not.
+  bool WaitForOpen(std::stop_token stoken = {});
 
   // Wrapper for calling SCSIDevice::SendCommand once the drive is open and the command in flight,
   // if any, is done. The handle is closed when a command cannot be delivered by the OS, so the next

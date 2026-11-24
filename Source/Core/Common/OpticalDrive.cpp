@@ -85,7 +85,7 @@ const std::string& OpticalDrive::GetPath() const
   return m_path;
 }
 
-bool OpticalDrive::WaitForOpen(const std::function<bool()>& is_cancelled)
+bool OpticalDrive::WaitForOpen(std::stop_token stoken)
 {
   std::unique_lock lock(m_open_mutex);
   if (m_open)
@@ -103,7 +103,7 @@ bool OpticalDrive::WaitForOpen(const std::function<bool()>& is_cancelled)
 
   while (m_opening)
   {
-    if (is_cancelled && is_cancelled())
+    if (stoken.stop_requested())
       return false;
     m_open_finished.wait_for(lock, OPEN_CANCEL_CHECK_INTERVAL);
   }

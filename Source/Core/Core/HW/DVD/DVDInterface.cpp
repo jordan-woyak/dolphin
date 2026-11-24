@@ -8,6 +8,7 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <thread>
 #include <vector>
@@ -371,7 +372,6 @@ void DVDInterface::Shutdown()
   // the rest of the core shuts down
   m_optical_disc_open_cancelled->Set();
   StopWatchingOpticalDrive();
-  m_optical_disc_opener.reset();
   m_opened_optical_disc.reset();
   m_optical_disc_open_finished = false;
   m_opening_optical_disc = false;
@@ -723,59 +723,58 @@ void DVDInterface::OpenOpticalDiscAsync(const std::string& drive)
 void DVDInterface::WatchOpticalDriveForReinsert()
 {
   StopWatchingOpticalDrive();
-  const auto stopped = std::make_shared<Common::Flag>();
-  m_optical_drive_watch_stopped = stopped;
 
-  if (!m_optical_disc_opener)
-    m_optical_disc_opener = std::make_unique<Common::AsyncWorkThreadSP>("Optical Disc Opener");
-
-  m_optical_disc_opener->Push([this, drive = m_inserted_optical_drive,
-                               device = m_inserted_optical_drive_device, stopped] {
-    // A disc counts only after the drive has stopped being ready at least once (tray opened, disc
-    // pulled). Otherwise the ejected disc would be reinserted before the tray opened. A ready disc
-    // that cannot be opened is retried only after the drive's status changes
-    bool seen_not_ready = false;
-    bool tried_ready_disc = false;
-    while (!stopped->IsSet())
-    {
-      const std::optional<Common::OpticalDriveStatus> status = device->GetLastStatus();
-      if (status && *status != Common::OpticalDriveStatus::Ready)
-      {
-        seen_not_ready = true;
-        tried_ready_disc = false;
-      }
-      else if (status && seen_not_ready && !tried_ready_disc)
-      {
-        tried_ready_disc = true;
-        std::unique_ptr<DiscIO::VolumeDisc> disc = DiscIO::CreateOpticalDiscForCore(
-            drive, nullptr, [&stopped] { return stopped->IsSet(); });
-        if (disc)
+  m_optical_disc_opener =
+      std::jthread{[this, drive = m_inserted_optical_drive,
+                    device = m_inserted_optical_drive_device](std::stop_token stoken) {
+        // A disc counts only after the drive has stopped being ready at least once (tray opened,
+        // disc pulled). Otherwise the ejected disc would be reinserted before the tray opened. A
+        // ready disc that cannot be opened is retried only after the drive's status changes
+        bool seen_not_ready = false;
+        bool tried_ready_disc = false;
+        while (!stoken.stop_requested())
         {
+          const std::optional<Common::OpticalDriveStatus> status = device->GetLastStatus();
+          if (status && *status != Common::OpticalDriveStatus::Ready)
           {
-            // StopWatchingOpticalDrive takes the same lock. If it gets the lock first, the disc is
-            // dropped here; otherwise it drops the disc this thread just handed over. A disc left
-            // behind by a stopped watch would keep its drive spinning
-            std::lock_guard lock(m_opened_optical_disc_mutex);
-            if (stopped->IsSet())
+            seen_not_ready = true;
+            tried_ready_disc = false;
+          }
+          else if (status && seen_not_ready && !tried_ready_disc)
+          {
+            tried_ready_disc = true;
+            std::unique_ptr<DiscIO::VolumeDisc> disc =
+                DiscIO::CreateOpticalDiscForCore(drive, nullptr, stoken);
+            if (disc)
+            {
+              {
+                // StopWatchingOpticalDrive takes the same lock. If it gets the lock first, the disc
+                // is dropped here; otherwise it drops the disc this thread just handed over. A disc
+                // left behind by a stopped watch would keep its drive spinning
+                std::lock_guard lock(m_opened_optical_disc_mutex);
+                if (stoken.stop_requested())
+                  return;
+                m_reinserted_optical_disc = std::move(disc);
+              }
+
+              NOTICE_LOG_FMT(DVDINTERFACE, "Reinserting the disc in {}", drive);
+              m_system.GetCoreTiming().ScheduleEvent(0, m_insert_disc,
+                                                     INSERT_REINSERTED_OPTICAL_DISC,
+                                                     CoreTiming::FromThread::NON_CPU);
               return;
-            m_reinserted_optical_disc = std::move(disc);
+            }
           }
 
-          NOTICE_LOG_FMT(DVDINTERFACE, "Reinserting the disc in {}", drive);
-          m_system.GetCoreTiming().ScheduleEvent(0, m_insert_disc, INSERT_REINSERTED_OPTICAL_DISC,
-                                                 CoreTiming::FromThread::NON_CPU);
-          return;
+          for (auto waited = std::chrono::milliseconds::zero();
+               waited < OPTICAL_DISC_REINSERT_POLL_INTERVAL && !stoken.stop_requested();
+               waited += OPTICAL_DISC_REINSERT_STOP_CHECK_INTERVAL)
+          {
+            // If you wanted to be fancy a stop_token interruptable sleep is possible with
+            // condition_variable_any.
+            std::this_thread::sleep_for(OPTICAL_DISC_REINSERT_STOP_CHECK_INTERVAL);
+          }
         }
-      }
-
-      for (auto waited = std::chrono::milliseconds::zero();
-           waited < OPTICAL_DISC_REINSERT_POLL_INTERVAL && !stopped->IsSet();
-           waited += OPTICAL_DISC_REINSERT_STOP_CHECK_INTERVAL)
-      {
-        std::this_thread::sleep_for(OPTICAL_DISC_REINSERT_STOP_CHECK_INTERVAL);
-      }
-    }
-  });
+      }};
 }
 
 void DVDInterface::WatchOpticalDriveForRemoval()
@@ -815,9 +814,8 @@ void DVDInterface::StopWatchingOpticalDrive()
   // A disc the reinsert watch has found, but that was not inserted yet, goes with the watch
   std::unique_ptr<DiscIO::VolumeDisc> found_disc;
   {
+    m_optical_disc_opener = {};  // This request's a stop of the thread and joins it.
     std::lock_guard lock(m_opened_optical_disc_mutex);
-    if (m_optical_drive_watch_stopped)
-      m_optical_drive_watch_stopped->Set();
     found_disc = std::move(m_reinserted_optical_disc);
   }
 }

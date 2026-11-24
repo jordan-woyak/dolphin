@@ -10,6 +10,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "Common/BitField.h"
@@ -17,7 +18,6 @@
 #include "Common/Flag.h"
 #include "Common/OpticalDrive.h"
 #include "Common/SCSIDevice.h"
-#include "Common/WorkQueueThread.h"
 
 #include "Core/HW/StreamADPCM.h"
 
@@ -349,7 +349,7 @@ private:
 
   // A disc in an optical drive is opened on a worker thread, which may wait for a spin-up, and is
   // only inserted once it can be read (refer to InsertDiscCallback)
-  std::unique_ptr<Common::AsyncWorkThreadSP> m_optical_disc_opener;
+  std::jthread m_optical_disc_opener;
 
   // Set to abandon the opening in flight. Each opening gets its own, so cancelling one never
   // affects a later one
@@ -366,9 +366,6 @@ private:
 
   std::shared_ptr<Common::OpticalDrive> m_inserted_optical_drive_device;
   Common::OpticalDrive::StatusPolling m_inserted_optical_drive_polling;
-
-  // Set to stop the current watch for a disc to reinsert
-  std::shared_ptr<Common::Flag> m_optical_drive_watch_stopped;
 
   // A disc found by the watch, waiting for InsertDiscCallback. Guarded by
   // m_opened_optical_disc_mutex
